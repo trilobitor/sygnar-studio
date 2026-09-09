@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { db } from '@/server/db/client'
 import { assets, briefs, jobs, orders } from '@/server/db/schema'
 import { enqueue, getJob } from './store'
-import { cancelJob, registerRunner, tick } from './worker'
+import { cancelJob, poczekajNaZatrzymanie, registerRunner, tick } from './worker'
 import { randomUUID } from 'node:crypto'
 
 /**
@@ -114,5 +114,39 @@ describe('worker: błąd runnera', () => {
     void tick()
 
     expect(await poczekajNaStatus(job.id, ['done', 'failed', 'cancelled'])).toBe('done')
+  })
+})
+
+describe('worker: kasowanie zlecenia w trakcie zadania', () => {
+  it('czekanie kończy się, gdy zadanie faktycznie stanie', async () => {
+    // Samo `cancelJob` tylko sygnalizuje przerwanie — proces kończy się
+    // chwilę później. Bez tego czekania kasowanie zlecenia usuwało katalog
+    // spod działającego procesu.
+    let skonczone = false
+
+    registerRunner('image_export', async (_job, ctx) => {
+      for (let i = 0; i < 40; i += 1) {
+        if (ctx.signal.aborted) break
+        await new Promise((r) => setTimeout(r, 10))
+      }
+      skonczone = true
+    })
+
+    const job = enqueue({ orderId: zlecenie(), kind: 'image_export', params: {} })
+
+    void tick()
+    await new Promise((r) => setTimeout(r, 40))
+
+    cancelJob(job.id)
+    await poczekajNaZatrzymanie([job.id])
+
+    expect(skonczone).toBe(true)
+  })
+
+  it('czekanie na nieznane zadanie wraca od razu', async () => {
+    const start = Date.now()
+    await poczekajNaZatrzymanie([randomUUID()])
+
+    expect(Date.now() - start).toBeLessThan(200)
   })
 })

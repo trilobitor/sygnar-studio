@@ -4,7 +4,7 @@ import { renameOrderSchema } from '@/lib/schemas'
 import { handleError } from '@/server/api/respond'
 import { ensureStarted } from '@/server/bootstrap'
 import { listJobsForOrder } from '@/server/queue/store'
-import { cancelJob } from '@/server/queue/worker'
+import { cancelJob, poczekajNaZatrzymanie } from '@/server/queue/worker'
 import { deleteOrder, getOrder, latestBrief, listAssets, renameOrder } from '@/server/services/orders'
 
 export const dynamic = 'force-dynamic'
@@ -61,12 +61,20 @@ export async function DELETE(
 
     // Zadanie w toku pisze do katalogu, który za chwilę zniknie —
     // najpierw je zatrzymujemy, dopiero potem kasujemy.
+    //
+    // Samo `cancelJob` tylko sygnalizuje przerwanie: proces mfluxa albo
+    // ffmpega kończy się chwilę później i potrafi dopisać plik do katalogu
+    // już usuniętego. Dlatego czekamy, aż faktycznie staną.
+    const zatrzymywane: string[] = []
+
     for (const job of listJobsForOrder(id, 50)) {
       if (job.status === 'queued' || job.status === 'running') {
         cancelJob(job.id)
+        zatrzymywane.push(job.id)
       }
     }
 
+    await poczekajNaZatrzymanie(zatrzymywane)
     await deleteOrder(id)
 
     return NextResponse.json({ deleted: true })

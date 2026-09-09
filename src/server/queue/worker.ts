@@ -59,6 +59,30 @@ const runners: Map<JobKind, JobRunner> = globalForWorker.studioRunners ?? new Ma
 globalForWorker.studioRunners = runners
 
 const aborts: Map<string, AbortController> = globalForWorker.studioAborts ?? new Map()
+
+/**
+ * Obietnice biegnących zadań, żeby dało się na nie **poczekać**.
+ *
+ * Samo `cancelJob` tylko sygnalizuje przerwanie — proces mfluxa albo ffmpega
+ * kończy się chwilę później. Kasowanie zlecenia zaraz po anulowaniu usuwało
+ * katalog spod działającego procesu; ten dopisywał do niego plik już po
+ * usunięciu i zostawiał osierocone drzewo.
+ */
+const biegnace = new Map<string, Promise<void>>()
+
+/** Czeka, aż zadania tego zlecenia faktycznie się zatrzymają. */
+export async function poczekajNaZatrzymanie(jobIds: readonly string[], msMax = 10_000): Promise<void> {
+  const obietnice = jobIds.map((id) => biegnace.get(id)).filter((p) => p !== undefined)
+
+  if (obietnice.length === 0) return
+
+  // Limit czasu, żeby zawieszony proces nie blokował kasowania na zawsze —
+  // lepiej zostawić katalog do sprzątnięcia niż zablokować panel.
+  await Promise.race([
+    Promise.allSettled(obietnice),
+    new Promise((r) => setTimeout(r, msMax)),
+  ])
+}
 globalForWorker.studioAborts = aborts
 
 export function registerRunner(kind: JobKind, runner: JobRunner): void {
@@ -199,6 +223,7 @@ async function runJob(job: Job): Promise<void> {
     clearTimeout(timeout)
     releaseWakeLock()
     aborts.delete(job.id)
+    biegnace.delete(job.id)
 
     // Montaż i eksport zapisują wynik poza katalogiem roboczym, więc zostaje
     // po nich pusty folder na każde zadanie. `rmdir` sam odmówi, gdy coś
@@ -220,7 +245,10 @@ export async function tick(): Promise<void> {
     for (const job of listQueued()) {
       if (!hasFreeSlot(job.kind)) continue
       // Świadomie bez `await` — zadanie ma biec w tle, a pętla ma iść dalej.
-      void runJob(job)
+      // Obietnicę zapamiętujemy, żeby kasowanie zlecenia mogło na nią zaczekać.
+      const obietnica = runJob(job)
+      biegnace.set(job.id, obietnica)
+      void obietnica
     }
   } finally {
     globalForWorker.studioTicking = false

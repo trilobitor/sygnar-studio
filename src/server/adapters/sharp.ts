@@ -80,7 +80,7 @@ function encode(
  */
 export async function exportToWeight(
   request: ExportRequest,
-  ctx?: Pick<JobContext, 'onProgress' | 'logger'>,
+  ctx?: Pick<JobContext, 'onProgress' | 'logger' | 'signal'>,
 ): Promise<ExportOutcome> {
   const source = sharpLib(request.sourcePath).resize(request.width, request.height, {
     fit: 'cover',
@@ -95,6 +95,14 @@ export async function exportToWeight(
   let iterations = 0
 
   while (iterations < MAX_QUALITY_ITERATIONS && low <= high) {
+    // Każde podejście to pełne przekodowanie obrazu, więc anulowanie ma
+    // przerwać pętlę, a nie czekać na jej koniec. Typ kontekstu wprost
+    // wykluczał `signal`, przez co adapter łamał kontrakt z SPEC §6:
+    // zadanie anulowane w połowie eksportu mieliło dalej.
+    if (ctx?.signal?.aborted === true) {
+      throw new JobError('JOB_CANCELLED', 'zadanie anulowane w trakcie eksportu')
+    }
+
     iterations += 1
     const quality = Math.floor((low + high) / 2)
     const buffer = await encode(source, request.format, quality)
