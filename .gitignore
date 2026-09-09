@@ -10,3 +10,4 @@ playwright-report/
 
 # Artefakt inkrementalnej kompilacji TypeScriptu.
 tsconfig.tsbuildinfo
+tailnet.png
