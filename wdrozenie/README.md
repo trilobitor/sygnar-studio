@@ -196,6 +196,7 @@ więc powrót do wersji sprzed zmiany schematu wymaga odtworzenia bazy z kopii
 ```
 npm run typecheck && npm run lint && npx vitest run
 E2E_VIDEO_FIXTURE="$(pwd)/e2e/materialy/klip.mp4" npx playwright test
+npm run test:coverage         # pokrycie z progami
 ```
 
 E2E biegnie na osobnym katalogu `.e2e-dane` i porcie 3100 — nigdy nie dotyka

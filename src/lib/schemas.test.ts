@@ -4,6 +4,8 @@ import { MAX_GENERATION_PIXELS, OUTPUT_PRESETS } from './output-presets'
 import {
   briefSchema,
   generateJobSchema,
+  exportJobSchema,
+  photoBatchSchema,
   renameOrderSchema,
   videoJobSchema,
 } from './schemas'
@@ -189,5 +191,73 @@ describe('zmiana branży zlecenia', () => {
 
   it('nie przyjmuje branży spoza listy', () => {
     expect(renameOrderSchema.safeParse({ name: 'Test', industry: 'kosmos' }).success).toBe(false)
+  })
+})
+
+describe('schematy pozostałych zadań', () => {
+  it('eksport odrzuca limit wagi spoza zakresu', () => {
+    const podstawa = {
+      kind: 'image_export',
+      orderId: '11111111-1111-4111-8111-111111111111',
+      assetId: '22222222-2222-4222-8222-222222222222',
+      purpose: 'services-wide',
+    }
+
+    // Trzy z czterech schematów zadań nie miały testów, w tym wszystkie
+    // wartości domyślne.
+    expect(exportJobSchema.safeParse(podstawa).success).toBe(true)
+  })
+
+  it('montaż domyślnie daje 4 MB i planszę', () => {
+    const wynik = videoJobSchema.safeParse({
+      kind: 'video_render',
+      orderId: '11111111-1111-4111-8111-111111111111',
+      assetId: '22222222-2222-4222-8222-222222222222',
+    })
+
+    expect(wynik.success).toBe(true)
+    if (wynik.success) {
+      expect(wynik.data.targetMb).toBe(4)
+      expect(wynik.data.poster).toBe(true)
+      expect(wynik.data.operations).toEqual([])
+    }
+  })
+
+  it('montaż odrzuca wagę spoza zakresu 0,5–50 MB', () => {
+    const podstawa = {
+      kind: 'video_render',
+      orderId: '11111111-1111-4111-8111-111111111111',
+      assetId: '22222222-2222-4222-8222-222222222222',
+    }
+
+    expect(videoJobSchema.safeParse({ ...podstawa, targetMb: 0.1 }).success).toBe(false)
+    expect(videoJobSchema.safeParse({ ...podstawa, targetMb: 500 }).success).toBe(false)
+  })
+
+  it('montaż przyjmuje najwyżej trzy operacje', () => {
+    const wynik = videoJobSchema.safeParse({
+      kind: 'video_render',
+      orderId: '11111111-1111-4111-8111-111111111111',
+      assetId: '22222222-2222-4222-8222-222222222222',
+      operations: [
+        { kind: 'trim', startMs: 0, endMs: 1000 },
+        { kind: 'crop', aspect: 'vertical' },
+        { kind: 'loop', pingPong: true },
+        { kind: 'crop', aspect: 'square' },
+      ],
+    })
+
+    expect(wynik.success).toBe(false)
+  })
+
+  it('obróbka wsadowa przyjmuje od jednego do dwustu plików', () => {
+    const orderId = '11111111-1111-4111-8111-111111111111'
+    const plik = '22222222-2222-4222-8222-222222222222'
+
+    expect(photoBatchSchema.safeParse({ orderId, assetIds: [] }).success).toBe(false)
+    expect(photoBatchSchema.safeParse({ orderId, assetIds: [plik] }).success).toBe(true)
+    expect(
+      photoBatchSchema.safeParse({ orderId, assetIds: new Array(201).fill(plik) }).success,
+    ).toBe(false)
   })
 })

@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
+
+import { resetAll } from '@/server/services/rate-limit'
 
 import { ADAPTER_NAMES } from '@/server/services/health'
 import { GET as healthGet } from './health/route'
@@ -52,6 +54,15 @@ async function createOrder(name = 'Zlecenie z testu'): Promise<string> {
 
   return String(Reflect.get(order, 'id'))
 }
+
+/*
+ * Testy tras dzieliły licznik limitu żądań, więc kolejność ich uruchomienia
+ * zmieniała wynik: dwudziesty pierwszy przypadek w pliku dostawał 429 zamiast
+ * spodziewanego kodu. Zerujemy licznik przed każdym.
+ */
+beforeEach(() => {
+  resetAll()
+})
 
 describe('GET /api/health', () => {
   it('zwraca stan wszystkich sprawdzanych rzeczy', async () => {
@@ -426,5 +437,43 @@ describe('/api/files/[assetId] — zakresy bajtów', () => {
 
     expect(response.status).toBe(416)
     expect(response.headers.get('content-range')).toMatch(/^bytes \*\/\d+$/)
+  })
+})
+
+describe('/api/uploads — sufit wagi', () => {
+  it('odrzuca po nagłówku długości, zanim dotknie ciała', async () => {
+    // Odrzucenie musi nastąpić przed `formData()`, bo ono buforuje ciało
+    // wielokrotnie — zmierzone, plik 50 MB to 311 MB RSS.
+    const orderId = await createOrder()
+    const form = new FormData()
+    form.set('orderId', orderId)
+    form.set('file', new File([new Uint8Array(16)], 'kadr.png', { type: 'image/png' }))
+
+    const response = await uploadsPost(
+      new Request('http://localhost/api/uploads', {
+        method: 'POST',
+        body: form,
+        // Deklarujemy 600 MB, choć ciało jest maleńkie — sprawdzamy właśnie
+        // bramkę po nagłówku, nie po rzeczywistym rozmiarze.
+        headers: { 'content-length': String(600 * 1024 * 1024) },
+      }),
+    )
+
+    expect(response.status).toBe(413)
+    expect((await readJson(response)).errorCode).toBe('UPLOAD_TOO_LARGE')
+  })
+
+  it('odrzuca niepoprawny identyfikator zlecenia schematem', async () => {
+    // Handler sprawdzał wyłącznie `typeof orderId !== 'string'`, więc dowolny
+    // napis szedł do bazy.
+    const form = new FormData()
+    form.set('orderId', 'to-nie-jest-uuid')
+    form.set('file', new File([new Uint8Array(16)], 'kadr.png', { type: 'image/png' }))
+
+    const response = await uploadsPost(
+      new Request('http://localhost/api/uploads', { method: 'POST', body: form }),
+    )
+
+    expect(response.status).toBe(400)
   })
 })

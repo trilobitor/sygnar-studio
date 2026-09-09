@@ -14,7 +14,8 @@
     "db:migrate": "node src/server/db/migrate.mts",
     "haslo": "node scripts/haslo.mts",
     "dostep": "node src/server/db/dostep.mts",
-    "kopia": "node scripts/kopia.mts"
+    "kopia": "node scripts/kopia.mts",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",
@@ -33,6 +34,7 @@
     "@types/node": "^26.5.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitest/coverage-v8": "^5.0.0",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.3.4",

@@ -122,9 +122,18 @@ export function parseStepProgress(chunk: string): { step: number; total: number 
   return { step, total }
 }
 
-/** Rozpoznaje wyczerpanie pamięci w tekście błędu, żeby dać właściwy kod. */
+/**
+ * Rozpoznaje wyczerpanie pamięci w tekście błędu, żeby dać właściwy kod.
+ *
+ * Doszły dwa wzorce, których wcześniej nie było, a które na tej maszynie są
+ * najczęstsze: `MemoryError` z Pythona i `Killed: 9` — tak wygląda ubicie
+ * procesu przez system przy braku pamięci, bez żadnego komunikatu od MLX.
+ * Bez nich oba te przypadki dostawały kod od zupełnie innej awarii.
+ */
 export function looksLikeOutOfMemory(text: string): boolean {
-  return /out of memory|insufficient memory|cannot allocate|metal.*allocat/i.test(text)
+  return /out of memory|insufficient memory|cannot allocate|metal.*allocat|memoryerror|killed:?\s*9\b/i.test(
+    text,
+  )
 }
 
 /**
