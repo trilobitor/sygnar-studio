@@ -1395,3 +1395,52 @@ błędu nie zawiera ukośnika — a `fail()` buduje ciało wyłącznie z kodu b�
 więc przechodziły niezależnie od implementacji. Zastąpione sprawdzeniem, że
 wyjątek niosący ścieżkę na dysku nie przecieka do odpowiedzi; kontrola
 negatywna potwierdza, że nowe testy upadają, gdy implementacja przecieka.
+
+---
+
+## D70 — Flagi oszczędzania pamięci w mfluxie nic nie dają; limit powierzchni zostaje
+
+**Data:** 2026-09-09 · **Status:** zamknięta pomiarem
+
+**Decyzja.** `--low-ram`, `--mlx-cache-limit-gb` i `--vae-tiling` **nie**
+wchodzą do wywołania generatora. `MAX_GENERATION_PIXELS` zostaje na
+2 100 000 px, a wybór wariantu z D6 pozostaje w mocy.
+
+**Powód.** Zmierzone, nie założone. Pięć przebiegów tym samym opisem i tym
+samym numerem losowania (424242), po 4 kroki, na tej maszynie:
+
+| wariant | czas | szczyt pamięci MLX |
+|---|---|---|
+| 2,08 Mpx, bez dodatkowych flag | 56 s | 27,81 GB |
+| 2,08 Mpx `--low-ram` | 55 s | **27,81 GB** |
+| 2,08 Mpx `--mlx-cache-limit-gb 16` | 57 s | **27,81 GB** |
+| 3,24 Mpx `--low-ram` | 97 s | 38,81 GB |
+| 3,24 Mpx `--low-ram --vae-tiling` | 96 s | **38,81 GB** |
+
+Szczyt jest identyczny co do dwóch miejsc po przecinku niezależnie od flag.
+Czas też się nie zmienia. Żadna z tych flag nie dotyka miejsca, w którym
+pamięć naprawdę rośnie — a `--vae-tiling`, która celuje wprost w dekodowanie
+VAE, nie rusza szczytu ani o gigabajt, co znaczy, że szczyt siedzi
+w transformerze, nie w dekoderze.
+
+**Skąd wiadomo, ile naprawdę zajmuje.** Mflux sam wypisuje `Peak MLX memory`
+na końcu przebiegu. Zewnętrzne mierzenie procesu jest tu bezużyteczne:
+`ps -o rss` pokazywał 3,89 GB, a `footprint` około 9,7 GB, bo żadne z nich
+nie widzi pamięci ujednoliconej MLX w całości. Miara z E0 (27,81 GB) pochodzi
+właśnie z tego raportu i zgadza się co do setnej po roku od pomiaru.
+
+**3,24 Mpx da się policzyć — i nadal nie chcemy.** Przebieg kończy się
+poprawnie w 97 s, ale szczyt 38,81 GB przekracza fizyczne 32 GB maszyny
+o blisko siedem gigabajtów. Znaczy to zamianę na dysk przy każdym takim
+kadrze. Działa, dopóki nic innego nie zajmuje pamięci — a montaż wideo
+z filtrem `reverse` potrafi wziąć 1,99 GB na dwadzieścia sekund materiału.
+Skalowanie z 2,08 Mpx w sharpie kosztuje setki megabajtów i daje ten sam
+wymiar wyjściowy.
+
+**`--battery-percentage-stop-limit` zostawiamy na domyślnej.** Mflux przerywa
+generowanie przy 5% baterii i jest to sensowna wartość; wpisanie własnej nic
+by nie poprawiło, a dodałoby parametr do utrzymania.
+
+**Czego to nie rozstrzyga.** Pomiar dotyczy tej jednej maszyny i tej wersji
+mfluxa (0.19.1). Po aktualizacji generatora warto go powtórzyć — komenda
+i wariant są opisane wyżej, więc powtórzenie zajmuje pięć minut.
