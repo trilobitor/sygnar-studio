@@ -74,6 +74,13 @@ function broadcast(): void {
  * Anulowanie zadania. Zadanie czekające gaśnie od razu, biegnące dostaje
  * sygnał przez `AbortController` przekazany do adaptera.
  */
+/**
+ * Anuluje zadanie. Zwraca `true`, gdy było co anulować.
+ *
+ * Wcześniej zwracała `true` **zawsze**, także dla identyfikatora, którego nie
+ * ma w bazie — czyli wartość nie niosła żadnej informacji. Trasa `DELETE` tego
+ * nie zauważyła, bo sprawdza istnienie zadania wcześniej, ale kontrakt kłamał.
+ */
 export function cancelJob(id: string): boolean {
   const controller = aborts.get(id)
 
@@ -82,9 +89,11 @@ export function cancelJob(id: string): boolean {
     return true
   }
 
-  markCancelled(id)
-  broadcast()
-  return true
+  // Zadanie czeka w kolejce albo nie istnieje — `markCancelled` mówi które.
+  const zmienione = markCancelled(id)
+  if (zmienione) broadcast()
+
+  return zmienione
 }
 
 function hasFreeSlot(kind: JobKind): boolean {

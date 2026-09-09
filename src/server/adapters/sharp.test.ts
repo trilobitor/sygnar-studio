@@ -74,7 +74,7 @@ describe('eksport do limitu wagi', () => {
     expect(outcome.iterations).toBeLessThanOrEqual(MAX_QUALITY_ITERATIONS)
   })
 
-  it('wybiera najwyższą jakość mieszczącą się w limicie', async () => {
+  it('luźniejszy limit nie daje niższej jakości niż ciaśniejszy', async () => {
     const luzny = await exportToWeight({
       sourcePath,
       format: 'webp',
@@ -90,8 +90,38 @@ describe('eksport do limitu wagi', () => {
       maxBytes: 60 * 1024,
     })
 
-    // Luźniejszy limit musi dać jakość nie niższą niż ciaśniejszy.
     expect(luzny.quality ?? 0).toBeGreaterThanOrEqual(ciasny.quality ?? 0)
+  })
+
+  it('wybrana jakość jest najwyższa możliwa, a nie byle jaka mieszcząca się', async () => {
+    /*
+     * Poprzednia wersja tego testu sprawdzała wyłącznie, że luźniejszy limit
+     * daje jakość nie niższą niż ciaśniejszy. Implementacja zwracająca
+     * **zawsze** najniższą jakość przechodziła go bez mrugnięcia, bo 30 ≥ 30.
+     *
+     * Prawdziwe kryterium jest inne: o jeden stopień wyżej ma się już nie
+     * mieścić. Dopiero to znaczy „najwyższa mieszcząca się".
+     */
+    const maxBytes = 120 * 1024
+
+    const wynik = await exportToWeight({
+      sourcePath,
+      format: 'webp',
+      width: 1200,
+      height: 900,
+      maxBytes,
+    })
+
+    expect(wynik.buffer.byteLength).toBeLessThanOrEqual(maxBytes)
+    expect(wynik.quality).not.toBeUndefined()
+
+    const oStopienWyzej = await sharpLib(sourcePath)
+      .resize(1200, 900, { fit: 'cover' })
+      .webp({ quality: (wynik.quality ?? 0) + 1 })
+      .toBuffer()
+
+    // Gdyby się mieściło, wyszukiwanie zatrzymało się za wcześnie.
+    expect(oStopienWyzej.byteLength).toBeGreaterThan(maxBytes)
   })
 
   it('skaluje do wymiaru docelowego', async () => {

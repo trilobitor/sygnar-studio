@@ -349,3 +349,82 @@ describe('/api/uploads', () => {
     expect(String(Reflect.get(asset, 'path'))).toContain('.png')
   })
 })
+
+/**
+ * Trasy dopisane po audycie (ustalenia #23, #46, #52). Każda z nich robi coś,
+ * czego typecheck nie sprawdza: serwuje bajty z dysku, przyjmuje ciało
+ * żądania albo zwraca strumień zdarzeń.
+ */
+describe('/api/zyje', () => {
+  it('odpowiada bez zalogowania i nie zdradza niczego o maszynie', async () => {
+    const { GET } = await import('./zyje/route')
+    const response = GET()
+    const body = (await response.json()) as Record<string, unknown>
+
+    expect(response.status).toBe(200)
+    // Cała odpowiedź to jedno pole. Wersje narzędzi i wolne miejsce zostają
+    // w `/api/health`, który stoi za bramką.
+    expect(Object.keys(body)).toEqual(['ok'])
+    expect(JSON.stringify(body)).not.toMatch(/\d+\.\d+\.\d+/)
+  })
+})
+
+describe('/api/files/[assetId] — zakresy bajtów', () => {
+  async function przygotujPlik(): Promise<string> {
+    const orderId = await createOrder()
+    const form = new FormData()
+    form.set('orderId', orderId)
+    // Najmniejszy poprawny PNG: sygnatura wystarcza `detectType`.
+    const png = new Uint8Array([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, ...new Array<number>(2048).fill(0x42),
+    ])
+    form.set('file', new File([png], 'kadr.png', { type: 'image/png' }))
+
+    const response = await uploadsPost(
+      new Request('http://localhost/api/uploads', { method: 'POST', body: form }),
+    )
+    const body = (await readJson(response)) as { asset?: { id: string } }
+    const id = body.asset?.id
+
+    // Bez tej asercji nieudane wgranie dawało puste `id`, testy poniżej
+    // wychodziły przez `return` i przechodziły **nic nie sprawdzając**.
+    // Dokładnie ta pułapka zdarzyła się już raz w tym projekcie.
+    expect(id, 'przygotowanie pliku do testu nie powiodło się').toBeTruthy()
+    return id ?? ''
+  }
+
+  it('bez nagłówka Range oddaje całość i ogłasza obsługę zakresów', async () => {
+    const assetId = await przygotujPlik()
+
+    const response = await fileGet(new Request('http://localhost'), params({ assetId }))
+
+    expect(response.status).toBe(200)
+    // Bez tego nagłówka przeglądarka wyłącza przewijanie podglądu wideo.
+    expect(response.headers.get('accept-ranges')).toBe('bytes')
+  })
+
+  it('z nagłówkiem Range oddaje fragment i mówi który', async () => {
+    const assetId = await przygotujPlik()
+
+    const response = await fileGet(
+      new Request('http://localhost', { headers: { range: 'bytes=0-99' } }),
+      params({ assetId }),
+    )
+
+    expect(response.status).toBe(206)
+    expect(response.headers.get('content-range')).toMatch(/^bytes 0-99\/\d+$/)
+    expect(response.headers.get('content-length')).toBe('100')
+  })
+
+  it('zakres poza plikiem to 416, nie pusty sukces', async () => {
+    const assetId = await przygotujPlik()
+
+    const response = await fileGet(
+      new Request('http://localhost', { headers: { range: 'bytes=999999999-' } }),
+      params({ assetId }),
+    )
+
+    expect(response.status).toBe(416)
+    expect(response.headers.get('content-range')).toMatch(/^bytes \*\/\d+$/)
+  })
+})

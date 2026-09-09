@@ -117,8 +117,10 @@ export function markFailed(id: string, errorCode: JobErrorCode): void {
     .run()
 }
 
-export function markCancelled(id: string): void {
-  db.update(jobs)
+/** Zwraca `true`, gdy któryś wiersz faktycznie zmienił stan. */
+export function markCancelled(id: string): boolean {
+  const wynik = db
+    .update(jobs)
     .set({
       status: 'cancelled',
       errorCode: 'JOB_CANCELLED',
@@ -127,6 +129,8 @@ export function markCancelled(id: string): void {
     })
     .where(eq(jobs.id, id))
     .run()
+
+  return wynik.changes > 0
 }
 
 /**
