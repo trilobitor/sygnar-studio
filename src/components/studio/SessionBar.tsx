@@ -6,8 +6,11 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { formatCountdown, IDLE_WARNING_SECONDS } from '@/lib/countdown'
 
 /**
- * Pasek sesji w prawym górnym rogu: odliczanie do wylogowania i przycisk
- * wylogowania ręcznego.
+ * Odliczanie do wylogowania i przycisk wylogowania ręcznego.
+ *
+ * Renderuje się **w linii z paskiem etapów**, nie we własnym wierszu —
+ * osobny pasek zabierałby pionowe miejsce podglądowi kadru, a to jest
+ * najcenniejsza przestrzeń na tym ekranie.
  *
  * Liczy się **bezczynność**, nie czas od zalogowania. Każdy ruch myszą,
  * klawisz albo dotyk odnawia pełną pulę — inaczej licznik gasiłby sesję
@@ -84,9 +87,9 @@ export function SessionBar({ timeoutSeconds }: { timeoutSeconds: number }) {
   const urgent = remaining <= IDLE_WARNING_SECONDS
 
   return (
-    <div className="flex items-center gap-3 border-b border-line bg-surface-1 px-4 py-1.5 text-xs">
+    <div className="flex shrink-0 items-center gap-2 text-xs">
       <span
-        className={`ml-auto tabular-nums ${urgent ? 'text-danger' : 'text-ink-muted'}`}
+        className={`tabular-nums ${urgent ? 'text-danger' : 'text-ink-muted'}`}
         // Czytnik ekranu ma ogłaszać dopiero końcówkę, nie każdą sekundę.
         aria-live={urgent ? 'polite' : 'off'}
       >

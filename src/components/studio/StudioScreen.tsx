@@ -205,7 +205,6 @@ export function StudioScreen({
 
   return (
     <div className="flex h-screen flex-col bg-surface-0">
-      {autoLogoutSeconds > 0 && <SessionBar timeoutSeconds={autoLogoutSeconds} />}
       <HealthBanner onReadyChange={setReady} />
 
       <div className="flex min-h-0 flex-1">
@@ -323,18 +322,24 @@ export function StudioScreen({
         </aside>
 
         <main className="flex min-w-0 flex-1 flex-col gap-3 p-4">
-          <ol className="flex gap-2 text-xs text-ink-muted" aria-label="Etapy pracy">
-            {STAGES.map((stage, index) => (
-              <li
-                key={stage}
-                className={index <= stageIndex ? 'text-accent' : undefined}
-                aria-current={index === stageIndex}
-              >
-                {stage}
-                {index < STAGES.length - 1 && <span className="ml-2 text-line">→</span>}
-              </li>
-            ))}
-          </ol>
+          {/* Etapy po lewej, sesja po prawej — jeden wiersz, żeby nie zabierać
+              pionowego miejsca podglądowi kadru. */}
+          <div className="flex items-center justify-between gap-4">
+            <ol className="flex gap-2 text-xs text-ink-muted" aria-label="Etapy pracy">
+              {STAGES.map((stage, index) => (
+                <li
+                  key={stage}
+                  className={index <= stageIndex ? 'text-accent' : undefined}
+                  aria-current={index === stageIndex}
+                >
+                  {stage}
+                  {index < STAGES.length - 1 && <span className="ml-2 text-line">→</span>}
+                </li>
+              ))}
+            </ol>
+
+            {autoLogoutSeconds > 0 && <SessionBar timeoutSeconds={autoLogoutSeconds} />}
+          </div>
 
           {problem !== null && (
             <p role="alert" className="rounded border border-danger bg-danger/10 px-3 py-2 text-sm">
