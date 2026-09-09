@@ -5,6 +5,7 @@
  *   npm run dostep -- dodaj Oliwia
  *   npm run dostep -- odbierz Oliwia
  *   npm run dostep -- przywroc Oliwia
+ *   npm run dostep -- haslo Kamil      # zmiana hasła, stare przestaje działać od razu
  *   npm run dostep -- wyloguj Oliwia    # unieważnia jej sesje na wszystkich urządzeniach
  *   npm run dostep -- wejscia [ile]
  *
@@ -54,7 +55,7 @@ function osoby(): Wiersz[] {
 
 async function zapytajOHaslo(): Promise<string> {
   const rl = createInterface({ input: process.stdin, output: process.stderr })
-  const haslo = await rl.question('Hasło dla nowej osoby: ')
+  const haslo = await rl.question('Hasło: ')
   rl.close()
 
   // Panel stoi w internecie, więc krótkie hasło nie jest tu kwestią gustu.
@@ -134,6 +135,33 @@ switch (polecenie) {
     break
   }
 
+  case 'haslo': {
+    const imie = reszta[0]
+    if (imie === undefined) throw new Error('podaj imię: npm run dostep -- haslo Kamil')
+
+    const osoba = osoby().find((o) => o.name === imie)
+    if (osoba === undefined) throw new Error(`nie ma takiej osoby: ${imie}`)
+
+    const haslo = await zapytajOHaslo()
+
+    // To samo sprawdzenie co przy dodawaniu: dwie osoby z tym samym hasłem
+    // sprawiłyby, że log wejść wskazuje nie tę osobę co trzeba.
+    for (const o of osoby()) {
+      if (o.id !== osoba.id && (await verifyPassword(haslo, o.password_hash))) {
+        throw new Error(`tego hasła używa już: ${o.name}`)
+      }
+    }
+
+    baza
+      .prepare('UPDATE users SET password_hash = ?, sessions_valid_from = ? WHERE id = ?')
+      .run(await hashPassword(haslo), Date.now(), osoba.id)
+
+    // Sesje wydane na stare hasło tracą ważność. Inaczej ktoś, kto poznał
+    // poprzednie hasło i zdążył się zalogować, siedziałby w panelu dalej.
+    console.log(`Zmieniono hasło: ${imie}. Wszystkie jego sesje unieważnione.`)
+    break
+  }
+
   case 'wyloguj': {
     const imie = reszta[0]
     if (imie === undefined) throw new Error('podaj imię: npm run dostep -- wyloguj Oliwia')
@@ -179,7 +207,7 @@ switch (polecenie) {
 
   default:
     console.log(
-      'Użycie: npm run dostep -- lista | dodaj <imię> | odbierz <imię> | przywroc <imię> | wyloguj <imię> | wejscia [ile]',
+      'Użycie: npm run dostep -- lista | dodaj <imię> | haslo <imię> | odbierz <imię> | przywroc <imię> | wyloguj <imię> | wejscia [ile]',
     )
     process.exitCode = 1
 }

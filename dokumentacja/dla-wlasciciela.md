@@ -15,6 +15,7 @@ są w `wdrozenie/README.md`; tutaj jest to, co robi się później.
 ```
 npm run dostep -- lista
 npm run dostep -- dodaj <imię>       # hasło podaje się na wejściu
+npm run dostep -- haslo <imię>       # zmiana hasła, unieważnia sesje tej osoby
 npm run dostep -- odbierz <imię>     # działa natychmiast
 npm run dostep -- przywroc <imię>
 npm run dostep -- wejscia 30

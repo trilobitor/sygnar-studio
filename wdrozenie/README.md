@@ -83,6 +83,7 @@ Jedyną ochroną zostaje hasło — patrz §3a.
 ```
 npm run dostep -- lista
 npm run dostep -- dodaj Oliwia      # hasło podaje się na wejściu, nie w argumencie
+npm run dostep -- haslo Kamil      # zmiana hasła; unieważnia sesje tej osoby
 npm run dostep -- odbierz Oliwia    # działa natychmiast, nie po wygaśnięciu ciasteczka
 npm run dostep -- przywroc Oliwia
 npm run dostep -- wejscia 30        # log prób logowania
