@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { dirname, join } from 'node:path'
 
 import Database from 'better-sqlite3'
@@ -22,6 +23,26 @@ try {
   migrate(drizzle(database), {
     migrationsFolder: join(dirname(new URL(import.meta.url).pathname), 'server/db/migrations'),
   })
+  // Przeniesienie hasła z `.env` do tabeli osób.
+  //
+  // Panel miał jedno wspólne hasło w `STUDIO_PASSWORD_HASH`. Po wpuszczeniu
+  // drugiej osoby hasła muszą być osobne, żeby dało się je odbierać pojedynczo
+  // i żeby log wejść wskazywał, kto to był. Przenosimy zastane hasło raz, przy
+  // pierwszym starcie po zmianie — nikt nie wpisuje niczego od nowa.
+  if (env.STUDIO_PASSWORD_HASH.length > 0) {
+    const ilu = database.prepare('SELECT COUNT(*) AS ile FROM users').get() as { ile: number }
+
+    if (ilu.ile === 0) {
+      database
+        .prepare(
+          'INSERT INTO users (id, name, password_hash, created_at, disabled_at) VALUES (?, ?, ?, ?, NULL)',
+        )
+        .run(randomUUID(), env.STUDIO_OWNER_NAME, env.STUDIO_PASSWORD_HASH, Date.now())
+
+      logger.info('hasło z pliku przeniesione do tabeli osób', { kto: env.STUDIO_OWNER_NAME })
+    }
+  }
+
   database.close()
   logger.info('schemat bazy aktualny')
 } catch (error) {

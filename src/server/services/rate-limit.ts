@@ -30,10 +30,14 @@ export const PROMPT_LIMIT: Bucket = { capacity: 20, windowMs: 60_000 }
 
 /**
  * Logowanie. Pula wąska i okno długie — to jest zapora na zgadywanie hasła,
- * a nie ochrona zasobów. Piętnaście prób na kwadrans wystarczy człowiekowi,
+ * a nie ochrona zasobów. Osiem prób na pół godziny wystarczy człowiekowi,
  * który się pomylił, i nie wystarczy nikomu, kto próbuje słownika.
+ *
+ * Limit został zacieśniony z 15/kwadrans, gdy panel wyszedł poza tailnet.
+ * W sieci prywatnej adres był znany garstce osób; publicznie nazwa hosta jest
+ * w logach przejrzystości certyfikatów, więc trafiają tu też skanery.
  */
-export const LOGIN_LIMIT: Bucket = { capacity: 15, windowMs: 15 * 60_000 }
+export const LOGIN_LIMIT: Bucket = { capacity: 8, windowMs: 30 * 60_000 }
 
 interface Entry {
   tokens: number
@@ -124,7 +128,7 @@ export function clientKey(request: Request, prefix: string, socketAddress?: stri
  * identyfikatora klienta. Nawet gdyby ktoś znalazł sposób na rozbicie
  * licznika per klient, ten sufit zostaje.
  */
-export const GLOBAL_LOGIN_LIMIT: Bucket = { capacity: 60, windowMs: 60 * 60_000 }
+export const GLOBAL_LOGIN_LIMIT: Bucket = { capacity: 30, windowMs: 60 * 60_000 }
 
 export function consumeGlobalLogin(now = Date.now()): Decision {
   return consume('logowanie:globalnie', GLOBAL_LOGIN_LIMIT, now)

@@ -13,6 +13,8 @@
     "noImplicitOverride": true,
     "noFallthroughCasesInSwitch": true,
     "noEmit": true,
+    // `dostep.mts` uruchamia sam `node`, który wymaga rozszerzenia w imporcie.
+    "allowImportingTsExtensions": true,
     "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "bundler",

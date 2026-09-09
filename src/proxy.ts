@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 import { env, requiresLogin } from '@/lib/env'
-import { SESSION_COOKIE, verifySession } from '@/server/services/session'
+import { readSession, SESSION_COOKIE } from '@/server/services/session'
+import { getUser } from '@/server/services/users'
 
 /**
  * Bramka logowania przed całą aplikacją (SPEC §13).
@@ -33,8 +34,12 @@ export function proxy(request: NextRequest): NextResponse {
   if (isPublic(pathname)) return NextResponse.next()
 
   const token = request.cookies.get(SESSION_COOKIE)?.value
+  const sesja = readSession(token, env.STUDIO_SESSION_SECRET)
 
-  if (verifySession(token, env.STUDIO_SESSION_SECRET)) {
+  // Nie wystarczy poprawny podpis: pytamy jeszcze bazę, czy ta osoba nadal ma
+  // dostęp. Bez tego odebranie dostępu zadziałałoby dopiero po wygaśnięciu
+  // ciasteczka, czyli nawet tydzień później.
+  if (sesja !== null && getUser(sesja.userId) !== null) {
     return NextResponse.next()
   }
 

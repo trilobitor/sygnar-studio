@@ -33,7 +33,14 @@ const TICK_MS = 1000
 /** Zdarzenia, które uznajemy za oznakę życia po drugiej stronie. */
 const ACTIVITY_EVENTS = ['pointerdown', 'keydown', 'wheel', 'touchstart'] as const
 
-export function SessionBar({ timeoutSeconds }: { timeoutSeconds: number }) {
+export function SessionBar({
+  timeoutSeconds,
+  kto,
+}: {
+  timeoutSeconds: number
+  /** Imię zalogowanej osoby — od kiedy panel ma więcej niż jednego użytkownika. */
+  kto: string | null
+}) {
   const router = useRouter()
   const [remaining, setRemaining] = useState(timeoutSeconds)
   const [loggingOut, setLoggingOut] = useState(false)
@@ -94,6 +101,13 @@ export function SessionBar({ timeoutSeconds }: { timeoutSeconds: number }) {
 
   return (
     <div className="flex shrink-0 items-center gap-2 text-xs">
+      {kto !== null && (
+        // Przy wspólnym haśle nie było czego pokazywać. Odkąd hasła są osobne,
+        // widać, czyja to sesja — inaczej łatwo zapomnieć, że panel jest
+        // otwarty na cudzym koncie.
+        <span className="text-ink-muted">{kto}</span>
+      )}
+
       {showCountdown && (
         <span
           className="tabular-nums text-danger"

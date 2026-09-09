@@ -4,8 +4,14 @@ import { z } from 'zod'
 import { env, requiresLogin } from '@/lib/env'
 import { logger } from '@/lib/logger'
 import { fail, handleError } from '@/server/api/respond'
-import { verifyPassword } from '@/server/services/password'
-import { clientKey, consume, LOGIN_LIMIT, reset } from '@/server/services/rate-limit'
+import {
+  clientKey,
+  consume,
+  consumeGlobalLogin,
+  LOGIN_LIMIT,
+  reset,
+} from '@/server/services/rate-limit'
+import { clientHash, findUserByPassword, recordLogin } from '@/server/services/users'
 import {
   cookieOptions,
   createSession,
@@ -34,33 +40,52 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
 
     const key = clientKey(request, 'logowanie')
-    const decision = consume(key, LOGIN_LIMIT)
+    const skrot = clientHash(key, env.STUDIO_SESSION_SECRET)
+    const przegladarka = request.headers.get('user-agent')
 
-    if (!decision.allowed) {
-      logger.warn('przekroczono limit prób logowania', { retryAfter: decision.retryAfterSeconds })
+    // Dwa liczniki: jeden na adres, drugi na cały panel. Sam licznik per adres
+    // nie broni przed rozproszonym zgadywaniem, a globalny sam w sobie dałby
+    // się wykorzystać do zablokowania logowania wszystkim.
+    const decision = consume(key, LOGIN_LIMIT)
+    const globalnie = consumeGlobalLogin()
+
+    if (!decision.allowed || !globalnie.allowed) {
+      const retryAfter = Math.max(decision.retryAfterSeconds, globalnie.retryAfterSeconds)
+      logger.warn('przekroczono limit prób logowania', { retryAfter, skrot })
+      recordLogin({ userId: null, outcome: 'limit', clientHash: skrot, userAgent: przegladarka })
+
       return NextResponse.json(
         { errorCode: 'TOO_MANY_ATTEMPTS' },
-        { status: 429, headers: { 'Retry-After': String(decision.retryAfterSeconds) } },
+        { status: 429, headers: { 'Retry-After': String(retryAfter) } },
       )
     }
 
     const body: unknown = await request.json()
     const input = loginSchema.parse(body)
 
-    if (!(await verifyPassword(input.password, env.STUDIO_PASSWORD_HASH))) {
-      logger.warn('nieudana próba logowania', { remaining: decision.remaining })
-      // Odpowiedź nie zdradza, czy hasło było bliskie — jeden komunikat na
-      // wszystkie przypadki.
+    const user = await findUserByPassword(input.password)
+
+    if (user === null) {
+      logger.warn('nieudana próba logowania', { remaining: decision.remaining, skrot })
+      recordLogin({
+        userId: null,
+        outcome: 'zle-haslo',
+        clientHash: skrot,
+        userAgent: przegladarka,
+      })
+      // Odpowiedź nie zdradza, czy hasło było bliskie ani czyje było —
+      // jeden komunikat na wszystkie przypadki.
       return fail('BAD_PASSWORD', 401)
     }
 
     reset(key)
-    logger.info('zalogowano do panelu')
+    logger.info('zalogowano do panelu', { kto: user.name })
+    recordLogin({ userId: user.id, outcome: 'ok', clientHash: skrot, userAgent: przegladarka })
 
-    const response = NextResponse.json({ ok: true })
+    const response = NextResponse.json({ ok: true, kto: user.name })
     response.cookies.set(
       SESSION_COOKIE,
-      createSession(env.STUDIO_SESSION_SECRET),
+      createSession(user.id, env.STUDIO_SESSION_SECRET),
       // `secure` tylko po HTTPS — na localhost ciasteczko z tą flagą
       // nie zostałoby w ogóle zapisane.
       cookieOptions(polaczenieSzyfrowane(request)),

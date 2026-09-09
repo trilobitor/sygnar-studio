@@ -108,3 +108,44 @@ export type NewJob = typeof jobs.$inferInsert
 export type Asset = typeof assets.$inferSelect
 export type NewAsset = typeof assets.$inferInsert
 export type PromptRun = typeof promptRuns.$inferSelect
+
+export const loginOutcomes = ['ok', 'zle-haslo', 'zablokowany', 'limit'] as const
+
+/**
+ * Osoby z dostępem do panelu.
+ *
+ * Panel przestał być jednoosobowy w chwili, gdy trafił poza tailnet: przy
+ * jednym wspólnym haśle nie da się ani odebrać dostępu jednej osobie, ani
+ * powiedzieć, kto co uruchomił. Hasła nie ma tu w żadnej postaci — wyłącznie
+ * skrót scrypt, tak jak dotąd w `.env`.
+ */
+export const users = sqliteTable('users', {
+  id: text('id').primaryKey(),
+  /** Imię pokazywane w panelu i w logu wejść. */
+  name: text('name').notNull().unique(),
+  passwordHash: text('password_hash').notNull(),
+  createdAt: integer('created_at').notNull(),
+  /** Odebranie dostępu bez kasowania historii wejść. */
+  disabledAt: integer('disabled_at'),
+})
+
+/**
+ * Log wejść — każda próba logowania, udana i nie.
+ *
+ * Przy panelu wystawionym publicznie to jedyny sposób, żeby zauważyć, że ktoś
+ * dobija się do hasła. Zapisujemy skrót adresu, nie sam adres: do rozpoznania
+ * „to znowu ten sam" wystarczy, a nie robi z logu spisu adresów IP.
+ */
+export const loginEvents = sqliteTable(
+  'login_events',
+  {
+    id: text('id').primaryKey(),
+    /** Puste przy nieudanej próbie — nie wiadomo, kto próbował. */
+    userId: text('user_id'),
+    outcome: text('outcome', { enum: loginOutcomes }).notNull(),
+    clientHash: text('client_hash').notNull(),
+    userAgent: text('user_agent'),
+    createdAt: integer('created_at').notNull(),
+  },
+  (table) => [index('login_events_created_at').on(table.createdAt)],
+)

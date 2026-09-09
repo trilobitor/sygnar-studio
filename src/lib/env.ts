@@ -58,6 +58,8 @@ const envSchema = z.object({
    * Wygenerujesz nowy komendą `npm run haslo`.
    */
   STUDIO_PASSWORD_HASH: z.string().default(''),
+  /** Imię właściciela panelu — pod nim ląduje hasło przeniesione z pliku. */
+  STUDIO_OWNER_NAME: z.string().default('Kamil'),
 
   /**
    * Sekret podpisujący ciasteczko sesji. Zmiana unieważnia wszystkie

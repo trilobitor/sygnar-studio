@@ -19,8 +19,8 @@ function sign(payload: string, secret: string): string {
   return createHmac('sha256', secret).update(payload).digest('hex')
 }
 
-export function createSession(secret: string, now = Date.now()): string {
-  const payload = `${now + SESSION_TTL_MS}.${randomBytes(16).toString('hex')}`
+export function createSession(userId: string, secret: string, now = Date.now()): string {
+  const payload = `${now + SESSION_TTL_MS}.${userId}.${randomBytes(16).toString('hex')}`
   return `${payload}.${sign(payload, secret)}`
 }
 
@@ -28,28 +28,46 @@ export function createSession(secret: string, now = Date.now()): string {
  * Sprawdza podpis i termin ważności. Porównanie podpisów w czasie stałym —
  * inaczej dałoby się go odgadywać bajt po bajcie.
  */
-export function verifySession(token: string | undefined, secret: string, now = Date.now()): boolean {
-  if (token === undefined || token.length === 0) return false
+export function readSession(
+  token: string | undefined,
+  secret: string,
+  now = Date.now(),
+): { userId: string } | null {
+  if (token === undefined || token.length === 0) return null
 
   const parts = token.split('.')
-  if (parts.length !== 3) return false
+  if (parts.length !== 4) return null
 
-  const [expiresAt, nonce, signature] = parts
-  if (expiresAt === undefined || nonce === undefined || signature === undefined) return false
+  const [expiresAt, userId, nonce, signature] = parts
+  if (
+    expiresAt === undefined ||
+    userId === undefined ||
+    nonce === undefined ||
+    signature === undefined
+  ) {
+    return null
+  }
 
-  const expected = sign(`${expiresAt}.${nonce}`, secret)
+  const expected = sign(`${expiresAt}.${userId}.${nonce}`, secret)
 
   try {
     const a = Buffer.from(signature, 'hex')
     const b = Buffer.from(expected, 'hex')
-    if (a.length !== b.length || !timingSafeEqual(a, b)) return false
+    if (a.length !== b.length || !timingSafeEqual(a, b)) return null
   } catch {
     // Podpis nie jest poprawnym hexem — traktujemy jak zły podpis.
-    return false
+    return null
   }
 
   const deadline = Number(expiresAt)
-  return Number.isFinite(deadline) && deadline > now
+  if (!Number.isFinite(deadline) || deadline <= now) return null
+
+  return { userId }
+}
+
+/** Sam fakt ważnej sesji, bez pytania kto. Używa tego bramka w `proxy.ts`. */
+export function verifySession(token: string | undefined, secret: string, now = Date.now()): boolean {
+  return readSession(token, secret, now) !== null
 }
 
 /**

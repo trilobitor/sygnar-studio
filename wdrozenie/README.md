@@ -60,6 +60,22 @@ Serwer nasłuchuje wyłącznie na `127.0.0.1` (decyzja D20), więc `serve` jest
 jedynym wejściem z zewnątrz. Adres sieci lokalnej i sam adres IP tailnetu
 z portem 3000 odmawiają połączenia — to zamierzone.
 
+## 3a. Kto ma dostęp
+
+```
+npm run dostep -- lista
+npm run dostep -- dodaj Oliwia      # hasło podaje się na wejściu, nie w argumencie
+npm run dostep -- odbierz Oliwia    # działa natychmiast, nie po wygaśnięciu ciasteczka
+npm run dostep -- przywroc Oliwia
+npm run dostep -- wejscia 30        # log prób logowania
+```
+
+Logowanie pyta wyłącznie o hasło — panel sam rozpoznaje, czyje ono jest, i pokazuje
+imię obok ikony wylogowania. Dwie osoby nie mogą mieć tego samego hasła.
+
+Hasło z `STUDIO_PASSWORD_HASH` przenosi się do tabeli osób raz, przy pierwszym
+starcie po tej zmianie, pod imieniem z `STUDIO_OWNER_NAME`.
+
 ## 4. Instalacja PWA na laptopie grafika
 
 1. Otwórz adres z Tailscale w Edge albo Chrome.

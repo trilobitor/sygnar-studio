@@ -1,7 +1,7 @@
 import { dirname, join } from 'node:path'
 import { mkdirSync } from 'node:fs'
 
-import { loadEnvConfig } from '@next/env'
+import pkg from '@next/env'
 import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
@@ -15,7 +15,7 @@ import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
  * z dowolnego katalogu roboczego.
  */
 
-loadEnvConfig(process.cwd(), true, { info: () => {}, error: () => {} })
+pkg.loadEnvConfig(process.cwd(), true, { info: () => {}, error: () => {} })
 
 const dataDir = process.env.STUDIO_DATA_DIR
 

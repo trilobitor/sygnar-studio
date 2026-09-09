@@ -39,10 +39,13 @@ const INDUSTRY_OPTIONS = Object.entries(INDUSTRY_LABELS).map(([value, label]) =>
 export function StudioScreen({
   initialOrderId,
   autoLogoutSeconds,
+  kto,
 }: {
   initialOrderId: string | null
   /** Zero wyłącza pasek sesji — panel bez logowania nie ma czego odliczać. */
   autoLogoutSeconds: number
+  /** Imię zalogowanej osoby. `null`, gdy panel chodzi bez logowania. */
+  kto: string | null
 }) {
   const [orders, setOrders] = useState<Order[]>([])
   const [orderId, setOrderId] = useState<string | null>(initialOrderId)
@@ -344,7 +347,7 @@ export function StudioScreen({
               ))}
             </ol>
 
-            {autoLogoutSeconds > 0 && <SessionBar timeoutSeconds={autoLogoutSeconds} />}
+            {autoLogoutSeconds > 0 && <SessionBar timeoutSeconds={autoLogoutSeconds} kto={kto} />}
           </div>
 
           {problem !== null && (

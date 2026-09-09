@@ -374,3 +374,34 @@ panel nasłuchuje wyłącznie na 127.0.0.1 — z zewnątrz nie da się do niego 
 inaczej niż przez proxy, które ten nagłówek ustawia samo. Zmierzone: przez
 proxy `Secure; HttpOnly; SameSite=lax`, po zwykłym localhoście bez `Secure`,
 więc logowanie lokalne nadal działa.
+
+---
+
+## D22 — Osobne hasła zamiast jednego wspólnego, plus log wejść
+
+**Decyzja.** Osoby z dostępem siedzą w tabeli `users`, każda z własnym skrótem
+scrypt. Logowanie pyta **wyłącznie o hasło** — kto to jest, rozpoznajemy po
+tym, czyj skrót pasuje. Ciasteczko sesji niesie identyfikator osoby, a bramka
+przy każdym żądaniu sprawdza w bazie, czy ta osoba nadal ma dostęp. Każda
+próba logowania trafia do `login_events`. Zarządza tym `npm run dostep`.
+
+**Powód.** Panel wychodzi poza tailnet, do Oliwii. Przy jednym wspólnym haśle
+w `.env` nie dało się ani odebrać dostępu jednej osobie bez zmiany hasła
+wszystkim, ani powiedzieć, kto co uruchomił, ani zauważyć, że ktoś obcy dobija
+się do hasła.
+
+**Konsekwencja.** Zastane hasło z `STUDIO_PASSWORD_HASH` przenosi się do tabeli
+raz, przy starcie, pod imieniem z `STUDIO_OWNER_NAME` — nikt nie wpisuje niczego
+od nowa. Format ciasteczka urósł do czterech pól, więc sesje sprzed zmiany są
+nieważne i trzeba zalogować się ponownie. Sprawdzanie hasła **nie przerywa się**
+po trafieniu: wcześniejsze wyjście robiłoby z czasu odpowiedzi wskazówkę, która
+pozycja na liście pasuje. Dwie osoby nie mogą mieć tego samego hasła, bo log
+wejść wskazywałby wtedy nie tę osobę co trzeba.
+
+W logu jest skrót adresu klienta solony sekretem sesji, nie sam adres — do
+rozpoznania „to znowu ten sam" wystarcza, a log nie staje się spisem adresów IP.
+
+Limity logowania zacieśnione: **8 prób na pół godziny** z adresu (było 15 na
+kwadrans) i **30 na godzinę** globalnie (było 60). Powód: nazwa hosta jest
+w publicznych logach przejrzystości certyfikatów, więc po wystawieniu trafiają
+tu też skanery.

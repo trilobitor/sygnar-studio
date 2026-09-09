@@ -15,6 +15,7 @@ import {
   cookieOptions,
   createSession,
   polaczenieSzyfrowane,
+  readSession,
   SESSION_TTL_MS,
   verifySession,
 } from './session'
@@ -62,29 +63,49 @@ describe('hasło', () => {
 })
 
 describe('sesja', () => {
+  const KTO = 'f47ac10b-58cc-4372-a567-0e02b2c3d479'
+
   it('przepuszcza własny, świeży token', () => {
-    expect(verifySession(createSession(SECRET), SECRET)).toBe(true)
+    expect(verifySession(createSession(KTO, SECRET), SECRET)).toBe(true)
+  })
+
+  it('mówi, kto się zalogował', () => {
+    expect(readSession(createSession(KTO, SECRET), SECRET)).toEqual({ userId: KTO })
   })
 
   it('odrzuca token podpisany innym sekretem', () => {
-    const token = createSession('b'.repeat(64))
+    const token = createSession(KTO, 'b'.repeat(64))
     expect(verifySession(token, SECRET)).toBe(false)
   })
 
   it('odrzuca token z podmienionym terminem ważności', () => {
-    const token = createSession(SECRET)
+    const token = createSession(KTO, SECRET)
     const parts = token.split('.')
     // Przedłużamy ważność o rok, zostawiając oryginalny podpis.
-    const sfałszowany = [String(Number(parts[0]) + 31_536_000_000), parts[1], parts[2]].join('.')
+    const sfałszowany = [
+      String(Number(parts[0]) + 31_536_000_000),
+      parts[1],
+      parts[2],
+      parts[3],
+    ].join('.')
     expect(verifySession(sfałszowany, SECRET)).toBe(false)
   })
 
+  it('odrzuca token z podmienioną osobą', () => {
+    // Bez tego dowolna zalogowana osoba przepisywałaby sobie cudze id
+    // i pojawiała się w logu wejść jako ktoś inny.
+    const token = createSession(KTO, SECRET)
+    const parts = token.split('.')
+    const podmieniony = [parts[0], 'ktos-inny', parts[2], parts[3]].join('.')
+    expect(verifySession(podmieniony, SECRET)).toBe(false)
+  })
+
   it('odrzuca token po terminie', () => {
-    const token = createSession(SECRET, 0)
+    const token = createSession(KTO, SECRET, 0)
     expect(verifySession(token, SECRET, SESSION_TTL_MS + 1)).toBe(false)
   })
 
-  it.each([undefined, '', 'nonsens', 'a.b', 'a.b.c.d', 'a.b.zzzz'])(
+  it.each([undefined, '', 'nonsens', 'a.b', 'a.b.c', 'a.b.c.d.e', 'a.b.c.zzzz'])(
     'odrzuca token o kształcie %s',
     (token) => {
       expect(verifySession(token, SECRET)).toBe(false)
