@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Czujnik: sprawdza co 10 minut, czy panel odpowiada, i wysyła powiadomienie
+  macOS, gdy nie odpowiada.
+
+  Bez tego jedynym czujnikiem awarii był grafik: dowiadywał się, że stacja
+  padła, dopiero próbując z niej skorzystać.
+
+  Podmień znaczniki i skopiuj do ~/Library/LaunchAgents/ — polecenie sed
+  jest w wdrozenie/README.md §9.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>pl.sygnar.czujnik</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/sh</string>
+    <string>-c</string>
+    <!--
+      `/api/zyje` jest publiczny i nie zdradza niczego o maszynie, więc
+      czujnik nie potrzebuje ciasteczka sesji.
+    -->
+    <string>curl -sf --max-time 10 http://127.0.0.1:3000/api/zyje > /dev/null || osascript -e 'display notification "Panel nie odpowiada od co najmniej 10 minut." with title "Sygnar Studio" subtitle "Stacja padła"'</string>
+  </array>
+
+  <key>StartInterval</key>
+  <integer>600</integer>
+
+  <key>RunAtLoad</key>
+  <false/>
+
+  <key>StandardErrorPath</key>
+  <string>__KATALOG_LOGOW__/czujnik.log</string>
+</dict>
+</plist>

@@ -7,7 +7,7 @@ import { env } from '@/lib/env'
 import { briefSchema, type Brief, type CreateOrderInput } from '@/lib/schemas'
 import { ApiError } from '@/server/adapters/types'
 import { db } from '@/server/db/client'
-import { assets, briefs, orders, type Asset, type Order } from '@/server/db/schema'
+import { assets, briefs, orders, promptRuns, type Asset, type Order } from '@/server/db/schema'
 import { bucketDir, orderDir } from './paths'
 
 /**
@@ -143,4 +143,33 @@ export function latestBrief(orderId: string): Brief | null {
   // lepiej pusty formularz niż wysypana strona.
   const parsed = briefSchema.safeParse(JSON.parse(row.payloadJson))
   return parsed.success ? parsed.data : null
+}
+
+/**
+ * Historia opisów przygotowanych dla zlecenia.
+ *
+ * `prompt_runs` była tabelą tylko do zapisu — rygor C wymagał zapisu każdego
+ * wywołania modelu razem z kosztem, ale nikt tych wierszy nie czytał. Zapis,
+ * którego nikt nie ogląda, nie jest kontrolą, tylko kosztem.
+ */
+export function listPromptRuns(
+  orderId: string,
+  limit = 20,
+): { id: string; model: string; inputTokens: number; outputTokens: number; costUsd: number; promptEn: string; createdAt: number }[] {
+  return db
+    .select()
+    .from(promptRuns)
+    .where(eq(promptRuns.orderId, orderId))
+    .orderBy(desc(promptRuns.createdAt))
+    .limit(limit)
+    .all()
+    .map((row) => ({
+      id: row.id,
+      model: row.model,
+      inputTokens: row.inputTokens,
+      outputTokens: row.outputTokens,
+      costUsd: row.costUsd,
+      promptEn: row.promptEn,
+      createdAt: row.createdAt,
+    }))
 }

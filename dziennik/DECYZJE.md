@@ -1223,3 +1223,47 @@ już przez niego przeszły — wiersz mógł powstać w starszej wersji aplikacj
 
 **Zmierzone:** powtórzenie montażu, który padł na `FFMPEG_FAILED`, zakończyło
 się statusem `done` — bo przyczyna została w międzyczasie naprawiona (D45).
+
+
+---
+
+## D66 — Domknięcie kategorii III, część druga
+
+- **Sprawdzenie zapisu w katalogu danych przy starcie.** `/api/health` bada to
+  samo, ale dopiero gdy ktoś zapyta — a właśnie wtedy, gdy panel nie działa,
+  nikt do niego nie zagląda. Teraz problem widać w logu przy uruchomieniu.
+- **`content-visibility: auto` na kafelkach galerii.** Przeglądarka pomija
+  układanie kafelków poza widokiem. Pełna wirtualizacja wymagałaby biblioteki
+  i własnego przewijania; ta jedna właściwość daje większość zysku za zero
+  zależności.
+- **`GET /api/orders/[id]/opisy`.** `prompt_runs` była tabelą **tylko do
+  zapisu**: rygor C wymagał zapisywania każdego wywołania modelu razem
+  z kosztem, ale nikt tych wierszy nie czytał. Zapis, którego nikt nie ogląda,
+  nie jest kontrolą — jest kosztem. Zmierzone: siedem wpisów dla jednego
+  zlecenia, w tym widoczna historia poprawek z D41 i D57 (2 → 2268 tokenów,
+  literał zastąpiony prawdziwym identyfikatorem modelu).
+- **Czujnik awarii** (`wdrozenie/pl.sygnar.czujnik.plist`): co dziesięć minut
+  pyta `/api/zyje` i przy braku odpowiedzi wyświetla powiadomienie macOS.
+  Jedynym czujnikiem był dotąd grafik, który dowiadywał się o awarii, próbując
+  z panelu skorzystać.
+
+### Pozycje kategorii III świadomie niezamknięte
+
+- **#6 — podsloty `services.*` i slot `client` w nazwach plików.** Wymaga
+  rozstrzygnięcia, czy brief realizacyjny naprawdę ich oczekuje w nazwie, czy
+  wystarcza obecny człon slotu. Zmiana konwencji nazw dotyka plików już
+  oddanych klientom, więc nie robię jej bez decyzji.
+- **#7 — regulowany limit wagi eksportu.** Komunikat radzi go podnieść, a nie
+  ma jak. Dodanie pola oznacza jednak, że grafik może oddać plik cięższy niż
+  brief dopuszcza — to decyzja produktowa, nie techniczna.
+- **#30 — „jedna zmiana na przebieg" z §7a.** Wymaga porównywania briefów
+  i podświetlania różnic; sensowne dopiero, gdy grafik zacznie iterować
+  na tym samym zleceniu, a tego jeszcze nie widzieliśmy w praktyce.
+- **#41 — weryfikacja presetu XMP.** Zależy od darktable, którego nie ma na
+  maszynie (patrz otwarte pozycje w `CLAUDE.md`).
+- **#89 — kontrakt `Adapter<TParams, TResult>`.** Interfejs istnieje w SPEC §6
+  i nie jest przez nikogo implementowany. Ubranie czterech adapterów w ten
+  kształt to zmiana czysto strukturalna, bez wpływu na zachowanie — odkładam
+  za rzeczami, które coś naprawiają.
+- **#98 — interfejs obróbki wsadowej.** Nie ma go, bo nie ma darktable.
+  Uzupełnienie do D13: brakuje **także** wejścia w panelu, nie tylko narzędzia.

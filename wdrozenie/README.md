@@ -228,6 +228,25 @@ Log jest w formacie JSON po jednym wpisie na linię, więc da się go filtrować
 grep '"level":"error"' ~/Library/Logs/sygnar-studio.log | tail -20
 ```
 
+## 9. Czujnik awarii
+
+Bez niego jedynym czujnikiem jest grafik: dowiaduje się, że stacja padła,
+dopiero próbując z niej skorzystać.
+
+```
+sed "s|__KATALOG_LOGOW__|$HOME/Library/Logs|" \
+    wdrozenie/pl.sygnar.czujnik.plist > ~/Library/LaunchAgents/pl.sygnar.czujnik.plist
+launchctl load ~/Library/LaunchAgents/pl.sygnar.czujnik.plist
+```
+
+Co dziesięć minut pyta `/api/zyje` i przy braku odpowiedzi wyświetla
+powiadomienie macOS. Endpoint jest publiczny i nie zdradza niczego o maszynie,
+więc czujnik nie potrzebuje ciasteczka sesji.
+
+**Czego to nie łapie:** panel odpowiadający, ale z martwą bazą albo pełnym
+dyskiem. Na to jest `/api/health`, który wymaga zalogowania — świadomie,
+patrz D38.
+
 ## Czego tu nie ma
 
 **Usługi `launchd` dla ComfyUI nie ma i nie będzie w tej wersji.** Backendem

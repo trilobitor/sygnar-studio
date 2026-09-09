@@ -89,7 +89,14 @@ export function Gallery({
         {shown.map((asset) => (
           // Gwiazdka stoi **obok** kafelka, nie w nim: kafelek jest przyciskiem,
           // a przycisk w przycisku nie działa.
-          <div key={asset.id} className="relative">
+          <div
+            key={asset.id}
+            // `content-visibility` pozwala przeglądarce pominąć układanie
+            // kafelków poza widokiem. Przy kilkudziesięciu kadrach różnica
+            // jest odczuwalna, a kosztuje jedną właściwość — pełna
+            // wirtualizacja wymagałaby biblioteki i własnego przewijania.
+            className="relative [content-visibility:auto] [contain-intrinsic-size:auto_180px]"
+          >
             <button
               type="button"
               onClick={() => void przelaczOdlozenie(asset)}
