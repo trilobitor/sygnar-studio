@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { ADAPTER_NAMES } from '@/server/services/health'
 import { GET as healthGet } from './health/route'
 import { GET as ordersGet, POST as ordersPost } from './orders/route'
 import {
@@ -53,10 +54,20 @@ async function createOrder(name = 'Zlecenie z testu'): Promise<string> {
 }
 
 describe('GET /api/health', () => {
-  it('zwraca stan czterech adapterów', async () => {
+  it('zwraca stan wszystkich sprawdzanych rzeczy', async () => {
     const body = await readJson(await healthGet())
     expect(Array.isArray(body.adapters)).toBe(true)
-    expect((body.adapters as unknown[]).length).toBe(4)
+    expect((body.adapters as unknown[]).length).toBe(ADAPTER_NAMES.length)
+  })
+
+  it('pyta o bazę i o dysk, nie tylko o narzędzia', async () => {
+    // Bez tych dwóch `/api/health` odpowiadał `ready: true` przy bazie
+    // wypełnionej losowymi bajtami, podczas gdy `/api/orders` dawało 500.
+    const body = await readJson(await healthGet())
+    const nazwy = (body.adapters as { name: string }[]).map((a) => a.name)
+
+    expect(nazwy).toContain('baza')
+    expect(nazwy).toContain('dysk')
   })
 
   it('nie pokazuje nazw narzędzi w etykietach', async () => {

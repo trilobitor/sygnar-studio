@@ -37,13 +37,52 @@ function openDatabase(): Database.Database {
  */
 const globalForDb = globalThis as unknown as {
   studioDatabase?: Database.Database
+  studioDb?: ReturnType<typeof drizzle>
 }
 
-const database = globalForDb.studioDatabase ?? openDatabase()
+/**
+ * Połączenie otwieramy **przy pierwszym zapytaniu**, nie przy imporcie modułu.
+ *
+ * Uszkodzony plik bazy wywracał się w trakcie ładowania modułu, więc padała
+ * każda trasa, która choćby pośrednio go dotykała — łącznie z `/api/health`,
+ * czyli jedynym miejscem mogącym powiedzieć, co jest nie tak. Grafik dostawał
+ * gołe „Internal Server Error" bez jednej wskazówki.
+ *
+ * Teraz `/api/health` odpowiada normalnie i pokazuje „Baza zleceń: błąd".
+ */
+function polaczenie(): Database.Database {
+  const zastane = globalForDb.studioDatabase
+  if (zastane !== undefined) return zastane
 
-if (process.env.NODE_ENV !== 'production') {
-  globalForDb.studioDatabase = database
+  const swieze = openDatabase()
+
+  // Trzymamy je również na produkcji: pośrednik poniżej sięga tu przy każdym
+  // zapytaniu, więc bez cache'u otwieralibyśmy plik za każdym razem.
+  globalForDb.studioDatabase = swieze
+
+  return swieze
 }
 
-export const db = drizzle(database, { schema })
+function klient(): ReturnType<typeof drizzle> {
+  const zastany = globalForDb.studioDb
+  if (zastany !== undefined) return zastany
+
+  const swiezy = drizzle(polaczenie(), { schema })
+  globalForDb.studioDb = swiezy
+  return swiezy
+}
+
+/**
+ * `db` jest pośrednikiem, nie gotowym klientem: każde sięgnięcie po metodę
+ * otwiera połączenie, jeśli jeszcze go nie ma. Dzięki temu sam import tego
+ * modułu nigdy nie rzuca.
+ */
+export const db = new Proxy({} as ReturnType<typeof drizzle>, {
+  get(_cel, wlasciwosc) {
+    const rzeczywisty = klient() as unknown as Record<string | symbol, unknown>
+    const wartosc = rzeczywisty[wlasciwosc]
+    return typeof wartosc === 'function' ? wartosc.bind(rzeczywisty) : wartosc
+  },
+})
+
 export { schema }

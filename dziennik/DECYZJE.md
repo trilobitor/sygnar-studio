@@ -506,3 +506,49 @@ Sufit wagi zszedł z 512 MB na 100 MB: `Request.formData()` buforuje ciało
 wielokrotnie — plik 50 MB dawał 311 MB przyrostu RSS, czyli około
 sześciokrotność. Dochodzi odrzucanie po `Content-Length`, **zanim** dotkniemy
 ciała.
+
+---
+
+## D28 — O statusie zadania decyduje sygnał, nie sposób powrotu runnera
+
+**Decyzja.** Po powrocie runnera worker sprawdza `controller.signal.aborted`
+i zamyka zadanie jako anulowane albo przeterminowane. Jedna funkcja obsługuje
+obie ścieżki — powrót i wyjątek.
+
+**Powód.** Nie każdy adapter pilnuje sygnału; eksport przez sharpa nie sprawdza
+go wcale. Taki runner kończył pracę normalnie mimo anulowania, a worker
+oznaczał zadanie jako **„Gotowe"**, choć nikt na nie już nie czekał.
+
+---
+
+## D29 — Nazwa pliku eksportu rezerwowana atomowo
+
+**Decyzja.** `zajmijNazwe` tworzy pusty plik z flagą `wx` i przy kolizji szuka
+kolejnego numeru. Licznik z bazy jest punktem wyjścia, nie rozstrzygnięciem.
+
+**Powód.** Dwa eksporty tego samego slotu mogą biec równolegle
+(`NON_GPU_CONCURRENCY` to 2) i oba liczyły tyle samo istniejących plików, bo
+żaden jeszcze niczego nie zapisał. Kończyło się nadpisaniem. Sprawdzenie „czy
+istnieje", a potem zapis, zostawiałoby to samo okno — `wx` zamyka je atomowo.
+
+---
+
+## D30 — Zdrowie panelu obejmuje bazę i dysk, a klient bazy jest leniwy
+
+**Decyzja.** `/api/health` sprawdza dodatkowo bazę (`select count(*)`) i katalog
+danych (prawo zapisu, wolne miejsce, próg 2 GB); `ready` zależy od obu.
+Połączenie z bazą otwiera się przy pierwszym zapytaniu, nie przy imporcie
+modułu. Bramka w `proxy.ts` łapie awarię bazy i odpowiada 503 z kodem
+`DATABASE_UNAVAILABLE`.
+
+**Powód.** Audyt wykazał, że baza wypełniona losowymi bajtami dawała
+`/api/health` = `{"ready":true}`, podczas gdy `/api/orders` w tej samej
+sekundzie zwracało 500. Po dołożeniu sprawdzenia bazy wyszło coś gorszego:
+uszkodzony plik wywracał się **przy imporcie modułu**, więc padała każda trasa,
+łącznie z tą jedyną mogącą powiedzieć, co jest nie tak. Grafik dostawał gołe
+„Internal Server Error".
+
+**Konsekwencja.** Zmierzone: przy bazie z losowych bajtów panel odpowiada
+`503 {"errorCode":"DATABASE_UNAVAILABLE"}` zamiast pustego 500, a komunikat
+mówi, co robić. `db` jest pośrednikiem (`Proxy`), więc sam import tego modułu
+nigdy nie rzuca.

@@ -142,21 +142,42 @@ async function runJob(job: Job): Promise<void> {
     },
   }
 
+  /**
+   * Zamknięcie zadania przerwanego z zewnątrz.
+   *
+   * Jedna funkcja dla obu ścieżek — powrotu runnera i wyjątku — bo rozdzielone
+   * rozjeżdżały się przy każdej zmianie. Runner, który **nie sprawdza sygnału**
+   * (jak eksport przez sharpa), wraca normalnie mimo anulowania i bez tego
+   * zadanie kończyło się statusem „Gotowe", choć nikt na niego nie czekał.
+   */
+  function zamknijPrzerwane(): void {
+    const powod: unknown = controller.signal.reason
+
+    if (powod instanceof JobError && powod.code === 'JOB_TIMEOUT') {
+      markFailed(job.id, 'JOB_TIMEOUT')
+      jobLogger.warn('zadanie przerwane po przekroczeniu czasu')
+      return
+    }
+
+    markCancelled(job.id)
+    jobLogger.info('zadanie anulowane')
+  }
+
   try {
     await mkdir(workDir, { recursive: true })
     await runner(job, ctx)
-    markDone(job.id)
-    jobLogger.info('zadanie zakończone')
+
+    // Runner mógł zakończyć się normalnie mimo anulowania — nie każdy adapter
+    // pilnuje sygnału. O statusie decyduje sygnał, nie sposób powrotu.
+    if (controller.signal.aborted) {
+      zamknijPrzerwane()
+    } else {
+      markDone(job.id)
+      jobLogger.info('zadanie zakończone')
+    }
   } catch (error) {
     if (controller.signal.aborted && !(error instanceof JobError && error.code === 'JOB_TIMEOUT')) {
-      const reason: unknown = controller.signal.reason
-      if (reason instanceof JobError && reason.code === 'JOB_TIMEOUT') {
-        markFailed(job.id, 'JOB_TIMEOUT')
-        jobLogger.warn('zadanie przerwane po przekroczeniu czasu')
-      } else {
-        markCancelled(job.id)
-        jobLogger.info('zadanie anulowane')
-      }
+      zamknijPrzerwane()
     } else {
       const code = errorCodeFor(error)
       markFailed(job.id, code)

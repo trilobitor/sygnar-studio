@@ -1,4 +1,4 @@
-import { writeFile } from 'node:fs/promises'
+import { open, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { env } from '@/lib/env'
@@ -52,6 +52,11 @@ async function runExport(job: Job, ctx: JobContext): Promise<void> {
   // Numer pliku rośnie w obrębie slotu, żeby nazwy się nie zderzały.
   // Jeden eksport daje tyle plików, ile formatów ma preset, więc liczbę
   // dotychczasowych plików dzielimy przez tę liczbę.
+  //
+  // Sam licznik nie wystarcza: dwa eksporty tego samego slotu mogą biec
+  // równolegle (`NON_GPU_CONCURRENCY` to 2) i oba policzą tyle samo plików,
+  // bo żaden jeszcze niczego nie zapisał. Numer jest więc punktem wyjścia,
+  // a nie rozstrzygnięciem — `zajmijNazwe` szuka dalej pierwszej wolnej.
   const index = Math.floor(countExports(params.orderId, params.purpose) / preset.formats.length) + 1
 
   let step = 0
@@ -73,14 +78,14 @@ async function runExport(job: Job, ctx: JobContext): Promise<void> {
       ctx,
     )
 
-    const fileName = buildOutputName({
+    const { absolutePath } = await zajmijNazwe({
+      outputDir,
       industry: order.industry,
       slug: preset.slug,
       index,
       extension: format,
     })
 
-    const absolutePath = join(outputDir, fileName)
     await writeFile(absolutePath, outcome.buffer)
 
     await registerAsset({
@@ -109,6 +114,43 @@ async function runExport(job: Job, ctx: JobContext): Promise<void> {
   }
 
   touchOrder(params.orderId)
+}
+
+/**
+ * Rezerwuje pierwszą wolną nazwę, tworząc pusty plik z flagą `wx`.
+ *
+ * `wx` zawodzi, gdy plik już istnieje, i robi to **atomowo** — dwa równoległe
+ * eksporty nie mogą dostać tej samej nazwy. Sprawdzenie „czy istnieje", a potem
+ * zapis, zostawiałoby okno pomiędzy jednym a drugim.
+ */
+async function zajmijNazwe(parts: {
+  outputDir: string
+  industry: string | null
+  slug: string
+  index: number
+  extension: string
+}): Promise<{ fileName: string; absolutePath: string }> {
+  // Sufit na wypadek, gdyby coś poszło nie tak — lepiej błąd niż pętla bez końca.
+  for (let numer = parts.index; numer < parts.index + 1000; numer += 1) {
+    const fileName = buildOutputName({
+      industry: parts.industry,
+      slug: parts.slug,
+      index: numer,
+      extension: parts.extension,
+    })
+    const absolutePath = join(parts.outputDir, fileName)
+
+    try {
+      const uchwyt = await open(absolutePath, 'wx')
+      await uchwyt.close()
+      return { fileName, absolutePath }
+    } catch (error) {
+      const kod: unknown = Reflect.get(error as object, 'code')
+      if (kod !== 'EEXIST') throw error
+    }
+  }
+
+  throw new JobError('EXPORT_WEIGHT_UNREACHABLE', 'nie udało się znaleźć wolnej nazwy pliku')
 }
 
 /** Ile plików eksportu powstało już w tym zleceniu dla tego slotu. */

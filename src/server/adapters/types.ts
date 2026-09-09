@@ -67,6 +67,8 @@ export const JOB_ERROR_CODES = [
   'FFMPEG_FAILED',
   'EXPORT_WEIGHT_UNREACHABLE',
   'PROMPT_SERVICE_FAILED',
+  /** Baza nie odpowiada — uszkodzony plik albo brak prawa zapisu. */
+  'DATABASE_UNAVAILABLE',
 ] as const
 
 export type JobErrorCode = (typeof JOB_ERROR_CODES)[number]

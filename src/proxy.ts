@@ -40,8 +40,16 @@ export function proxy(request: NextRequest): NextResponse {
   // Nie wystarczy poprawny podpis: pytamy jeszcze bazę, czy ta osoba nadal ma
   // dostęp. Bez tego odebranie dostępu zadziałałoby dopiero po wygaśnięciu
   // ciasteczka, czyli nawet tydzień później.
-  if (sesja !== null && getUser(sesja.userId) !== null) {
-    return NextResponse.next()
+  //
+  // Zapytanie owijamy, bo uszkodzony plik bazy rzucał tutaj wyjątkiem i całe
+  // żądanie kończyło się gołym „Internal Server Error" — bez kodu błędu, bez
+  // komunikatu, bez wskazówki, co jest nie tak.
+  try {
+    if (sesja !== null && getUser(sesja.userId) !== null) {
+      return NextResponse.next()
+    }
+  } catch {
+    return NextResponse.json({ errorCode: 'DATABASE_UNAVAILABLE' }, { status: 503 })
   }
 
   // Żądania do API dostają kod, nie przekierowanie — przeglądarka nie ma
