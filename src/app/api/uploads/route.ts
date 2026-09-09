@@ -11,6 +11,7 @@ import { readDimensions } from '@/server/adapters/sharp'
 import { fail, handleError, tooMany } from '@/server/api/respond'
 import { clientKey, consume, UPLOAD_LIMIT } from '@/server/services/rate-limit'
 import { ensureStarted } from '@/server/bootstrap'
+import { wymagajSesji } from '@/server/api/sesja'
 import { registerAsset } from '@/server/services/assets'
 import { detectType, isVideo, MAX_UPLOAD_BYTES } from '@/server/services/file-type'
 import { getOrder, touchOrder } from '@/server/services/orders'
@@ -29,8 +30,22 @@ export async function POST(request: Request): Promise<NextResponse> {
   try {
     ensureStarted()
 
+    // `/api/uploads` jest wyłączone spod `proxy.ts`, bo Next buforuje ciało dla
+    // warstwy pośredniczącej i ucina je na 10 MB. Sesję sprawdzamy więc tutaj.
+    wymagajSesji(request)
+
     const decision = consume(clientKey(request, 'wgrywanie'), UPLOAD_LIMIT)
     if (!decision.allowed) return tooMany(decision.retryAfterSeconds)
+
+    // Odrzucamy po nagłówku, **zanim** dotkniemy ciała. `Request.formData()`
+    // buforuje je w pamięci wielokrotnie, więc sprawdzanie `file.size` po
+    // sparsowaniu jest już po szkodzie — zmierzone: plik 50 MB to 261 MB RSS.
+    const deklarowane = Number(request.headers.get('content-length') ?? '0')
+
+    if (Number.isFinite(deklarowane) && deklarowane > MAX_UPLOAD_BYTES) {
+      logger.warn('odrzucone wgranie po nagłówku długości', { bytes: deklarowane })
+      return fail('UPLOAD_TOO_LARGE', 413)
+    }
 
     const form = await request.formData()
     const orderId = form.get('orderId')

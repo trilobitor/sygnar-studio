@@ -23,6 +23,11 @@ process.env.MAX_CONCURRENT_GPU_JOBS = '1'
 process.env.JOB_TIMEOUT_MS = '900000'
 process.env.LOG_LEVEL = 'error'
 
+// Testy nie mają hasła, więc bramkę wyłączamy **jawnie**. Od poprawki #4
+// brak hasła zatrzymuje start zamiast po cichu otwierać panel, więc bez tej
+// linii nie wystartowałby ani jeden plik testowy — i o to chodziło.
+process.env.STUDIO_REQUIRE_LOGIN = '0'
+
 const database = new Database(join(dataDir, 'studio.db'))
 database.exec('PRAGMA foreign_keys = ON')
 migrate(drizzle(database), { migrationsFolder: 'src/server/db/migrations' })

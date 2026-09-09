@@ -90,6 +90,16 @@ const envSchema = z.object({
   MAX_CONCURRENT_GPU_JOBS: z.coerce.number().int().min(1).max(1).default(1),
 
   JOB_TIMEOUT_MS: z.coerce.number().int().min(10_000).default(900_000),
+
+  /**
+   * Jedyny sposób na świadome wyłączenie bramki logowania.
+   *
+   * Wcześniej bramka gasła sama, gdy hasło albo sekret były puste — czyli
+   * literówka w nazwie zmiennej otwierała panel na oścież i nic tego nie
+   * zgłaszało. Teraz brak wartości zatrzymuje start; ominąć to można wyłącznie
+   * jawnie, wpisując `0`.
+   */
+  STUDIO_REQUIRE_LOGIN: z.enum(['0', '1']).default('1'),
 })
 
 export type Env = z.infer<typeof envSchema>
@@ -116,13 +126,40 @@ export const env: Env = loadEnv()
 /**
  * Czy panel wymaga logowania.
  *
- * Bez skrótu hasła albo bez sekretu sesji zabezpieczenie jest wyłączone —
- * i tak ma być na `localhost`, gdzie sieć jest jedyną warstwą dostępu.
- * **Przed wystawieniem panelu poza sieć prywatną obie wartości muszą być
- * ustawione** (SPEC §13).
+ * Konfiguracja niekompletna **zatrzymuje start**, zamiast po cichu otwierać
+ * panel. Wcześniej wystarczyła literówka w nazwie `STUDIO_PASSWORD_HASH` albo
+ * sekret krótszy niż 32 znaki, żeby bramka zniknęła bez jednej linii w logu
+ * (SPEC §13).
  */
-export const requiresLogin =
-  env.STUDIO_PASSWORD_HASH.length > 0 && env.STUDIO_SESSION_SECRET.length >= 32
+function ustalWymogLogowania(): boolean {
+  if (env.STUDIO_REQUIRE_LOGIN === '0') {
+    // Świadome wyłączenie — dozwolone, ale nigdy ciche.
+    console.warn(
+      '[uwaga] Bramka logowania wyłączona przez STUDIO_REQUIRE_LOGIN=0. ' +
+        'Panel jest dostępny dla każdego, kto sięgnie do portu.',
+    )
+    return false
+  }
+
+  const braki: string[] = []
+
+  if (env.STUDIO_PASSWORD_HASH.length === 0) braki.push('STUDIO_PASSWORD_HASH jest puste')
+  if (env.STUDIO_SESSION_SECRET.length < 32) {
+    braki.push('STUDIO_SESSION_SECRET ma mniej niż 32 znaki')
+  }
+
+  if (braki.length > 0) {
+    throw new Error(
+      `Bramka logowania nie ma z czego działać, aplikacja się nie uruchomi.\n` +
+        braki.map((b) => `  ${b}`).join('\n') +
+        '\nUzupełnij .env albo — świadomie — ustaw STUDIO_REQUIRE_LOGIN=0.',
+    )
+  }
+
+  return true
+}
+
+export const requiresLogin = ustalWymogLogowania()
 
 /** Czy warstwa promptowa ma czym działać. Sprawdzane przez adapter `prompt`. */
 export const hasAnthropicKey = env.ANTHROPIC_API_KEY.length > 0

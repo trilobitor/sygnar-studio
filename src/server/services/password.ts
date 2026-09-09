@@ -14,8 +14,15 @@ import { randomBytes, scrypt, timingSafeEqual, type ScryptOptions } from 'node:c
  * obcięty do samego słowa „scrypt". Sprawdzone loaderem `@next/env`.
  */
 
-/** Koszt pracy. 2^17 to około 100 ms na tej maszynie — do wyczucia przy
- *  jednym logowaniu, dotkliwe przy milionie prób. */
+/**
+ * Koszt pracy. 2^17 to **318 ms** na tej maszynie i 128 MiB pamięci na
+ * wywołanie — zmierzone, nie oszacowane; wcześniejszy komentarz mówił
+ * „około 100 ms" i mylił się trzykrotnie.
+ *
+ * Do wyczucia przy jednym logowaniu, dotkliwe przy milionie prób. Ponieważ
+ * jedno sprawdzenie hasła porównuje je z każdą osobą z dostępem, koszt rośnie
+ * liniowo z liczbą osób — stąd przepustnica w `przepustnica.ts`.
+ */
 const COST = 2 ** 17
 const KEY_LENGTH = 64
 const SALT_BYTES = 16

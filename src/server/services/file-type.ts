@@ -13,7 +13,17 @@ export interface DetectedType {
 }
 
 /** Limit rozmiaru wgrywanego pliku. Wideo bywa ciężkie, ale nie aż tak. */
-export const MAX_UPLOAD_BYTES = 512 * 1024 * 1024
+/**
+ * Sufit wagi wgrywanego pliku.
+ *
+ * Zejście z 512 MB na 100 MB ma dwa powody. Pierwszy: `Request.formData()`
+ * buforuje ciało w pamięci wielokrotnie — zmierzone na tej maszynie, plik
+ * 50 MB dawał 261 MB przyrostu RSS po samym `formData()` i 311 MB po
+ * `arrayBuffer()`, czyli około sześciokrotność. Przy 512 MB jedno wgranie
+ * sięgałoby kilku gigabajtów. Drugi: 100 MB w zupełności wystarcza klipowi
+ * z telefonu, a to jedyny scenariusz wgrywania wideo w E5.
+ */
+export const MAX_UPLOAD_BYTES = 100 * 1024 * 1024
 
 function startsWith(bytes: Uint8Array, signature: readonly number[], offset = 0): boolean {
   if (bytes.length < offset + signature.length) return false

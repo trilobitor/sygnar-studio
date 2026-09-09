@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { detectType, isVideo } from './file-type'
+import { detectType, isVideo, MAX_UPLOAD_BYTES } from './file-type'
 
 /**
  * Typ pliku sprawdzamy po zawartości, nie po rozszerzeniu ani po nagłówku
@@ -60,5 +60,19 @@ describe('rozpoznawanie typu po zawartości', () => {
   it('odróżnia wideo od obrazu', () => {
     expect(isVideo('video/mp4')).toBe(true)
     expect(isVideo('image/png')).toBe(false)
+  })
+})
+
+describe('sufit wagi wgrywanego pliku', () => {
+  it('mieści się w tym, co znosi pamięć', () => {
+    // `Request.formData()` buforuje ciało wielokrotnie — zmierzone: plik
+    // 50 MB dawał 311 MB RSS. Przy dawnym limicie 512 MB jedno wgranie
+    // sięgałoby kilku gigabajtów, więc ta stała jest zabezpieczeniem,
+    // nie preferencją.
+    expect(MAX_UPLOAD_BYTES).toBeLessThanOrEqual(128 * 1024 * 1024)
+  })
+
+  it('starcza na klip z telefonu', () => {
+    expect(MAX_UPLOAD_BYTES).toBeGreaterThanOrEqual(50 * 1024 * 1024)
   })
 })

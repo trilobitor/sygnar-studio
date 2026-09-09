@@ -12,9 +12,10 @@ import { getUser } from '@/server/services/users'
  * Proxy działa w runtime Node, więc weryfikacja podpisu sesji może korzystać
  * z `node:crypto` — bez dokładania biblioteki do kryptografii webowej.
  *
- * To jest pierwsza warstwa, nie jedyna: route handlery uruchamiające zadania
- * sprawdzają sesję jeszcze raz u siebie. Bramka odsiewa ruch, ale prawdziwa
- * decyzja zapada tam, gdzie coś realnie się dzieje.
+ * To jest pierwsza warstwa, nie jedyna: `/api/uploads` sprawdza sesję u siebie
+ * (`server/api/sesja.ts`), bo musiało wypaść spod proxy — Next buforuje ciało
+ * żądania dla warstwy pośredniczącej i **ucina je na 10 MB**, przez co wgranie
+ * filmu 19 MB kończyło się błędem walidacji, a filmu 3 MB przechodziło.
  */
 
 /** Ścieżki dostępne bez zalogowania — sam ekran logowania i jego endpoint. */
@@ -63,9 +64,11 @@ export const config = {
    * Pod `_next/hmr` siedzi WebSocket hot-reloadu. Bramka odpowiadała na jego
    * uścisk dłoni przekierowaniem, przez co strona w trybie deweloperskim
    * w ogóle się nie hydratowała — formularz logowania był martwy.
+   * `api/uploads` wypada spod proxy z powodu limitu 10 MB na ciało żądania —
+   * sesji pilnuje tam sam handler.
    * Ikony i manifest też przepuszczamy: nie ma czego chronić w pliku PNG.
    * `sw.js` musi dać się pobrać z ekranu logowania — inaczej przeglądarka
    * nigdy nie uzna panelu za instalowalny.
    */
-  matcher: ['/((?!_next/|ikona-|favicon.ico|manifest.webmanifest|sw.js).*)'],
+  matcher: ['/((?!api/uploads|_next/|ikona-|favicon.ico|manifest.webmanifest|sw.js).*)'],
 }

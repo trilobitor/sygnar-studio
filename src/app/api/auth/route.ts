@@ -12,6 +12,7 @@ import {
   reset,
 } from '@/server/services/rate-limit'
 import { alertUdaneLogowanie, alertZgadywanieHasla } from '@/server/services/alerty'
+import { przepustnicaHasel } from '@/server/services/przepustnica'
 import { clientHash, findUserByPassword, recordLogin } from '@/server/services/users'
 import {
   cookieOptions,
@@ -65,7 +66,26 @@ export async function POST(request: Request): Promise<NextResponse> {
     const body: unknown = await request.json()
     const input = loginSchema.parse(body)
 
-    const user = await findUserByPassword(input.password)
+    // `/api/auth` jest dostępny bez zalogowania, a sprawdzenie hasła zajmuje
+    // wątek puli libuv na kilkaset milisekund. Bez tej przepustnicy garść
+    // równoległych żądań zatykała cały proces, łącznie z `/api/health`.
+    const zwolnij = przepustnicaHasel.sprobuj()
+
+    if (zwolnij === null) {
+      logger.warn('odrzucone logowanie — zajęte sprawdzanie haseł', { skrot })
+      return NextResponse.json(
+        { errorCode: 'TOO_MANY_ATTEMPTS' },
+        { status: 429, headers: { 'Retry-After': '2' } },
+      )
+    }
+
+    let user: Awaited<ReturnType<typeof findUserByPassword>>
+
+    try {
+      user = await findUserByPassword(input.password)
+    } finally {
+      zwolnij()
+    }
 
     if (user === null) {
       logger.warn('nieudana próba logowania', { remaining: decision.remaining, skrot })

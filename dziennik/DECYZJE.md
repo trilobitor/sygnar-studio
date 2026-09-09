@@ -449,3 +449,60 @@ adresu, więc sygnał zostaje. O znajomość miejsca pytamy **przed** zapisem do
 logu, bo zapis sam czyniłby je znanym. Zmierzone: pierwsze logowanie z danego
 adresu daje alert, drugie już nie; dziesięć prób ze złym hasłem daje jeden
 alert, nie dziesięć.
+
+---
+
+## D25 — Brak hasła zatrzymuje start zamiast otwierać panel
+
+**Decyzja.** `requiresLogin` przerywa uruchomienie, gdy `STUDIO_PASSWORD_HASH`
+jest puste albo `STUDIO_SESSION_SECRET` krótszy niż 32 znaki. Wyłączyć bramkę
+można wyłącznie jawnie: `STUDIO_REQUIRE_LOGIN=0`, i wtedy leci ostrzeżenie
+przy każdym starcie.
+
+**Powód.** Bramka gasła sama, bez jednej linii w logu. Wystarczyła literówka
+w nazwie jednej z dwóch zmiennych albo sekret o znak za krótki, żeby panel
+stanął otworem — a przy wystawieniu Funnelem oznacza to otwarty internet.
+
+**Konsekwencja.** `test-setup.ts` musi teraz wyłączać bramkę jawnie, bo testy
+nie mają hasła. To jest dowód, że poprawka działa: bez tej linii nie startuje
+ani jeden plik testowy.
+
+---
+
+## D26 — Przepustnica na sprawdzanie haseł
+
+**Decyzja.** Najwyżej dwa równoległe sprawdzenia hasła; ponad to od razu 429.
+Przepustnica jest nieblokująca — kolejkowanie tylko przesuwałoby problem, bo
+czekające żądania i tak trzymają pamięć.
+
+**Powód.** `/api/auth` jest dostępny bez zalogowania, a jedno wywołanie scrypt
+zajmuje wątek puli libuv na **318 ms** (zmierzone; komentarz w kodzie obiecywał
+„około 100 ms" i mylił się trzykrotnie) i 128 MiB pamięci. Pula ma domyślnie
+cztery wątki. Po przejściu na osobne hasła koszt urósł dodatkowo, bo hasło
+porównujemy z każdą osobą z dostępem — dwie osoby to 636 ms na próbę.
+
+**Konsekwencja.** Zmierzone: sześć równoległych logowań daje dwa sprawdzenia
+i cztery odmowy, a panel odpowiada w trakcie obciążenia w 2,4 ms.
+
+---
+
+## D27 — `/api/uploads` poza proxy, z własnym sprawdzeniem sesji
+
+**Decyzja.** Trasa wgrywania wypada spod `proxy.ts`, a sesji pilnuje
+`server/api/sesja.ts` wywoływane w samym handlerze.
+
+**Powód.** Next buforuje ciało żądania dla warstwy pośredniczącej i **ucina je
+na 10 MB**. Skutek był taki, że wgranie filmu 19,2 MB kończyło się błędem
+`VALIDATION_FAILED`, a filmu 3,2 MB przechodziło — czyli wgrywanie było
+zepsute dla wszystkiego powyżej 10 MB od czasu dodania bramki logowania (D15).
+Nie wyszło to wcześniej, bo jedyny testowany klip miał 8 MB.
+
+**Konsekwencja.** Komentarz w `proxy.ts` obiecywał, że „route handlery
+sprawdzają sesję jeszcze raz u siebie" — **nie sprawdzały**, żadna trasa. Teraz
+to prawda przynajmniej dla wgrywania. Zmierzone po poprawce: 19,2 MB przechodzi
+i zapisuje się w całości, bez ciasteczka i z podrobionym ciasteczkiem wraca 401.
+
+Sufit wagi zszedł z 512 MB na 100 MB: `Request.formData()` buforuje ciało
+wielokrotnie — plik 50 MB dawał 311 MB przyrostu RSS, czyli około
+sześciokrotność. Dochodzi odrzucanie po `Content-Length`, **zanim** dotkniemy
+ciała.
