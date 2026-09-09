@@ -1,4 +1,4 @@
-import { mkdir } from 'node:fs/promises'
+import { mkdir, rmdir } from 'node:fs/promises'
 
 import { env } from '@/lib/env'
 import { createLogger, logger } from '@/lib/logger'
@@ -169,6 +169,12 @@ async function runJob(job: Job): Promise<void> {
     clearTimeout(timeout)
     releaseWakeLock()
     aborts.delete(job.id)
+
+    // Montaż i eksport zapisują wynik poza katalogiem roboczym, więc zostaje
+    // po nich pusty folder na każde zadanie. `rmdir` sam odmówi, gdy coś
+    // w środku jest — a przy generowaniu jest, bo tam leżą gotowe kadry.
+    await rmdir(workDir).catch(() => {})
+
     broadcast()
     // Zwolniony slot może od razu przyjąć następne zadanie.
     void tick()

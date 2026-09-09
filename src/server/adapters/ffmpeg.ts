@@ -152,6 +152,62 @@ export async function probeDurationMs(path: string): Promise<number | null> {
   }
 }
 
+/**
+ * Wymiary i długość wgranego filmu.
+ *
+ * Bez tego panel montażu nie wie, jak długi jest materiał, więc nie potrafi
+ * pokazać suwaka przycięcia — a `trim` jest w SPEC §"Oś czasu wideo" jedną
+ * z trzech wymaganych operacji. Jedno wywołanie ffprobe zamiast dwóch, bo
+ * i tak pytamy ten sam plik.
+ */
+export async function probeVideo(
+  path: string,
+): Promise<{ durationMs: number | null; width: number | null; height: number | null }> {
+  const puste = { durationMs: null, width: null, height: null }
+
+  try {
+    const result = await runBinary(
+      ffprobePath(),
+      [
+        '-v',
+        'error',
+        '-select_streams',
+        'v:0',
+        '-show_entries',
+        'stream=width,height',
+        '-show_entries',
+        'format=duration',
+        '-of',
+        'default=noprint_wrappers=1',
+        path,
+      ],
+      { timeoutMs: 15_000 },
+    )
+
+    if (result.code !== 0) return puste
+
+    const pole = (nazwa: string): number | null => {
+      const trafienie = new RegExp(`^${nazwa}=(.+)$`, 'm').exec(result.stdout)
+      if (trafienie?.[1] === undefined) return null
+      const liczba = Number.parseFloat(trafienie[1])
+      return Number.isFinite(liczba) ? liczba : null
+    }
+
+    const sekundy = pole('duration')
+    const szerokosc = pole('width')
+    const wysokosc = pole('height')
+
+    return {
+      durationMs: sekundy === null ? null : Math.round(sekundy * 1000),
+      width: szerokosc === null ? null : Math.round(szerokosc),
+      height: wysokosc === null ? null : Math.round(wysokosc),
+    }
+  } catch {
+    // Brak ffprobe odbiera tylko suwak, nie samą możliwość montażu.
+    return puste
+  }
+}
+
 /** Postęp z linii `frame= … time=00:00:12.34 …` na stderr. */
 export function parseTimeMs(chunk: string): number | null {
   const matches = [...chunk.matchAll(/time=(\d+):(\d{2}):(\d{2})\.(\d{1,3})/g)]

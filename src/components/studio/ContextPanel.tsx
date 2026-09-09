@@ -44,6 +44,14 @@ export function ContextPanel({
   const [targetMb, setTargetMb] = useState(4)
   const [poprawka, setPoprawka] = useState<string | null>(null)
 
+  // Długość klipu zna serwer — sonduje ją ffprobe przy wgrywaniu. Gdy jej nie
+  // ma (plik wgrany przed tą zmianą albo brak ffprobe), suwaków nie pokazujemy
+  // zamiast zgadywać zakres.
+  const dlugoscS = asset?.durationMs == null ? null : asset.durationMs / 1000
+  const [przycinaj, setPrzycinaj] = useState(false)
+  const [odS, setOdS] = useState(0)
+  const [doS, setDoS] = useState(() => dlugoscS ?? 0)
+
   if (asset === null) {
     return (
       <EmptyState>
@@ -131,7 +139,71 @@ export function ContextPanel({
         </>
       ) : (
         <>
-          <Field label="Kadr" hint="Środek kadru zostaje, boki schodzą.">
+          {dlugoscS !== null && (
+          <div className="flex flex-col gap-2">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={przycinaj}
+                onChange={(event) => setPrzycinaj(event.target.checked)}
+              />
+              Przytnij fragment
+            </label>
+
+            {przycinaj ? (
+              <div className="flex flex-col gap-2 rounded border border-line bg-surface-2 px-3 py-2">
+                <Field label={`Od ${odS.toFixed(1)} s`} hint="Początek wybranego fragmentu.">
+                  {(id) => (
+                    <input
+                      id={id}
+                      type="range"
+                      min={0}
+                      max={dlugoscS}
+                      step={0.1}
+                      value={odS}
+                      onChange={(event) => {
+                        const wartosc = Number(event.target.value)
+                        setOdS(wartosc)
+                        // Koniec nigdy przed początkiem — inaczej serwer odrzuca
+                        // zadanie, a grafik nie wie, o co mu chodzi.
+                        if (wartosc >= doS) setDoS(Math.min(wartosc + 0.1, dlugoscS))
+                      }}
+                      className="w-full"
+                    />
+                  )}
+                </Field>
+
+                <Field label={`Do ${doS.toFixed(1)} s`} hint="Koniec wybranego fragmentu.">
+                  {(id) => (
+                    <input
+                      id={id}
+                      type="range"
+                      min={0}
+                      max={dlugoscS}
+                      step={0.1}
+                      value={doS}
+                      onChange={(event) => {
+                        const wartosc = Number(event.target.value)
+                        setDoS(wartosc)
+                        if (wartosc <= odS) setOdS(Math.max(wartosc - 0.1, 0))
+                      }}
+                      className="w-full"
+                    />
+                  )}
+                </Field>
+
+                <p className="text-xs text-ink-muted">
+                  Zostanie {(doS - odS).toFixed(1)} s z {dlugoscS.toFixed(1)} s.
+                  {pingPong ? ` Z pętlą wyjdzie ${((doS - odS) * 2).toFixed(1)} s.` : ''}
+                </p>
+              </div>
+            ) : (
+              <p className="text-xs text-ink-muted">Cały klip, {dlugoscS.toFixed(1)} s.</p>
+            )}
+          </div>
+        )}
+
+        <Field label="Kadr" hint="Środek kadru zostaje, boki schodzą.">
             {(id) => (
               <Select id={id} value={aspect} onChange={setAspect} options={ASPECT_OPTIONS} />
             )}
@@ -172,6 +244,15 @@ export function ContextPanel({
                 targetMb,
                 poster: true,
                 operations: [
+                  ...(przycinaj
+                    ? [
+                        {
+                          kind: 'trim',
+                          startMs: Math.round(odS * 1000),
+                          endMs: Math.round(doS * 1000),
+                        },
+                      ]
+                    : []),
                   { kind: 'crop', aspect },
                   ...(pingPong ? [{ kind: 'loop', pingPong: true }] : []),
                 ],

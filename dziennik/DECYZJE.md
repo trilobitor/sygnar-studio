@@ -302,3 +302,39 @@ Temat trafiał na środek kadru, czyli pod nakładki layoutu.
 
 **Konsekwencja.** Do promptu modelu trafia też branża, bo bez niej nie mógł
 znać palety. Reguła nie jest doklejana drugi raz, gdy model już ją zastosował.
+
+---
+
+## D18 — Numer montażu czytamy z katalogu, nie z licznika w kodzie
+
+**Decyzja.** `services/video.ts` przed zapisem skanuje katalog `exports`
+wzorcem `<branża>-video-NN.mp4` i bierze najwyższy zastany numer plus jeden.
+Eksport obrazów zostaje przy liczeniu z bazy (`countExports`), bo tam numer
+dzieli się przez liczbę formatów w slocie.
+
+**Powód.** Numer montażu był wpisany na sztywno jako `index: 1`. Drugi montaż
+w tym samym zleceniu nadpisywał komplet plików pierwszego — MP4, WebM i planszę
+— bez ostrzeżenia, bez błędu i bez śladu w bazie, która nadal pokazywała oba
+zadania jako zakończone. Wyszło to dopiero przy pierwszym uruchomieniu E5 na
+prawdziwym materiale: drugi render podmienił wynik pierwszego.
+
+**Konsekwencja.** Źródłem prawdy jest katalog, nie baza — przy kolizji ginie
+plik na dysku, więc pytamy dysk. Usunięcie pliku z galerii nie cofa numeracji,
+co jest zamierzone: numer raz oddany klientowi nie wraca do puli.
+
+---
+
+## D19 — Długość klipu sonduje serwer przy wgrywaniu
+
+**Decyzja.** `POST /api/uploads` puszcza `probeVideo` (ffprobe) na wgrany film
+i zapisuje `durationMs`, `width`, `height`. Obrazy idą jak dotąd przez sharpa.
+
+**Powód.** SPEC §"Oś czasu wideo" wymaga trzech operacji montażu: przycięcia,
+pętli i kadru. Silnik obsługiwał wszystkie trzy, ale panel oferował tylko dwie
+— **przycięcia nie dało się wywołać z interfejsu**, bo panel nie znał długości
+materiału i nie miał z czego zbudować zakresu. Rekordy wgranych filmów miały
+`durationMs` puste.
+
+**Konsekwencja.** Filmy wgrane wcześniej nie mają długości i dla nich suwaki
+się nie pokazują — zamiast zgadywać zakres, panel montuje wtedy całość.
+Ponowne wgranie pliku uzupełnia metrykę.

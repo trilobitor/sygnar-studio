@@ -403,6 +403,9 @@ export function StudioScreen({
           ) : (
             <>
               <ContextPanel
+                // Remount przy zmianie zaznaczenia. Bez tego zakres przycięcia
+                // i wpisany opis poprawki zostawały po poprzednim pliku.
+                key={selected?.id ?? 'brak'}
                 orderId={orderId}
                 asset={selected}
                 disabled={!ready}

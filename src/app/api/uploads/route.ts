@@ -6,6 +6,7 @@ import { NextResponse } from 'next/server'
 
 import { env } from '@/lib/env'
 import { logger } from '@/lib/logger'
+import { probeVideo } from '@/server/adapters/ffmpeg'
 import { readDimensions } from '@/server/adapters/sharp'
 import { fail, handleError, tooMany } from '@/server/api/respond'
 import { clientKey, consume, UPLOAD_LIMIT } from '@/server/services/rate-limit'
@@ -64,7 +65,12 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     await writeFile(absolutePath, bytes)
 
-    const dimensions = isVideo(detected.mime) ? null : await readDimensions(absolutePath)
+    // Film sondujemy ffprobe'em, obraz sharpem. Przy filmie liczy się także
+    // długość — bez niej panel montażu nie ma z czego zbudować zakresu
+    // przycięcia i operacja `trim` zostaje niedostępna z poziomu UI.
+    const metryka = isVideo(detected.mime)
+      ? await probeVideo(absolutePath)
+      : { ...(await readDimensions(absolutePath)), durationMs: null }
 
     const asset = await registerAsset({
       orderId: order.id,
@@ -72,8 +78,9 @@ export async function POST(request: Request): Promise<NextResponse> {
       kind: 'uploaded',
       absolutePath,
       mime: detected.mime,
-      width: dimensions?.width,
-      height: dimensions?.height,
+      width: metryka?.width ?? undefined,
+      height: metryka?.height ?? undefined,
+      durationMs: metryka?.durationMs ?? undefined,
     })
 
     touchOrder(order.id, 'active')

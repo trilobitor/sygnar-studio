@@ -1,4 +1,4 @@
-import { rm } from 'node:fs/promises'
+import { readdir, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { env } from '@/lib/env'
@@ -43,7 +43,7 @@ async function runVideo(job: Job, ctx: JobContext): Promise<void> {
   const baseName = buildOutputName({
     industry: order.industry,
     slug: 'video',
-    index: 1,
+    index: await nastepnyNumer(outputDir, order.industry),
     extension: 'mp4',
   }).replace(/\.mp4$/, '')
 
@@ -135,6 +135,32 @@ async function runVideo(job: Job, ctx: JobContext): Promise<void> {
     })
     throw error
   }
+}
+
+/**
+ * Kolejny wolny numer montażu w zleceniu.
+ *
+ * Numer był wpisany na sztywno jako 1, więc drugi montaż w tym samym zleceniu
+ * nadpisywał pliki pierwszego — bez ostrzeżenia i bez śladu w bazie. Pytamy
+ * katalog, a nie bazę, bo przy kolizji ginie plik na dysku.
+ */
+async function nastepnyNumer(outputDir: string, industry: string | null): Promise<number> {
+  const prefiks = industry === null ? 'sygnar' : industry
+  const wzor = new RegExp(`^${prefiks}-video-(\\d+)\\.mp4$`)
+
+  let najwyzszy = 0
+
+  try {
+    for (const nazwa of await readdir(outputDir)) {
+      const trafienie = wzor.exec(nazwa)
+      if (trafienie?.[1] === undefined) continue
+      najwyzszy = Math.max(najwyzszy, Number.parseInt(trafienie[1], 10))
+    }
+  } catch {
+    // Katalogu jeszcze nie ma — to pierwszy montaż w tym zleceniu.
+  }
+
+  return najwyzszy + 1
 }
 
 registerRunner('video_render', runVideo)
