@@ -230,11 +230,19 @@ export function Dialog({
     }
 
     document.addEventListener('keydown', onKey)
-    panelRef.current?.focus()
     return () => {
       document.removeEventListener('keydown', onKey)
     }
   }, [open, onClose])
+
+  // Fokus ustawiamy **raz**, przy otwarciu — w osobnym efekcie zależnym tylko
+  // od `open`. Wcześniej siedział razem z nasłuchem Escape, którego zależność
+  // `onClose` zmieniała tożsamość przy każdej ramce SSE. Efekt uruchamiał się
+  // wtedy co sekundę i wyrywał kursor z pola, w którym grafik pisał brief.
+  useEffect(() => {
+    if (!open) return
+    panelRef.current?.focus()
+  }, [open])
 
   if (!open) return null
 

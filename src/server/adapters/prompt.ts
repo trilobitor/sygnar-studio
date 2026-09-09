@@ -80,12 +80,14 @@ export function extractJson(text: string): unknown {
 }
 
 /** Brief idzie do modelu jako dane w jasno oznaczonej ramce, nie jako polecenie. */
-export function renderBrief(brief: Brief): string {
+export function renderBrief(brief: Brief, industry?: string | null): string {
   const lines: string[] = []
   const put = (label: string, value: string | undefined): void => {
     if (value !== undefined && value.length > 0) lines.push(`${label}: ${value}`)
   }
 
+  // Branża decyduje o palecie (brief §4.2), więc model musi ją znać.
+  put('industry', industry ?? undefined)
   put('subject', brief.subject)
   put('purpose', brief.purpose)
   put('shot', brief.shot)

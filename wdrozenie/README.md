@@ -2,18 +2,40 @@
 
 Trzy rzeczy, żeby grafik kliknął ikonę na pulpicie Windows i zobaczył panel.
 
-## 1. Panel jako usługa systemowa
+## 1. Baza
+
+Migracje stosują się same przy starcie serwera (`src/instrumentation.ts`),
+ale przy pierwszej instalacji warto je puścić ręcznie i zobaczyć wynik:
+
+```
+npm run db:migrate
+```
+
+Komenda czyta `.env` sama i działa z dowolnego katalogu roboczego.
+
+## 2. Panel jako usługa systemowa
 
 ```
 npm run build
-cp wdrozenie/pl.sygnar.studio.plist ~/Library/LaunchAgents/
-# podmień <SCIEZKA_PROJEKTU> i <UZYTKOWNIK> w skopiowanym pliku
+
+sed -e "s|__SCIEZKA_NODE__|$(which node)|" \
+    -e "s|__SCIEZKA_PROJEKTU__|$PWD|" \
+    -e "s|__KATALOG_LOGOW__|$HOME/Library/Logs|" \
+    wdrozenie/pl.sygnar.studio.plist > ~/Library/LaunchAgents/pl.sygnar.studio.plist
+
+plutil -lint ~/Library/LaunchAgents/pl.sygnar.studio.plist
 launchctl load -w ~/Library/LaunchAgents/pl.sygnar.studio.plist
 ```
 
-Sprawdzenie: `curl http://127.0.0.1:3000/api/health`.
+Sprawdzenie — **oba naraz**, bo sam `curl` wprowadza w błąd, gdy serwer
+chodzi jeszcze uruchomiony ręcznie:
 
-## 2. Dostęp przez Tailscale
+```
+launchctl print gui/$(id -u)/pl.sygnar.studio | grep -E "state|last exit"
+curl http://127.0.0.1:3000/api/health
+```
+
+## 3. Dostęp przez Tailscale
 
 ```
 tailscale serve --bg 3000
@@ -30,7 +52,7 @@ Jeśli okaże się, że certyfikatu nie ma, alternatywą jest `tailscale cert`
 i podanie certyfikatu wprost do serwera — ale to zmiana w konfiguracji,
 nie w kodzie.
 
-## 3. Instalacja PWA na laptopie grafika
+## 4. Instalacja PWA na laptopie grafika
 
 1. Otwórz adres z Tailscale w Edge albo Chrome.
 2. Menu przeglądarki → „Zainstaluj aplikację".

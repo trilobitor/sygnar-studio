@@ -24,6 +24,7 @@ const MIME_BY_FORMAT: Record<ExportFormat, string> = {
   avif: 'image/avif',
   webp: 'image/webp',
   png: 'image/png',
+  jpeg: 'image/jpeg',
 }
 
 export function enqueueExport(input: ExportJobInput): Job {

@@ -15,6 +15,7 @@ import { INDUSTRY_LABELS, messageForCode, STAGES } from '@/lib/messages'
 import type { Asset, ErrorResponse, Order, OrderDetail } from '@/types/api'
 import { BriefDialog } from './BriefDialog'
 import { ContextPanel } from './ContextPanel'
+import { Deliverables } from './Deliverables'
 import { Gallery, Preview } from './Gallery'
 import { HealthBanner } from './HealthBanner'
 import { Wordmark } from './Wordmark'
@@ -65,6 +66,11 @@ export function StudioScreen({
   // w jaki reszta ekranu prosi o odświeżenie danych.
   const [refresh, setRefresh] = useState(0)
   const reload = useCallback(() => setRefresh((value) => value + 1), [])
+
+  // Stabilne funkcje zamykania — inline'owa strzałka zmieniałaby tożsamość
+  // propa przy każdej ramce SSE i restartowała efekty w oknie modalnym.
+  const zamknijBrief = useCallback(() => setBriefOpen(false), [])
+  const zamknijUsuwanie = useCallback(() => setToDelete(null), [])
 
   // Gdy zadanie się kończy, pliki mogły dojść — to też powód do odświeżenia.
   const doneCount = jobs.filter((job) => job.status === 'done').length
@@ -391,16 +397,19 @@ export function StudioScreen({
           )}
         </main>
 
-        <aside className="w-72 shrink-0 border-l border-line bg-surface-1 p-3">
+        <aside className="flex w-72 shrink-0 flex-col gap-4 overflow-y-auto border-l border-line bg-surface-1 p-3">
           {orderId === null ? (
             <EmptyState>Najpierw wybierz zlecenie.</EmptyState>
           ) : (
-            <ContextPanel
-              orderId={orderId}
-              asset={selected}
-              disabled={!ready}
-              onQueued={reload}
-            />
+            <>
+              <ContextPanel
+                orderId={orderId}
+                asset={selected}
+                disabled={!ready}
+                onQueued={reload}
+              />
+              <Deliverables assets={detail?.assets ?? []} />
+            </>
           )}
         </aside>
       </div>
@@ -413,10 +422,10 @@ export function StudioScreen({
       <Dialog
         open={toDelete !== null}
         title="Usunąć zlecenie?"
-        onClose={() => setToDelete(null)}
+        onClose={zamknijUsuwanie}
         footer={
           <>
-            <Button onClick={() => setToDelete(null)}>Zostaw</Button>
+            <Button onClick={zamknijUsuwanie}>Zostaw</Button>
             <Button variant="danger" disabled={deleting} onClick={() => void confirmDelete()}>
               {deleting ? 'Usuwam…' : 'Usuń bezpowrotnie'}
             </Button>
@@ -438,7 +447,7 @@ export function StudioScreen({
           open={briefOpen}
           orderId={orderId}
           disabled={!ready}
-          onClose={() => setBriefOpen(false)}
+          onClose={zamknijBrief}
           onQueued={reload}
         />
       )}

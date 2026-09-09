@@ -2,8 +2,8 @@
 
 import { useState } from 'react'
 
-import { Button, EmptyState, Field, Select } from '@/components/ui/primitives'
-import { messageForCode } from '@/lib/messages'
+import { Button, EmptyState, Field, Select, TextArea } from '@/components/ui/primitives'
+import { FIELD_HINTS, messageForCode } from '@/lib/messages'
 import { OUTPUT_PRESETS, PURPOSE_KEYS } from '@/lib/output-presets'
 import type { Asset, ErrorResponse } from '@/types/api'
 
@@ -42,6 +42,7 @@ export function ContextPanel({
   const [aspect, setAspect] = useState('vertical')
   const [pingPong, setPingPong] = useState(true)
   const [targetMb, setTargetMb] = useState(4)
+  const [poprawka, setPoprawka] = useState<string | null>(null)
 
   if (asset === null) {
     return (
@@ -90,6 +91,18 @@ export function ContextPanel({
         <p role="alert" className="rounded border border-danger bg-danger/10 px-3 py-2 text-sm">
           {problem}
         </p>
+      )}
+
+      {tab === 'export' && asset.seed !== null && (
+        <PoprawKadr
+          orderId={orderId}
+          asset={asset}
+          disabled={disabled}
+          wartosc={poprawka}
+          ustawWartosc={setPoprawka}
+          wyslij={send}
+          zajety={busy}
+        />
       )}
 
       {tab === 'export' ? (
@@ -176,4 +189,103 @@ export function ContextPanel({
       )}
     </div>
   )
+}
+
+
+/**
+ * Powtórzenie kadru z zapisanego numeru losowania.
+ *
+ * Bez tego numer pokazywany pod każdym kafelkiem nie prowadził donikąd,
+ * a dymek radził go zapisać, obiecując funkcję, której nie było. To jest
+ * warunek zamknięcia etapu E2 ze `SPEC.md` §12: „z UI da się powtórzyć kadr
+ * z zapisanego seeda".
+ */
+function PoprawKadr({
+  orderId,
+  asset,
+  disabled,
+  wartosc,
+  ustawWartosc,
+  wyslij,
+  zajety,
+}: {
+  orderId: string
+  asset: Asset
+  disabled: boolean
+  wartosc: string | null
+  ustawWartosc: (v: string) => void
+  wyslij: (body: Record<string, unknown>) => Promise<void>
+  zajety: boolean
+}) {
+  // Opis i przeznaczenie wracają z metadanych kadru — nie trzeba pytać bazy.
+  const metadane = odczytajMetadane(asset.metadataJson)
+  const opis = wartosc ?? metadane.promptEn ?? ''
+  const purpose = metadane.purpose ?? 'square'
+  const preset = OUTPUT_PRESETS[purpose as keyof typeof OUTPUT_PRESETS] ?? OUTPUT_PRESETS.square
+
+  function zadanie(seeds: number[]): Record<string, unknown> {
+    return {
+      kind: 'image_generate',
+      orderId,
+      promptEn: opis,
+      purpose,
+      width: preset.generate.width,
+      height: preset.generate.height,
+      seeds,
+    }
+  }
+
+  return (
+    <section className="flex flex-col gap-2 rounded border border-line p-2">
+      <h4 className="flex items-baseline gap-1 text-sm font-medium text-ink">
+        Popraw ten kadr
+        <span className="text-xs font-normal text-ink-muted" title={FIELD_HINTS.seed}>
+          nr {asset.seed}
+        </span>
+      </h4>
+
+      <Field label="Opis sceny" hint="Zmień to, co ma wyjść inaczej. Reszta zostaje.">
+        {(id) => (
+          <TextArea id={id} value={opis} onChange={ustawWartosc} rows={5} maxLength={2000} />
+        )}
+      </Field>
+
+      <Button
+        variant="primary"
+        disabled={disabled || zajety || opis.trim().length < 10 || asset.seed === null}
+        onClick={() => void wyslij(zadanie([asset.seed ?? 0]))}
+      >
+        Ten sam numer, poprawiony opis
+      </Button>
+
+      <Button
+        disabled={disabled || zajety || opis.trim().length < 10}
+        onClick={() =>
+          void wyslij(
+            zadanie(Array.from({ length: 4 }, () => Math.floor(Math.random() * 2_147_483_647))),
+          )
+        }
+      >
+        Ten sam opis, nowe numery
+      </Button>
+    </section>
+  )
+}
+
+/** Metadane kadru. Zapisujemy je sami, ale i tak sprawdzamy kształt. */
+function odczytajMetadane(raw: string | null): { promptEn?: string; purpose?: string } {
+  if (raw === null) return {}
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    if (typeof parsed !== 'object' || parsed === null) return {}
+    const promptEn = Reflect.get(parsed, 'promptEn')
+    const purpose = Reflect.get(parsed, 'purpose')
+    return {
+      promptEn: typeof promptEn === 'string' ? promptEn : undefined,
+      purpose: typeof purpose === 'string' ? purpose : undefined,
+    }
+  } catch {
+    // Uszkodzone metadane nie mogą wywrócić panelu — po prostu ich nie ma.
+    return {}
+  }
 }

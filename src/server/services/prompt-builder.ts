@@ -1,5 +1,6 @@
 import type { Brief } from '@/lib/schemas'
 import type { Order } from '@/server/db/schema'
+import { COMPOSITION, CONSTRAINTS, paletteFor, REALISM } from './scene-rules'
 
 /**
  * Deterministyczny składacz opisu sceny.
@@ -49,40 +50,10 @@ const STYLE_PHRASES: Record<string, string> = {
   flat: 'Designed as flat vector artwork, laid out',
 }
 
-/**
- * Paleta i ekspozycja per branża — brief §4.2.
- *
- * Medical jest jedyną branżą na jasnym tle, więc jako jedyna dostaje
- * zdjęcia high-key. Reszta siedzi na tle #14100a–#0e1116, gdzie jasne
- * zdjęcie „wypala dziurę" w layoucie.
- */
-const INDUSTRY_LOOK: Record<string, string> = {
-  legal: 'a low-key palette of warm browns, deep shadow and a single stroke of pale gold',
-  medical: 'a high-key palette of clean whites, soft teal and bright open shadows',
-  estate: 'a low-key palette of cool blues, deep shadow and pale daylight',
-  build: 'a low-key palette of terracotta, concrete grey and deep shadow',
-  other: 'a low-key palette of cool steel greys and deep shadow',
-}
 
-const DEFAULT_LOOK = 'a restrained palette with deep shadow and one warm accent'
 
-/**
- * Martwe strefy kadru — brief §4.5.
- *
- * `showcase-card.tsx` nakłada gradient na dolne 40% i chipy na górze,
- * więc górne 15% i dolne 35% kadru są zasłonięte. Temat musi mieścić się
- * w środkowym pasie, inaczej layout zje połowę zdjęcia.
- */
-const COMPOSITION =
-  'The subject sits in the middle horizontal band of the frame, well clear of the top and bottom edges, positioned in the left or right third with the centre left open'
 
-/** Bezwzględne zakazy z §4.6, przepisane na sformułowania pozytywne. */
-const CONSTRAINTS =
-  'No lettering or logos anywhere in the scene, no one looking into the lens, hands and faces anatomically correct'
 
-/** Realia polskie — §4.7. */
-const REALISM =
-  'A modern Polish interior: light oak, white plaster, architectural concrete and glass, European fittings, European city architecture beyond the windows'
 
 export interface BuiltPrompt {
   promptEn: string
@@ -124,13 +95,8 @@ function moodSentence(brief: Brief, order: Order | null, assumptions: string[]):
   const mood = brief.mood?.trim()
   const colors = brief.colors?.trim()
 
+  const look = paletteFor(order, colors)
   const industry = order?.industry ?? null
-  const look =
-    colors !== undefined && colors.length > 0
-      ? `a palette built around ${colors}`
-      : industry === null
-        ? DEFAULT_LOOK
-        : (INDUSTRY_LOOK[industry] ?? DEFAULT_LOOK)
 
   if ((colors === undefined || colors.length === 0) && industry !== null) {
     assumptions.push(

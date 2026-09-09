@@ -1,3 +1,5 @@
+import { env } from '@/lib/env'
+
 /**
  * Ograniczanie liczby żądań (SPEC §13).
  *
@@ -91,11 +93,39 @@ export function resetAll(): void {
 }
 
 /**
- * Klucz licznika. Za Tailscale i za tunelem adres klienta przychodzi
- * w nagłówku proxy, więc bierzemy go stamtąd, a gniazdo jest zapasem.
+ * Klucz licznika.
+ *
+ * `X-Forwarded-For` i `X-Real-IP` ustawia **klient**, więc same z siebie nie są
+ * żadnym identyfikatorem — zmierzone: dwadzieścia prób logowania z rotowanym
+ * nagłówkiem przechodziło w komplecie, bo każda dostawała świeży kubełek.
+ * Ufamy im wyłącznie wtedy, gdy adres gniazda jest na liście zaufanych
+ * pośredników; w przeciwnym razie liczy się adres gniazda.
  */
-export function clientKey(request: Request, prefix: string): string {
-  const forwarded = request.headers.get('x-forwarded-for')
-  const address = forwarded?.split(',')[0]?.trim() ?? request.headers.get('x-real-ip') ?? 'lokalny'
-  return `${prefix}:${address}`
+export function clientKey(request: Request, prefix: string, socketAddress?: string): string {
+  const zaufane = env.TRUSTED_PROXY_IPS.split(',')
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0)
+
+  const gniazdo = socketAddress ?? 'lokalny'
+
+  if (zaufane.includes(gniazdo)) {
+    const forwarded = request.headers.get('x-forwarded-for')
+    const podany = forwarded?.split(',')[0]?.trim() ?? request.headers.get('x-real-ip')
+    if (podany !== undefined && podany !== null && podany.length > 0) {
+      return `${prefix}:${podany}`
+    }
+  }
+
+  return `${prefix}:${gniazdo}`
+}
+
+/**
+ * Drugi, globalny kubełek na cały proces — niezależny od jakiegokolwiek
+ * identyfikatora klienta. Nawet gdyby ktoś znalazł sposób na rozbicie
+ * licznika per klient, ten sufit zostaje.
+ */
+export const GLOBAL_LOGIN_LIMIT: Bucket = { capacity: 60, windowMs: 60 * 60_000 }
+
+export function consumeGlobalLogin(now = Date.now()): Decision {
+  return consume('logowanie:globalnie', GLOBAL_LOGIN_LIMIT, now)
 }

@@ -1,15 +1,21 @@
-import Database from 'better-sqlite3'
+import { dirname, join } from 'node:path'
 import { mkdirSync } from 'node:fs'
-import { join } from 'node:path'
 
+import { loadEnvConfig } from '@next/env'
+import Database from 'better-sqlite3'
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 
 /**
  * Uruchamia migracje na bazie wskazanej przez `STUDIO_DATA_DIR`.
- * Świadomie nie importuje `@/lib/env` — ma dać się odpalić z `node` bez
- * budowania aplikacji, więc czyta zmienną wprost i sam ją sprawdza.
+ *
+ * Konfigurację czytamy loaderem Next.js, a nie gołym `process.env` — `node`
+ * nie wczytuje `.env` sam z siebie i komenda zawodziła mimo poprawnego pliku.
+ * Katalog migracji liczymy od położenia tego pliku, żeby komenda działała
+ * z dowolnego katalogu roboczego.
  */
+
+loadEnvConfig(process.cwd(), true, { info: () => {}, error: () => {} })
 
 const dataDir = process.env.STUDIO_DATA_DIR
 
@@ -23,7 +29,7 @@ mkdirSync(dataDir, { recursive: true })
 const database = new Database(join(dataDir, 'studio.db'))
 database.exec('PRAGMA foreign_keys = ON')
 
-migrate(drizzle(database), { migrationsFolder: 'src/server/db/migrations' })
+migrate(drizzle(database), { migrationsFolder: join(dirname(new URL(import.meta.url).pathname), 'migrations') })
 
 process.stdout.write('Migracje zastosowane.\n')
 database.close()

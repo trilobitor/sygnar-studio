@@ -18,6 +18,58 @@ import { JobError, type HealthStatus, type JobContext } from './types'
 
 export type CropAspect = 'vertical' | 'square' | 'horizontal'
 
+/**
+ * Enkodery dla drugiego pliku, w kolejności od najlepszego.
+ *
+ * `libaom-av1` był tu wpisany na sztywno i **nie istnieje w Homebrew ffmpeg 9**
+ * — montaż padał za każdym razem komunikatem „Unknown encoder". Wybieramy więc
+ * po tym, co realnie jest w binarce, a wybór zapisujemy w metadanych pliku.
+ *
+ * Opcje różnią się per enkoder: `-cpu-used` i `-row-mt` należą do libaom i libvpx,
+ * SVT-AV1 steruje się `-preset`. Podanie cudzych opcji kończy się błędem.
+ */
+const KODEKI_DRUGIEGO_PLIKU = [
+  { nazwa: 'libsvtav1', opcje: ['-preset', '8'], kontener: 'webm' },
+  { nazwa: 'libaom-av1', opcje: ['-cpu-used', '6', '-row-mt', '1'], kontener: 'webm' },
+  { nazwa: 'libvpx-vp9', opcje: ['-cpu-used', '4', '-row-mt', '1'], kontener: 'webm' },
+] as const
+
+export type NazwaKodeka = (typeof KODEKI_DRUGIEGO_PLIKU)[number]['nazwa']
+
+/** Lista enkoderów binarki. Odczyt jest wolny, więc pytamy raz na proces. */
+const globalForEncoders = globalThis as unknown as { studioEncoders?: Set<string> }
+
+async function dostepneEnkodery(): Promise<Set<string>> {
+  if (globalForEncoders.studioEncoders !== undefined) return globalForEncoders.studioEncoders
+
+  const zbior = new Set<string>()
+  try {
+    const wynik = await runBinary(env.FFMPEG_PATH, ['-hide_banner', '-encoders'], {
+      timeoutMs: 10_000,
+    })
+    for (const linia of wynik.stdout.split('\n')) {
+      // Format: ` V..... nazwa   opis`
+      const dopasowanie = /^\s*[A-Z.]{6}\s+(\S+)/.exec(linia)
+      if (dopasowanie?.[1] !== undefined) zbior.add(dopasowanie[1])
+    }
+  } catch {
+    // Brak listy nie może zatrzymać montażu — spróbujemy pierwszego z listy.
+  }
+
+  globalForEncoders.studioEncoders = zbior
+  return zbior
+}
+
+/**
+ * Pierwszy enkoder, który realnie jest w tej binarce.
+ * Gdy lista jest pusta (nie udało się jej odczytać), bierzemy pierwszy z brzegu.
+ */
+export async function wybierzKodek(): Promise<(typeof KODEKI_DRUGIEGO_PLIKU)[number]> {
+  const dostepne = await dostepneEnkodery()
+  if (dostepne.size === 0) return KODEKI_DRUGIEGO_PLIKU[0]
+  return KODEKI_DRUGIEGO_PLIKU.find((k) => dostepne.has(k.nazwa)) ?? KODEKI_DRUGIEGO_PLIKU[0]
+}
+
 export interface TrimOperation {
   kind: 'trim'
   startMs: number
@@ -227,7 +279,8 @@ export async function render(
   request: RenderRequest,
   ctx: JobContext,
   progress: { from: number; to: number },
-): Promise<void> {
+): Promise<{ kodek: string }> {
+  let uzytyKodek = 'libx264'
   const sourceDuration = await probeDurationMs(request.sourcePath)
   const trim = request.operations.find(
     (operation): operation is TrimOperation => operation.kind === 'trim',
@@ -259,7 +312,9 @@ export async function render(
   if (request.codec === 'h264') {
     args.push('-c:v', 'libx264', '-preset', 'medium', '-pix_fmt', 'yuv420p')
   } else {
-    args.push('-c:v', 'libaom-av1', '-cpu-used', '6', '-row-mt', '1', '-pix_fmt', 'yuv420p')
+    const kodek = await wybierzKodek()
+    uzytyKodek = kodek.nazwa
+    args.push('-c:v', kodek.nazwa, ...kodek.opcje, '-pix_fmt', 'yuv420p')
   }
 
   args.push('-b:v', String(bitrate), '-an', request.outputPath)
@@ -270,6 +325,8 @@ export async function render(
     percentFrom: progress.from,
     percentTo: progress.to,
   })
+
+  return { kodek: uzytyKodek }
 }
 
 /** Pierwsza klatka jako JPG — plansza pokazywana, zanim ruszy film. */

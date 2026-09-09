@@ -22,6 +22,19 @@ export function orderDir(dataDir: string, orderId: string): string {
   return join(resolve(dataDir), 'orders', orderId)
 }
 
+/**
+ * Katalog roboczy pojedynczego zadania wewnątrz `generated`.
+ *
+ * Osobny katalog na zadanie, bo nazwy plików niosą numer losowania, a ten sam
+ * numer w tym samym zleceniu jest normalną sytuacją przy powtarzaniu kadru.
+ * Wspólny katalog dawałby kolizję, a mflux przy kolizji dokłada `_1` do nazwy
+ * i adapter zarejestrowałby stary plik pod nowym numerem.
+ */
+export function jobWorkDir(dataDir: string, orderId: string, jobId: string): string {
+  assertSafeSegment(jobId)
+  return join(bucketDir(dataDir, orderId, 'generated'), jobId)
+}
+
 /** Katalog na konkretny rodzaj plików w obrębie zlecenia. */
 export function bucketDir(dataDir: string, orderId: string, bucket: AssetBucket): string {
   return join(orderDir(dataDir, orderId), bucket)

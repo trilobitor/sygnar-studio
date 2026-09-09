@@ -113,7 +113,11 @@ export async function generate(
   ctx: JobContext,
 ): Promise<GeneratedImage[]> {
   const workflow = loadWorkflow(TEXT_TO_IMAGE_WORKFLOW)
-  const outputBase = join(ctx.workDir, 'kadr.png')
+  // `{seed}` podstawia sam mflux — sprawdzone empirycznie, także przy jednym
+  // seedzie. Bez tego nazwa wyjściowa nie niosłaby numeru losowania, a przy
+  // istniejącym pliku mflux dokłada `_1` zamiast nadpisać, więc adapter
+  // rejestrowałby stary kadr pod nowym numerem.
+  const outputBase = join(ctx.workDir, 'kadr_seed_{seed}.png')
 
   const args = [
     '--model',
@@ -233,26 +237,30 @@ export async function generate(
 }
 
 /**
- * Zbiera pliki wyjściowe. Przy wielu seedach mflux dokleja `_seed_<n>`
- * do nazwy — sprawdzone na tej instalacji, nie założone z dokumentacji.
+ * Zbiera pliki wyjściowe po dokładnych nazwach.
+ *
+ * Żadnego wariantu awaryjnego: jeśli pliku o oczekiwanej nazwie nie ma, to
+ * znaczy, że coś poszło inaczej, niż zakładamy, i lepiej zatrzymać zadanie,
+ * niż zarejestrować cudzy kadr pod tym numerem losowania.
  */
 async function collectOutputs(
   outputBase: string,
   params: GenerateParams,
 ): Promise<GeneratedImage[]> {
   const dir = dirname(outputBase)
-  const stem = basename(outputBase).replace(/\.png$/, '')
+  const wzor = basename(outputBase)
   const present = new Set(await readdir(dir))
 
   const images: GeneratedImage[] = []
 
   for (const seed of params.seeds) {
-    const withSeed = `${stem}_seed_${seed}.png`
-    const plain = `${stem}.png`
-    const fileName = present.has(withSeed) ? withSeed : present.has(plain) ? plain : null
+    const fileName = wzor.replace('{seed}', String(seed))
 
-    if (fileName === null) {
-      throw new JobError('COMFY_WORKFLOW_INVALID', `brak pliku wyjściowego dla seeda ${seed}`)
+    if (!present.has(fileName)) {
+      throw new JobError(
+        'COMFY_WORKFLOW_INVALID',
+        `brak pliku wyjściowego ${fileName} dla seeda ${seed}`,
+      )
     }
 
     images.push({

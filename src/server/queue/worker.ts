@@ -4,6 +4,7 @@ import { env } from '@/lib/env'
 import { createLogger, logger } from '@/lib/logger'
 import { JobError, type JobContext, type JobErrorCode } from '@/server/adapters/types'
 import type { Job } from '@/server/db/schema'
+import { jobWorkDir } from '@/server/services/paths'
 import { publish } from './events'
 import { keepAwake } from './keep-awake'
 import {
@@ -116,7 +117,7 @@ async function runJob(job: Job): Promise<void> {
     controller.abort(new JobError('JOB_TIMEOUT', 'przekroczono czas zadania'))
   }, TIMEOUTS_MS[job.kind])
 
-  const workDir = `${env.STUDIO_DATA_DIR}/orders/${job.orderId}/generated`
+  const workDir = jobWorkDir(env.STUDIO_DATA_DIR, job.orderId, job.id)
 
   // Zadania GPU trwają minuty — maszyna nie może w tym czasie zasnąć.
   const releaseWakeLock = isGpuJob(job.kind) ? keepAwake() : () => {}

@@ -266,3 +266,39 @@ publicznego, więc ten dzień właśnie nadszedł.
 **Czego to nie załatwia.** Hasło przeszło przez czat, więc jest spalone dla
 czegokolwiek innego. Przed wystawieniem publicznym trzeba je zmienić —
 `npm run haslo` generuje nowy skrót.
+
+## D16 — slot OG wychodzi w JPEG, nie w PNG
+
+**Data:** 2026-09-09 · **Status:** obowiązuje, odstępstwo od briefu §4.8
+
+**Decyzja.** Preset `og` produkuje JPEG. Brief realizacyjny przewiduje tam PNG.
+
+**Powód.** Zmierzone na ośmiu prawdziwych kadrach: PNG z paletą wychodzi
+353–545 KB przy limicie 300 KB. Slot był martwy dla **każdego** zdjęcia —
+grafik dostawał komunikat „Podnieś limit albo zmniejsz kadr", którego nie
+da się wykonać, bo wymiar 1200 × 630 narzuca brief, a limitu nie ma jak
+ruszyć z panelu. Po zmianie te same kadry wychodzą 136–298 KB przy jakości
+91–95.
+
+**Przy okazji.** Komentarz w `sharp.ts` twierdził, że „PNG jest bezstratny",
+i z tego powodu PNG szedł jednym strzałem, bez szukania jakości. Kwantyzacja
+palety jest stratna — PNG przechodzi teraz tą samą drogą co formaty stratne.
+
+## D17 — reguły sceny dokleja kod, niezależnie od źródła opisu
+
+**Data:** 2026-09-09 · **Status:** obowiązuje, realizacja D14
+
+**Decyzja.** `services/scene-rules.ts` jest jedynym miejscem, w którym żyją
+paleta per branża (§4.2), martwe strefy kadru (§4.5), zakazy (§4.6) i realia
+polskie (§4.7). `applySceneRules` dokleja je do gotowego opisu **po walidacji**,
+niezależnie od tego, czy przygotował go model językowy, czy składacz.
+
+**Powód.** D14 deklarowała, że te reguły „składa kod, zawsze tak samo", ale
+implementacja robiła co innego: trzy źródła były alternatywami, nie podziałem
+pracy. Reguły mieszkały wyłącznie w składaczu, czyli w gałęzi uruchamianej
+dopiero po awarii dwóch pozostałych — **domyślna ścieżka przez model ich nie
+stosowała** i dawała kadry gorzej zgodne z briefem niż ścieżka awaryjna.
+Temat trafiał na środek kadru, czyli pod nakładki layoutu.
+
+**Konsekwencja.** Do promptu modelu trafia też branża, bo bez niej nie mógł
+znać palety. Reguła nie jest doklejana drugi raz, gdy model już ją zastosował.

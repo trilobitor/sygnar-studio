@@ -9,7 +9,7 @@ import { JobError, type HealthStatus, type JobContext } from './types'
  * maksymalnie osiem iteracji, a wynik zapisujemy w metadanych pliku.
  */
 
-export type ExportFormat = 'avif' | 'webp' | 'png'
+export type ExportFormat = 'avif' | 'webp' | 'png' | 'jpeg'
 
 /** Górna granica liczby prób. Każda próba to pełna kompresja obrazu. */
 export const MAX_QUALITY_ITERATIONS = 8
@@ -57,10 +57,17 @@ function encode(
       return source.clone().avif({ quality }).toBuffer()
     case 'webp':
       return source.clone().webp({ quality }).toBuffer()
+    case 'jpeg':
+      return source.clone().jpeg({ quality, mozjpeg: true }).toBuffer()
     case 'png':
-      // PNG jest bezstratny — jakość nim nie steruje, sterują poziom kompresji
-      // i redukcja palety.
-      return source.clone().png({ compressionLevel: 9, palette: true }).toBuffer()
+      // PNG z paletą **nie jest bezstratny** — kwantyzacja barw to stratna
+      // operacja, a `quality` steruje właśnie nią. Wcześniejszy komentarz
+      // twierdził inaczej i dlatego PNG szedł jednym strzałem, bez szukania
+      // jakości mieszczącej się w limicie wagi.
+      return source
+        .clone()
+        .png({ compressionLevel: 9, palette: true, quality })
+        .toBuffer()
   }
 }
 
@@ -81,14 +88,6 @@ export async function exportToWeight(
     // czyli w zakresie, w jakim realnie pracujemy (decyzja D6).
     kernel: 'lanczos3',
   })
-
-  if (request.format === 'png') {
-    const buffer = await encode(source, 'png', 100)
-    if (buffer.byteLength > request.maxBytes) {
-      throw new JobError('EXPORT_WEIGHT_UNREACHABLE', 'PNG nie mieści się w limicie wagi')
-    }
-    return { buffer, bytes: buffer.byteLength, quality: null, iterations: 1 }
-  }
 
   let low = 30
   let high = 95

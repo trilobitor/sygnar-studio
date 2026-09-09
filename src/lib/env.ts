@@ -73,6 +73,13 @@ const envSchema = z.object({
   AUTO_LOGOUT_SECONDS: z.coerce.number().int().min(10).max(86_400).default(1800),
 
   /**
+   * Adresy pośredników, którym wolno ustawiać `X-Forwarded-For`, po przecinku.
+   * Puste = nikomu, czyli limity liczą się po adresie gniazda. Wpisz tu adres
+   * Tailscale'a albo tunelu dopiero wtedy, gdy panel realnie za nim stoi.
+   */
+  TRUSTED_PROXY_IPS: z.string().default(''),
+
+  /**
    * Zostaje na przyszłość. Backendem wersji 1 jest mflux (decyzja D5),
    * ComfyUI dołoży się jako druga implementacja tego samego kontraktu.
    */

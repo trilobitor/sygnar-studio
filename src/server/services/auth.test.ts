@@ -4,6 +4,8 @@ import { hashPassword, verifyPassword } from './password'
 import {
   clientKey,
   consume,
+  consumeGlobalLogin,
+  GLOBAL_LOGIN_LIMIT,
   LOGIN_LIMIT,
   reset,
   resetAll,
@@ -139,11 +141,32 @@ describe('limit żądań', () => {
     expect(LOGIN_LIMIT.windowMs).toBeGreaterThanOrEqual(10 * 60_000)
   })
 
-  it('rozróżnia klientów po adresie z nagłówka proxy', () => {
-    const a = new Request('http://x/', { headers: { 'x-forwarded-for': '100.64.0.1' } })
-    const b = new Request('http://x/', { headers: { 'x-forwarded-for': '100.64.0.2, 10.0.0.1' } })
+  it('IGNORUJE nagłówek proxy od niezaufanego klienta', () => {
+    // Zmierzone przed poprawką: dwadzieścia prób logowania z rotowanym
+    // `X-Forwarded-For` przechodziło w komplecie, bo każda dostawała świeży
+    // kubełek. Nagłówek ustawia klient, więc sam z siebie nie jest niczym.
+    const a = new Request('http://x/', { headers: { 'x-forwarded-for': '9.9.9.1' } })
+    const b = new Request('http://x/', { headers: { 'x-forwarded-for': '9.9.9.2' } })
 
-    expect(clientKey(a, 'test')).not.toBe(clientKey(b, 'test'))
-    expect(clientKey(b, 'test')).toContain('100.64.0.2')
+    expect(clientKey(a, 'test')).toBe(clientKey(b, 'test'))
+  })
+
+  it('rotacja nagłówka nie daje nowej puli', () => {
+    const bucket: Bucket = { capacity: 3, windowMs: 60_000 }
+
+    for (let i = 0; i < 3; i += 1) {
+      const req = new Request('http://x/', { headers: { 'x-forwarded-for': `9.9.9.${i}` } })
+      expect(consume(clientKey(req, 'log'), bucket, 0).allowed).toBe(true)
+    }
+
+    // Czwarte żądanie z kolejnym, świeżym adresem musi się odbić.
+    const czwarte = new Request('http://x/', { headers: { 'x-forwarded-for': '9.9.9.99' } })
+    expect(consume(clientKey(czwarte, 'log'), bucket, 0).allowed).toBe(false)
+  })
+
+  it('globalny kubełek logowania istnieje jako drugi sufit', () => {
+    expect(GLOBAL_LOGIN_LIMIT.capacity).toBeGreaterThan(0)
+    expect(GLOBAL_LOGIN_LIMIT.windowMs).toBeGreaterThanOrEqual(60 * 60_000)
+    expect(consumeGlobalLogin(0).allowed).toBe(true)
   })
 })

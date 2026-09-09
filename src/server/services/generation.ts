@@ -19,16 +19,6 @@ export function enqueueGeneration(input: GenerateJobInput): Job {
   return job
 }
 
-/** Losuje seedy dla wariantów. Grafik widzi je potem przy każdym kadrze. */
-export function drawSeeds(count: number): number[] {
-  const seeds: number[] = []
-  while (seeds.length < count) {
-    const seed = Math.floor(Math.random() * 2_147_483_647)
-    if (!seeds.includes(seed)) seeds.push(seed)
-  }
-  return seeds
-}
-
 async function runGeneration(job: Job, ctx: JobContext): Promise<void> {
   // Parametry zapisane w bazie też przechodzą przez schemat — baza jest
   // granicą jak każda inna, a JSON mógł tam trafić z wcześniejszej wersji.

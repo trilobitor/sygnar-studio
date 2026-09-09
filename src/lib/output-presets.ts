@@ -34,7 +34,7 @@ export interface OutputPreset {
   /** Limit wagi pojedynczego pliku w kilobajtach. */
   readonly maxWeightKb: number
   /** Formaty eksportu w kolejności, w jakiej powstają. */
-  readonly formats: readonly ('avif' | 'webp' | 'png')[]
+  readonly formats: readonly ('avif' | 'webp' | 'png' | 'jpeg')[]
   /** Człon nazwy pliku: `<branza>-<slot>-<nr>.<ext>`. */
   readonly slug: string
   /** Czy preset pochodzi z briefu sygnar.pl, czy jest ogólny pod zlecenia. */
@@ -98,7 +98,11 @@ export const OUTPUT_PRESETS = {
     generate: { width: 1200, height: 624 },
     deliver: { width: 1200, height: 630 },
     maxWeightKb: 300,
-    formats: ['png'],
+    // Brief §4.8 przewiduje tu PNG, ale zmierzone kadry fotograficzne wychodzą
+    // w PNG na 353–545 KB przy limicie 300 KB — slot był martwy dla każdego
+    // zdjęcia. JPEG mieści się z zapasem i jest obsługiwany przez wszystkie
+    // podglądy odnośników. Odstępstwo od briefu opisane w DECYZJE.md D16.
+    formats: ['jpeg'],
     slug: 'og',
     source: 'sygnar',
   },
