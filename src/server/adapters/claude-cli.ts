@@ -39,6 +39,15 @@ const cliResultSchema = z.object({
   is_error: z.boolean(),
   result: z.string(),
   total_cost_usd: z.number().optional(),
+  /*
+   * Klucze tego obiektu to identyfikatory modeli, które odpowiedziały.
+   * CLI sam wybiera model, więc bez odczytania go stąd `prompt_runs` zapisywał
+   * literał 'claude-code-cli' i nie dało się później powiedzieć, czym powstał
+   * konkretny opis.
+   */
+  modelUsage: z.record(z.string(), z.unknown()).optional(),
+  /** `max_tokens` znaczy, że odpowiedź została ucięta w połowie. */
+  stop_reason: z.string().optional(),
   usage: z
     .object({
       input_tokens: z.number().optional(),
@@ -190,4 +199,10 @@ export function kontekstWejsciowy(usage: CliResult['usage']): number {
     (usage.cache_read_input_tokens ?? 0) +
     (usage.cache_creation_input_tokens ?? 0)
   )
+}
+
+/** Identyfikator modelu, który odpowiedział. `null`, gdy CLI go nie podał. */
+export function uzytyModel(wynik: CliResult): string | null {
+  const klucze = Object.keys(wynik.modelUsage ?? {})
+  return klucze[0] ?? null
 }

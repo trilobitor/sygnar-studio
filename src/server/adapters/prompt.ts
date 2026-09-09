@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -6,8 +5,6 @@ import Anthropic from '@anthropic-ai/sdk'
 
 import { env, hasAnthropicKey } from '@/lib/env'
 import { promptResultSchema, type Brief, type PromptResult } from '@/lib/schemas'
-import { db } from '@/server/db/client'
-import { promptRuns } from '@/server/db/schema'
 import { JobError, type HealthStatus, type Logger } from './types'
 
 /**
@@ -31,7 +28,15 @@ export const PROMPT_MODEL = 'claude-opus-5'
 const PRICE_PER_MTOK_INPUT = 5
 const PRICE_PER_MTOK_OUTPUT = 25
 
-const MAX_OUTPUT_TOKENS = 2000
+/*
+ * Sufit odpowiedzi modelu.
+ *
+ * Podniesiony z 2000. Nowsze modele domyślnie rozumują przed odpowiedzią,
+ * a tokeny rozumowania liczą się do tego limitu — przy 2000 opis potrafił
+ * zostać ucięty w połowie zdania. Rachunek rośnie tylko o realnie
+ * wygenerowane tokeny, więc wyższy sufit sam z siebie nic nie kosztuje.
+ */
+const MAX_OUTPUT_TOKENS = 8000
 const TIMEOUT_MS = 60_000
 /** Jedna próba ponowienia, nie więcej — grafik czeka przed formularzem. */
 const MAX_RETRIES = 1
@@ -82,8 +87,23 @@ export function extractJson(text: string): unknown {
 /** Brief idzie do modelu jako dane w jasno oznaczonej ramce, nie jako polecenie. */
 export function renderBrief(brief: Brief, industry?: string | null): string {
   const lines: string[] = []
+
+  /*
+   * Ostre nawiasy zamieniamy na znaki pojedynczych cudzysłowów kątowych.
+   *
+   * Brief trafia do modelu wewnątrz ramki `<brief>…</brief>`, opisanej jako
+   * dane wejściowe, nie polecenia. Bez tej zamiany grafik mógł wpisać
+   * `</brief>` w treści i domknąć ramkę przedwcześnie — reszta jego tekstu
+   * wyglądałaby wtedy jak instrukcja od nas, nie jak dane.
+   *
+   * Nie jest to obrona przed atakiem — panel ma jednego, znanego użytkownika
+   * na zlecenie. Jest to obrona przed przypadkiem: ktoś opisze scenę
+   * zawierającą nawias ostry i dostanie dziwny wynik bez wyjaśnienia.
+   */
+  const bezpieczne = (tekst: string): string => tekst.replace(/</g, '‹').replace(/>/g, '›')
+
   const put = (label: string, value: string | undefined): void => {
-    if (value !== undefined && value.length > 0) lines.push(`${label}: ${value}`)
+    if (value !== undefined && value.length > 0) lines.push(`${label}: ${bezpieczne(value)}`)
   }
 
   // Branża decyduje o palecie (brief §4.2), więc model musi ją znać.
@@ -113,10 +133,17 @@ export interface PromptRunContext {
  * Zamienia brief na prompt po angielsku. Rzuca `PROMPT_SERVICE_FAILED`,
  * gdy się nie uda — wywołujący pokazuje wtedy pole do ręcznego wpisania.
  */
+/** Zużycie jednego wywołania modelu. Utrwala je serwis, nie adapter. */
+export interface ZuzycieWywolania {
+  inputTokens: number
+  outputTokens: number
+  costUsd: number
+}
+
 export async function briefToPrompt(
   brief: Brief,
   ctx: PromptRunContext,
-): Promise<PromptResult> {
+): Promise<PromptResult & { usage: ZuzycieWywolania }> {
   if (!hasAnthropicKey) {
     throw new JobError('PROMPT_SERVICE_FAILED', 'brak klucza do warstwy promptowej')
   }
@@ -146,6 +173,12 @@ export async function briefToPrompt(
         ],
       })
 
+      // Odpowiedź ucięta limitem jest bezużyteczna, ale wyglądała jak
+      // poprawna: kończyła się w połowie zdania, a schemat ją przepuszczał.
+      if (response.stop_reason === 'max_tokens') {
+        throw new JobError('PROMPT_SERVICE_FAILED', 'odpowiedź modelu została ucięta limitem')
+      }
+
       if (response.stop_reason === 'refusal') {
         throw new JobError('PROMPT_SERVICE_FAILED', 'model odmówił wykonania zadania')
       }
@@ -164,20 +197,14 @@ export async function briefToPrompt(
 
       const costUsd = estimateCostUsd(response.usage.input_tokens, response.usage.output_tokens)
 
-      // Rygor C: każde wywołanie modelu językowego jest zapisane razem z kosztem.
-      db.insert(promptRuns)
-        .values({
-          id: randomUUID(),
-          orderId: ctx.orderId,
-          model: PROMPT_MODEL,
-          inputTokens: response.usage.input_tokens,
-          outputTokens: response.usage.output_tokens,
-          costUsd,
-          briefJson: JSON.stringify(brief),
-          promptEn: parsed.data.prompt_en,
-          createdAt: Date.now(),
-        })
-        .run()
+      /*
+       * Zapis do `prompt_runs` robi **wyłącznie** `services/prompt.ts`.
+       *
+       * Wcześniej adapter zapisywał sam, obok serwisu robiącego to samo dla
+       * ścieżki przez CLI. Dwa miejsca zapisu o różnym kształcie znaczyły, że
+       * poprawka w jednym (prawdziwy identyfikator modelu, pełny kontekst
+       * wejściowy) omijała drugie. Adapter zwraca dane, serwis je utrwala.
+       */
 
       ctx.logger.info('warstwa promptowa odpowiedziała', {
         orderId: ctx.orderId,
@@ -187,7 +214,15 @@ export async function briefToPrompt(
         attempt: attempt + 1,
       })
 
-      return parsed.data
+      // Zużycie wraca razem z wynikiem — serwis je utrwala.
+      return {
+        ...parsed.data,
+        usage: {
+          inputTokens: response.usage.input_tokens,
+          outputTokens: response.usage.output_tokens,
+          costUsd,
+        },
+      }
     } catch (error) {
       lastError = error
       ctx.logger.warn('próba warstwy promptowej nieudana', {

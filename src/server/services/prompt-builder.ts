@@ -193,15 +193,47 @@ export function buildPrompt(brief: Brief, order: Order | null): BuiltPrompt {
 }
 
 /**
- * Czy opis wygląda na polski. Składacz przepuszcza punkt pierwszy bez
- * tłumaczenia, więc trzeba grafika ostrzec, zanim wyśle to do modelu.
+ * Najczęstsze angielskie słowa funkcyjne.
+ *
+ * Zdanie po angielsku prawie zawsze któreś z nich zawiera; polskie nie zawiera
+ * żadnego. To pewniejszy sygnał niż szukanie polskich słów, bo tych ostatnich
+ * jest nieskończenie wiele, a lista funkcyjnych angielskich jest krótka
+ * i zamknięta.
+ */
+const ANGIELSKIE_FUNKCYJNE = new Set([
+  'the', 'a', 'an', 'and', 'or', 'of', 'in', 'on', 'at', 'to', 'with', 'from',
+  'by', 'for', 'is', 'are', 'was', 'were', 'be', 'as', 'into', 'over', 'under',
+  'behind', 'through', 'against', 'this', 'that', 'his', 'her', 'its', 'their',
+])
+
+/**
+ * Czy opis wymaga tłumaczenia. Składacz przepuszcza punkt pierwszy bez zmian,
+ * więc trzeba grafika ostrzec, zanim wyśle to do modelu.
+ *
+ * Sprawdzamy **brak angielskiego**, nie obecność polskiego. Poprzednia wersja
+ * szukała znaków diakrytycznych i garści polskich słówek, przez co opis
+ * napisany bez ogonków przechodził jako angielski — zmierzone: „Puste wnetrze
+ * kancelarii, debowe biurko", „Gabinet stomatologiczny rano" i „Ekipa
+ * budowlana przed blokiem" nie były rozpoznawane wcale.
  */
 export function looksPolish(text: string): boolean {
+  // Ogonki rozstrzygają od razu.
   if (/[ąćęłńóśźż]/i.test(text)) return true
 
-  // Krótkie polskie słowa funkcyjne bez znaków diakrytycznych.
-  const markers = /\b(jest|nie|oraz|przy|dla|pod|nad|jak|tego|która|który|takie|bardzo)\b/i
-  return markers.test(text)
+  const slowa = text
+    .toLowerCase()
+    .split(/[^a-z]+/)
+    .filter((w) => w.length > 0)
+
+  // Przy jednym–dwóch słowach każde kryterium jest zgadywaniem.
+  if (slowa.length < 3) return false
+
+  const angielskich = slowa.filter((w) => ANGIELSKIE_FUNKCYJNE.has(w)).length
+
+  // Zdanie po angielsku ma zwykle 20–40% słów funkcyjnych. Próg 10% zostawia
+  // zapas na styl telegraficzny („empty law office, oak desk, afternoon"),
+  // a polski tekst i tak trafia w zero.
+  return angielskich / slowa.length < 0.1
 }
 
 /**

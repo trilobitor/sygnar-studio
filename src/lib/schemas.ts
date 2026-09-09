@@ -79,8 +79,20 @@ export type GenerateJobInput = z.infer<typeof generateJobSchema>
 
 /** Wynik warstwy promptowej. Walidowany zanim cokolwiek z niego użyjemy. */
 export const promptResultSchema = z.object({
+  // Opis sceny walidujemy twardo: bez niego nie ma czego generować.
   prompt_en: z.string().min(10).max(1500),
-  assumptions: z.array(z.string().max(300)).max(3).default([]),
+  /*
+   * Założenia są dodatkiem, nie warunkiem powodzenia.
+   *
+   * `.max(3)` odrzucał **całą odpowiedź**, gdy model wypisał cztery założenia
+   * — poprawny, gotowy opis lądował w koszu przez jedno zdanie komentarza za
+   * dużo. Teraz nadmiar przycinamy, a nieparsowalną listę zastępujemy pustą.
+   */
+  assumptions: z
+    .array(z.string().max(300))
+    .catch([])
+    .transform((lista) => lista.slice(0, 3))
+    .default([]),
 })
 
 export type PromptResult = z.infer<typeof promptResultSchema>

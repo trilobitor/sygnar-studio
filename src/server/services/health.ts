@@ -5,7 +5,9 @@ import { sql } from 'drizzle-orm'
 
 import { env } from '@/lib/env'
 import { db } from '@/server/db/client'
+import { checkClaudeCli } from '@/server/adapters/claude-cli'
 import { checkDarktable } from '@/server/adapters/darktable'
+import { checkPrompt } from '@/server/adapters/prompt'
 import { checkFfmpeg } from '@/server/adapters/ffmpeg'
 import { checkMflux } from '@/server/adapters/mflux'
 import { checkSharp } from '@/server/adapters/sharp'
@@ -18,7 +20,7 @@ import type { HealthStatus } from '@/server/adapters/types'
  * bez uruchamiania frameworka.
  */
 
-export const ADAPTER_NAMES = ['generator', 'video', 'export', 'photos', 'baza', 'dysk'] as const
+export const ADAPTER_NAMES = ['generator', 'video', 'export', 'photos', 'opis', 'baza', 'dysk'] as const
 export type AdapterName = (typeof ADAPTER_NAMES)[number]
 
 export interface AdapterHealth {
@@ -44,6 +46,7 @@ const LABELS: Record<AdapterName, string> = {
   video: 'Montaż wideo',
   export: 'Eksport plików',
   photos: 'Obróbka wsadowa zdjęć',
+  opis: 'Przygotowanie opisu',
   baza: 'Baza zleceń',
   dysk: 'Katalog danych',
 }
@@ -63,6 +66,26 @@ async function sprawdzBaze(): Promise<HealthStatus> {
   } catch {
     return { ok: false, reason: 'unreachable' }
   }
+}
+
+/**
+ * Czy warstwa przygotowująca opis jest gotowa.
+ *
+ * Backend wybiera `PROMPT_BACKEND`. Awaria tej warstwy nie blokuje pracy —
+ * składacz deterministyczny działa zawsze — więc pozycja jest informacyjna
+ * i nie wchodzi do `ready`.
+ */
+async function sprawdzOpis(): Promise<HealthStatus> {
+  if (env.PROMPT_BACKEND === 'builder') return { ok: true, version: 'składacz' }
+  if (env.PROMPT_BACKEND === 'api') return await checkPrompt()
+  if (env.PROMPT_BACKEND === 'cli') return await checkClaudeCli()
+
+  // `auto`: wystarczy, że działa którakolwiek droga.
+  const cli = await checkClaudeCli()
+  if (cli.ok) return cli
+
+  const api = await checkPrompt()
+  return api.ok ? api : { ok: true, version: 'składacz' }
 }
 
 /** Ile miejsca zostało — poniżej tego progu jeden montaż potrafi zapchać dysk. */
@@ -98,11 +121,15 @@ async function sprawdzDysk(): Promise<HealthStatus> {
 }
 
 export async function collectHealth(): Promise<HealthReport> {
-  const [generator, video, exporter, photos, baza, dysk] = await Promise.all([
+  const [generator, video, exporter, photos, opis, baza, dysk] = await Promise.all([
     checkMflux(),
     checkFfmpeg(),
     checkSharp(),
     checkDarktable(),
+    // Warstwa promptowa miała dwie gotowe funkcje sprawdzające i żadna nie
+    // była nigdzie wołana — grafik dowiadywał się o awarii dopiero wtedy,
+    // gdy okno briefu wracało z pustym opisem.
+    sprawdzOpis(),
     sprawdzBaze(),
     sprawdzDysk(),
   ])
@@ -112,6 +139,7 @@ export async function collectHealth(): Promise<HealthReport> {
     video,
     export: exporter,
     photos,
+    opis,
     baza,
     dysk,
   }

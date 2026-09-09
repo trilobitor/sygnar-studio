@@ -1012,3 +1012,57 @@ panel ma więcej niż jedną osobę i stoi w internecie, ma.
 
 **Konsekwencja.** Przy niezgodności wraca `NOT_FOUND`, nie osobny kod —
 odpowiedź nie ma zdradzać, że plik istnieje, tylko należy do kogoś innego.
+
+---
+
+## D55 — Wykrywamy brak angielskiego, nie obecność polskiego
+
+**Decyzja.** `looksPolish` liczy udział angielskich słów funkcyjnych. Poniżej
+10 % uznaje opis za wymagający tłumaczenia. Ogonki nadal rozstrzygają od razu.
+
+**Powód.** Poprzednia wersja szukała znaków diakrytycznych i garści polskich
+słówek, więc opis pisany **bez ogonków** przechodził jako angielski. Zmierzone:
+„Puste wnetrze kancelarii, debowe biurko", „Gabinet stomatologiczny rano"
+i „Ekipa budowlana przed blokiem" nie były rozpoznawane wcale.
+
+Lista polskich słów jest nieskończona, lista angielskich funkcyjnych — krótka
+i zamknięta. Dlatego kryterium jest odwrócone.
+
+---
+
+## D56 — Założenia od modelu przycinamy, nie odrzucamy przez nie całości
+
+**Decyzja.** `assumptions` przechodzi przez `.catch([])` i przycinanie do trzech
+**po** walidacji. `prompt_en` nadal twardo.
+
+**Powód.** `.max(3)` odrzucał całą odpowiedź, gdy model wypisał cztery
+założenia — poprawny, gotowy opis lądował w koszu przez jedno zdanie
+komentarza za dużo.
+
+---
+
+## D57 — Jedno miejsce zapisu do `prompt_runs`, prawdziwy model, wykryte ucięcie
+
+**Decyzja.** Adapter API zwraca zużycie, zapisuje wyłącznie
+`services/prompt.ts`. Model odczytujemy z `modelUsage` zamiast wpisywać literał.
+Sufit odpowiedzi podniesiony z 2000 na 8000, a `stop_reason: 'max_tokens'`
+kończy się błędem.
+
+**Powód.** Dwa miejsca zapisu o różnym kształcie znaczyły, że poprawka
+w jednym omijała drugie — ścieżka API nie dostała ani prawdziwego modelu, ani
+pełnego kontekstu wejściowego. Zapisywany literał `claude-code-cli` nie mówił,
+czym powstał konkretny opis; zmierzone, CLI odpowiada dziś
+`claude-haiku-4-5-20251001`. Odpowiedź ucięta limitem wyglądała jak poprawna,
+bo kończyła się w połowie zdania, a schemat ją przepuszczał.
+
+---
+
+## D58 — Ramka briefu jest szczelna
+
+**Decyzja.** `renderBrief` zamienia `<` i `>` na znaki kątowe.
+
+**Powód.** Brief trafia do modelu wewnątrz `<brief>…</brief>`. Bez tej zamiany
+grafik mógł wpisać `</brief>` w treści i domknąć ramkę przedwcześnie — reszta
+jego tekstu wyglądałaby wtedy jak instrukcja od nas, nie jak dane. To obrona
+przed przypadkiem, nie przed atakiem: panel ma jednego, znanego użytkownika
+na zlecenie.

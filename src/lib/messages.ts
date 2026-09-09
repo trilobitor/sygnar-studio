@@ -160,3 +160,13 @@ export function zacisnij(
   if (!Number.isFinite(wartosc) || wartosc === 0) return domyslna
   return Math.min(max, Math.max(min, wartosc))
 }
+
+/**
+ * Skąd wziął się opis sceny. Bez żargonu — grafik nie musi wiedzieć, że
+ * chodzi o CLI, API czy funkcję składającą tekst.
+ */
+export const SOURCE_LABELS: Record<string, string> = {
+  cli: 'Opis przygotował model językowy.',
+  api: 'Opis przygotował model językowy.',
+  builder: 'Opis złożony z Twoich odpowiedzi, bez modelu językowego.',
+}

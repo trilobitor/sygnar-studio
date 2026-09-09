@@ -18,6 +18,7 @@ import {
   messageForCode,
   odmiana,
   SHOT_LABELS,
+  SOURCE_LABELS,
   STYLE_LABELS,
   zacisnij,
 } from '@/lib/messages'
@@ -89,6 +90,8 @@ export function BriefDialog({
   const [promptEn, setPromptEn] = useState('')
   const [assumptions, setAssumptions] = useState<string[]>([])
   const [needsTranslation, setNeedsTranslation] = useState(false)
+  /** Skąd wziął się opis. Zapisywane w `prompt_runs`, ale nigdy niepokazywane. */
+  const [zrodlo, setZrodlo] = useState<string | null>(null)
 
   const preset = OUTPUT_PRESETS[purpose as keyof typeof OUTPUT_PRESETS]
 
@@ -135,6 +138,7 @@ export function BriefDialog({
         // tłumaczenia" zostawało z poprzedniej próby i dotyczyło tekstu,
         // którego już nie ma.
         setNeedsTranslation(false)
+        setZrodlo(null)
         setStep('prompt')
         return
       }
@@ -444,6 +448,13 @@ export function BriefDialog({
               <TextArea id={id} value={promptEn} onChange={setPromptEn} rows={8} maxLength={2000} />
             )}
           </Field>
+
+          {/* Pochodzenie opisu było zapisywane w `prompt_runs` i nigdzie
+              niepokazywane — grafik nie wiedział, czy patrzy na pracę modelu,
+              czy na tekst złożony z jego własnych odpowiedzi. */}
+          {zrodlo !== null && SOURCE_LABELS[zrodlo] !== undefined && (
+            <p className="text-xs text-ink-muted">{SOURCE_LABELS[zrodlo]}</p>
+          )}
         </div>
       )}
     </Dialog>

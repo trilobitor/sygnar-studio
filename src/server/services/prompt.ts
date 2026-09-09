@@ -2,7 +2,12 @@ import { randomUUID } from 'node:crypto'
 
 import { env, hasAnthropicKey } from '@/lib/env'
 import { promptResultSchema, type Brief } from '@/lib/schemas'
-import { runClaudeCli, cliPath, kontekstWejsciowy } from '@/server/adapters/claude-cli'
+import {
+  cliPath,
+  kontekstWejsciowy,
+  runClaudeCli,
+  uzytyModel,
+} from '@/server/adapters/claude-cli'
 import {
   briefToPrompt as callApi,
   extractJson,
@@ -92,7 +97,9 @@ async function viaCli(brief: Brief, order: Order, logger: Logger): Promise<Promp
 
   recordRun({
     orderId,
-    model: 'claude-code-cli',
+    // Prawdziwy identyfikator modelu, nie literał. CLI sam wybiera model,
+    // więc bez tego nie dało się powiedzieć, czym powstał konkretny opis.
+    model: uzytyModel(result) ?? 'claude-code-cli',
     // Cały kontekst, łącznie z cache'em — samo `input_tokens` to stale 2.
     inputTokens: kontekstWejsciowy(result.usage),
     outputTokens: result.usage?.output_tokens ?? 0,
@@ -118,6 +125,18 @@ async function viaCli(brief: Brief, order: Order, logger: Logger): Promise<Promp
 
 async function viaApi(brief: Brief, order: Order, logger: Logger): Promise<PromptOutcome> {
   const result = await callApi(brief, { orderId: order.id, logger })
+
+  // Jedno miejsce zapisu dla obu dróg — patrz komentarz w `adapters/prompt.ts`.
+  recordRun({
+    orderId: order.id,
+    model: PROMPT_MODEL,
+    inputTokens: result.usage.inputTokens,
+    outputTokens: result.usage.outputTokens,
+    costUsd: result.usage.costUsd,
+    brief,
+    promptEn: result.prompt_en,
+  })
+
   return {
     promptEn: applySceneRules(result.prompt_en, order, brief),
     assumptions: result.assumptions,
