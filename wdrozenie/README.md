@@ -94,6 +94,17 @@ imię obok ikony wylogowania. Dwie osoby nie mogą mieć tego samego hasła.
 Hasło z `STUDIO_PASSWORD_HASH` przenosi się do tabeli osób raz, przy pierwszym
 starcie po tej zmianie, pod imieniem z `STUDIO_OWNER_NAME`.
 
+## 3c. Alerty
+
+Panel sam wysyła powiadomienie macOS przy logowaniu z nieznanego dotąd adresu
+i przy wyczerpaniu limitu prób. Nie trzeba nic obserwować.
+
+Historię przejrzysz w razie potrzeby: `npm run dostep -- wejscia 30`.
+Kolumny to czas, wynik (`ok`, `zle-haslo`, `limit`), imię i skrót adresu
+klienta. Wpisy `zle-haslo` z obcych skrótów przy publicznie wystawionym panelu
+są normalne — to skanery. Niepokojące jest `ok` z adresu, którego nie
+rozpoznajesz.
+
 ## 4. Instalacja PWA na laptopie grafika
 
 1. Otwórz adres z Tailscale w Edge albo Chrome.

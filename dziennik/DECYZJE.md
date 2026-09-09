@@ -428,3 +428,24 @@ podrobiony znacznik) do aplikacji dotarł adres rzeczywisty, a znacznik wartoś�
 `?1`. Sprawdzone na żywym Funnelu. Po poprawce: dwanaście prób z zewnątrz daje
 8 × 401 i 4 × 429, a logowanie z localhosta w tym samym czasie przechodzi
 z kodem 200 — kubełki są rozdzielone.
+
+---
+
+## D24 — Alerty macOS zamiast zaglądania do logu
+
+**Decyzja.** Serwer wysyła powiadomienie systemowe (`osascript`) w dwóch
+sytuacjach: udane logowanie **z adresu, z którego nikt dotąd nie wchodził**,
+oraz wyczerpanie limitu prób. Drugi alert jest dławiony do jednego na godzinę
+z tego samego adresu.
+
+**Powód.** Log wejść bez powiadomienia jest wart tyle, co pamięć o zaglądaniu
+do niego. Po wystawieniu panelu Funnelem właściciel musiałby wpisywać
+`npm run dostep -- wejscia` w nieskończoność, żeby cokolwiek zauważyć.
+
+**Konsekwencja.** Codzienne wejścia z tego samego komputera są ciche —
+alarmowanie przy każdym logowaniu zamieniłoby powiadomienia w tło, które
+przestaje cokolwiek znaczyć. Wyciek hasła objawi się jako wejście z nowego
+adresu, więc sygnał zostaje. O znajomość miejsca pytamy **przed** zapisem do
+logu, bo zapis sam czyniłby je znanym. Zmierzone: pierwsze logowanie z danego
+adresu daje alert, drugie już nie; dziesięć prób ze złym hasłem daje jeden
+alert, nie dziesięć.

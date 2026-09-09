@@ -11,6 +11,7 @@ import {
   LOGIN_LIMIT,
   reset,
 } from '@/server/services/rate-limit'
+import { alertUdaneLogowanie, alertZgadywanieHasla } from '@/server/services/alerty'
 import { clientHash, findUserByPassword, recordLogin } from '@/server/services/users'
 import {
   cookieOptions,
@@ -53,6 +54,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       const retryAfter = Math.max(decision.retryAfterSeconds, globalnie.retryAfterSeconds)
       logger.warn('przekroczono limit prób logowania', { retryAfter, skrot })
       recordLogin({ userId: null, outcome: 'limit', clientHash: skrot, userAgent: przegladarka })
+      alertZgadywanieHasla(skrot)
 
       return NextResponse.json(
         { errorCode: 'TOO_MANY_ATTEMPTS' },
@@ -80,6 +82,8 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     reset(key)
     logger.info('zalogowano do panelu', { kto: user.name })
+    // Pytamy o znajomość miejsca **przed** zapisem, bo zapis sam czyni je znanym.
+    alertUdaneLogowanie(user.name, skrot)
     recordLogin({ userId: user.id, outcome: 'ok', clientHash: skrot, userAgent: przegladarka })
 
     const response = NextResponse.json({ ok: true, kto: user.name })
