@@ -1,3 +1,5 @@
+import { join } from 'node:path'
+
 import { defineConfig, devices } from '@playwright/test'
 
 /**
@@ -18,7 +20,9 @@ import { defineConfig, devices } from '@playwright/test'
  * własne testy jednostkowe.
  */
 const PORT = 3100
-const DANE = '.e2e-dane'
+// Ścieżka bezwzględna, bo `env.ts` wymaga tego od `STUDIO_DATA_DIR` —
+// względna zatrzymuje start z komunikatem o niekompletnej konfiguracji.
+const DANE = join(process.cwd(), '.e2e-dane')
 
 export default defineConfig({
   testDir: './e2e',

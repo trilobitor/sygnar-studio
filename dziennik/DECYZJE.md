@@ -715,3 +715,45 @@ w konkretnej wersji.
 
 **Konsekwencja.** `/api/zyje` nie mówi niczego, czego nie widać po samym tym,
 że serwer odpisał.
+
+---
+
+## D39 — E2E ma własny katalog danych i własny port
+
+**Decyzja.** Scenariusze end-to-end biegną na `.e2e-dane` (ścieżka bezwzględna),
+na porcie 3100, z `reuseExistingServer: false` i `globalSetup` zakładającym
+świeżą bazę migracją. Bramka logowania jest tam wyłączona jawnie przez
+`STUDIO_REQUIRE_LOGIN=0`.
+
+**Powód.** `command: 'npm run start'` brał produkcyjny `.env`, a
+`reuseExistingServer: true` podpinał się do **działającego serwera grafika**.
+Testy zakładały zlecenia w jego bazie i nie było ani jednego `afterEach`, który
+by je sprzątał. Uruchomienie pełnego zestawu na maszynie z pracą klientów
+zostawiłoby po sobie śmieci w prawdziwych danych.
+
+Osobno: `webServer.url` wskazywał `/api/health`, który po dodaniu bramki (D15)
+zwraca 401 — serwer nigdy nie zostałby uznany za gotowy.
+
+**Konsekwencja.** Zmierzone: po przebiegu baza testowa ma 1 zlecenie, baza
+grafika nadal 6. Katalog danych jest teraz tworzony przed migracją także
+w `instrumentation-node.ts` — wcześniej pierwsze uruchomienie w pustym
+katalogu kończyło się błędem „Cannot open database because the directory
+does not exist" i panel wstawał z pustym schematem.
+
+---
+
+## D40 — Testy mają odrzucać zepsutą implementację, nie tylko przechodzić
+
+**Decyzja.** Test doboru jakości w sharpie sprawdza **maksymalność**: koduje
+o stopień wyżej i wymaga, żeby wynik już się nie mieścił.
+
+**Powód.** Poprzednia wersja miała jedną asercję — luźniejszy limit daje jakość
+nie niższą niż ciaśniejszy. Implementacja zwracająca **zawsze** najniższą
+jakość przechodziła ją bez mrugnięcia, bo 30 ≥ 30. Test o nazwie „wybiera
+najwyższą jakość mieszczącą się w limicie" nie sprawdzał niczego takiego.
+
+**Konsekwencja.** Kontrola negatywna: po ustawieniu górnej granicy
+wyszukiwania na 30 nowy test upada, stary przechodził. Ta sama zasada dotyczy
+dopisanych testów zakresów bajtów — nie mają cichego pomijania przy nieudanym
+przygotowaniu, bo dokładnie ta pułapka zdarzyła się już raz w tym projekcie
+(testy ffmpega przechodzące pusto przez nieistniejącą ścieżkę do binarki).

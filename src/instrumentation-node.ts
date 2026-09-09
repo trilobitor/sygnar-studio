@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
 import Database from 'better-sqlite3'
@@ -18,6 +19,12 @@ import { logger } from '@/lib/logger'
  * Ten moduł ładuje się wyłącznie w runtime Node (patrz `instrumentation.ts`).
  */
 try {
+  // Katalog danych może jeszcze nie istnieć — przy pierwszym uruchomieniu po
+  // instalacji albo w środowisku testowym. Bez tego migracje padały
+  // komunikatem „Cannot open database because the directory does not exist",
+  // a panel wstawał z pustym schematem.
+  mkdirSync(env.STUDIO_DATA_DIR, { recursive: true })
+
   const database = new Database(join(env.STUDIO_DATA_DIR, 'studio.db'))
   database.exec('PRAGMA foreign_keys = ON')
   migrate(drizzle(database), {
