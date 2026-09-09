@@ -62,6 +62,7 @@ export function Gallery({
   onSelect,
   onChanged,
   laduje,
+  wTrakcie,
 }: {
   assets: Asset[];
   selectedId: string | null;
@@ -69,7 +70,9 @@ export function Gallery({
   /** Wołane po odłożeniu kadru na bok — lista musi się przeładować. */
   onChanged: () => void;
   /** `true`, dopóki szczegół zlecenia nie wrócił z serwera. */
-  laduje: boolean
+  laduje: boolean;
+  /** Generowanie w biegu dla tego zlecenia — `null`, gdy stacja jest wolna. */
+  wTrakcie: { ile: number; postep: number; faza: string | null } | null;
 }) {
   const [visible, setVisible] = useState(PAGE_SIZE);
   /**
@@ -140,7 +143,7 @@ export function Gallery({
     );
   }
 
-  if (images.length === 0) {
+  if (images.length === 0 && wTrakcie === null) {
     return (
       <EmptyState>
         Nie ma tu jeszcze żadnego kadru. Kliknij <strong>Nowy brief</strong>,
@@ -228,6 +231,29 @@ export function Gallery({
         className="grid items-start gap-3"
         style={{ gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))" }}
       >
+        {/*
+          Kafelki-widma: tyle, ile kadrów powstaje, z paskiem postępu w środku.
+          Przez pięć minut liczenia galeria stała pusta, a jedynym śladem życia
+          był pasek na dole ekranu — potem wszystkie kadry pojawiały się naraz.
+        */}
+        {wTrakcie !== null &&
+          Array.from({ length: wTrakcie.ile }, (_, nr) => (
+            <div
+              key={`widmo-${String(nr)}`}
+              data-widmo=""
+              aria-hidden="true"
+              className="flex aspect-4/3 flex-col items-center justify-center gap-2 rounded border border-dashed border-line bg-surface-1 p-2 text-center"
+            >
+              <span className="h-1 w-3/4 overflow-hidden rounded bg-surface-2">
+                <span
+                  className="block h-full bg-ink-muted transition-all"
+                  style={{ width: `${String(Math.round(wTrakcie.postep * 100))}%` }}
+                />
+              </span>
+              <span className="text-xs text-ink-muted">{wTrakcie.faza ?? "Liczę…"}</span>
+            </div>
+          ))}
+
         {shown.map((asset) => (
           // Gwiazdka stoi **obok** kafelka, nie w nim: kafelek jest przyciskiem,
           // a przycisk w przycisku nie działa.

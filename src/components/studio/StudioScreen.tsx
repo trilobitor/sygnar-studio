@@ -100,7 +100,6 @@ export function StudioScreen({
    * dodatkowa ramka z układem domyślnym.
    */
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLewaZwinieta(wczytajFlage('studio:lewa-zwinieta'))
     setPrawaZwinieta(wczytajFlage('studio:prawa-zwinieta'))
     setGaleriaSiatka(wczytajFlage('studio:galeria-siatka'))
@@ -387,6 +386,45 @@ export function StudioScreen({
     return () => window.removeEventListener('keydown', klawisz)
   }, [briefOpen, detail, orderId, ready, selected])
 
+  /**
+   * Generowanie w biegu dla otwartego zlecenia — do kafelków-widm w galerii.
+   *
+   * Adapter liczy warianty po kolei i uczciwie melduje „Rysuję kadr 2 z 4",
+   * ale serwis rejestruje zasoby dopiero po zakończeniu całego przebiegu.
+   * Cztery warianty po ~70 s to blisko pięć minut, przez które środkowa
+   * kolumna pokazywała pustą galerię z zachętą „Kliknij Nowy brief", a jedynym
+   * śladem życia był pasek na dole ekranu. Potem cztery kadry pojawiały się naraz.
+   */
+  const wTrakcie = ((): { ile: number; postep: number; faza: string | null } | null => {
+    const zadanie = jobs.find(
+      (job) =>
+        job.orderId === orderId &&
+        job.kind === 'image_generate' &&
+        (job.status === 'queued' || job.status === 'running'),
+    )
+
+    if (zadanie === undefined) return null
+
+    // Ile kadrów powstanie — z parametrów zadania, nie z domysłu.
+    let ile = 1
+
+    try {
+      const parsed: unknown = JSON.parse(zadanie.paramsJson)
+
+      if (typeof parsed === 'object' && parsed !== null) {
+        const seeds = Reflect.get(parsed, 'seeds')
+        const variants = Reflect.get(parsed, 'variants')
+
+        if (Array.isArray(seeds)) ile = seeds.length
+        else if (typeof variants === 'number') ile = variants
+      }
+    } catch {
+      // Nieczytelne parametry nie mogą wywrócić galerii — zostaje jeden widm.
+    }
+
+    return { ile, postep: zadanie.progress, faza: zadanie.phase }
+  })()
+
   const stageIndex = ((): number => {
     if (detail === null) return 0
     if (detail.assets.some((a) => a.kind === 'export' || a.kind === 'poster')) return 4
@@ -670,6 +708,7 @@ export function StudioScreen({
                 <Gallery
                   assets={detail?.assets ?? []}
                   laduje={detail === null || detail.order.id !== orderId}
+                  wTrakcie={wTrakcie}
                   selectedId={selected?.id ?? null}
                   onSelect={setSelected}
                   onChanged={reload}
