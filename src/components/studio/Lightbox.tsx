@@ -153,7 +153,12 @@ export function Lightbox({ assets, onClose }: { assets: Asset[]; onClose: () => 
       />
 
       <div
-        className={`relative grid h-full w-full gap-px ${
+        /*
+          Sam kontener też nie łapie kliknięć — inaczej trafienie w czarny
+          margines zatrzymywało się na nim i nie docierało do tła zamykającego
+          podgląd. Kliknięcia przyjmują wyłącznie same obrazy.
+        */
+        className={`pointer-events-none relative grid h-full w-full gap-px ${
           assets.length === 1
             ? 'grid-cols-1'
             : assets.length === 2
@@ -162,7 +167,15 @@ export function Lightbox({ assets, onClose }: { assets: Asset[]; onClose: () => 
         }`}
       >
         {assets.map((kadr, numer) => (
-          <div key={kadr.id} className="flex items-center justify-center overflow-hidden">
+          <div
+            key={kadr.id}
+            /*
+              Puste pole obok kadru przepuszcza kliknięcie na tło, które
+              zamyka podgląd. Bez tego kliknięcie w czarny margines nie robiło
+              nic, choć wygląda dokładnie jak kliknięcie „obok".
+            */
+            className="pointer-events-none flex items-center justify-center overflow-hidden"
+          >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={`/api/files/${kadr.id}`}
@@ -182,7 +195,9 @@ export function Lightbox({ assets, onClose }: { assets: Asset[]; onClose: () => 
                 }
               }}
               draggable={false}
-              className={skala === 'fit' ? 'max-h-full max-w-full object-contain' : 'max-w-none'}
+              className={`pointer-events-auto ${
+                skala === 'fit' ? 'max-h-full max-w-full object-contain' : 'max-w-none'
+              }`}
               style={
                 skala === 'fit'
                   ? undefined
@@ -195,6 +210,19 @@ export function Lightbox({ assets, onClose }: { assets: Asset[]; onClose: () => 
           </div>
         ))}
       </div>
+
+      {/*
+        Zamknięcie widoczne, nie tylko pod Escape. Klawisz zna ten, kto go zna;
+        krzyżyk w rogu widzi każdy.
+      */}
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Zamknij podgląd"
+        className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-line bg-surface-1/90 text-lg text-ink-muted transition hover:border-field hover:text-ink"
+      >
+        ✕
+      </button>
 
       {/* Etykieta skali: grafik musi wiedzieć, czy patrzy na piksele, czy na
           pomniejszenie, w którym wady i tak nie byłoby widać. */}

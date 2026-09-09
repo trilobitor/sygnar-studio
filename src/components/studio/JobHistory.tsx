@@ -72,10 +72,10 @@ export function JobHistory({ jobs, onChanged }: { jobs: Job[]; onChanged: () => 
   }
 
   return (
-    <details className="rounded border border-line bg-surface-1 text-sm">
-      <summary className="cursor-pointer px-3 py-2 text-ink-muted">
+    <details className="rounded-md border border-line bg-surface-1 text-sm">
+      <summary className="cursor-pointer select-none px-3 py-2.5 text-ink-muted transition hover:text-ink">
         Historia zadań
-        <span className="ml-2 text-xs">{historia.length}</span>
+        <span className="ml-2 rounded bg-surface-2 px-1.5 py-0.5 text-xs">{historia.length}</span>
       </summary>
 
       <div className="border-t border-line">
@@ -87,7 +87,7 @@ export function JobHistory({ jobs, onChanged }: { jobs: Job[]; onChanged: () => 
 
         <ul className="divide-y divide-line">
           {historia.map((job) => (
-            <li key={job.id} className="flex items-center gap-3 px-3 py-1.5 text-xs">
+            <li key={job.id} className="flex items-center gap-3 px-3 py-2 text-xs">
               <span className="w-24 shrink-0 text-ink">{JOB_LABELS[job.kind] ?? 'Zadanie'}</span>
 
               <span

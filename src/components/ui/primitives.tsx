@@ -19,9 +19,13 @@ import { createPortal } from 'react-dom'
 type ButtonVariant = 'primary' | 'ghost' | 'danger'
 
 const BUTTON_STYLES: Record<ButtonVariant, string> = {
-  primary: 'bg-accent text-surface-0 hover:brightness-110 font-medium',
-  ghost: 'bg-surface-2 text-ink hover:bg-line',
-  danger: 'bg-transparent text-danger-text border border-danger hover:bg-danger/10',
+  primary: 'bg-accent text-surface-0 font-medium hover:brightness-110',
+  /*
+   * Wariant drugorzędny dostał obwódkę. Bez niej płaska plama `surface-2`
+   * zlewała się z tłem panelu i nie wyglądała na coś, w co można kliknąć.
+   */
+  ghost: 'border border-line bg-surface-2 text-ink hover:border-field hover:bg-line',
+  danger: 'border border-danger bg-transparent text-danger-text hover:bg-danger/10',
 }
 
 export function Button({
@@ -45,7 +49,7 @@ export function Button({
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className={`rounded px-3 py-2 text-sm transition disabled:cursor-not-allowed disabled:opacity-40 ${BUTTON_STYLES[variant]}`}
+      className={`inline-flex min-h-10 items-center justify-center rounded-md px-4 py-2 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 disabled:cursor-not-allowed disabled:opacity-40 ${BUTTON_STYLES[variant]}`}
     >
       {children}
     </button>
@@ -105,7 +109,7 @@ export function Field({
   const id = useId()
 
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-1.5">
       {/* Dymek stoi obok etykiety, nie w niej — przycisk wewnątrz `label`
           przekazywałby kliknięcie do pola i otwierał listy wyboru. */}
       <div className="flex items-baseline justify-between text-sm text-ink">
@@ -129,8 +133,15 @@ export function Field({
   )
 }
 
+/*
+ * Wspólny wygląd pól.
+ *
+ * Były niskie i nie dawały żadnego sygnału przy focusie poza domyślną obwódką
+ * przeglądarki — na ciemnym tle prawie niewidoczną. Wysokość zgadza się teraz
+ * z przyciskami, więc pole i przycisk w jednym rzędzie stoją równo.
+ */
 const INPUT_CLASS =
-  'w-full rounded border border-field bg-surface-2 px-3 py-2 text-sm text-ink placeholder:text-ink-muted'
+  'w-full min-h-10 rounded-md border border-field bg-surface-2 px-3 py-2 text-sm text-ink transition placeholder:text-ink-muted hover:border-ink-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25'
 
 export function TextInput({
   id,

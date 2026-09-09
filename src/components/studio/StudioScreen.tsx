@@ -23,7 +23,6 @@ import { Lightbox } from './Lightbox'
 import { HealthBanner } from './HealthBanner'
 import { Wordmark } from './Wordmark'
 import { QueueBar } from './QueueBar'
-import { OrderSummary } from '@/components/studio/OrderSummary'
 import { SessionBar } from './SessionBar'
 import { useQueue } from './use-queue'
 
@@ -809,9 +808,6 @@ export function StudioScreen({
             {autoLogoutSeconds > 0 && <SessionBar timeoutSeconds={autoLogoutSeconds} kto={kto} />}
           </div>
 
-          {/* Liczby do wyceny — zwinięte, liczone dopiero po rozwinięciu. */}
-          {orderId !== null && <OrderSummary key={orderId} orderId={orderId} />}
-
           {/* Historia zadań — zwinięta, bo to rzecz, do której się zagląda. */}
           {detail !== null && detail.order.id === orderId && (
             <JobHistory jobs={detail.jobs} onChanged={reload} />
@@ -866,7 +862,7 @@ export function StudioScreen({
               {/* Pasek miniatur albo pełna siatka — przełącznik pod klawiszem G.
                   Blok zablokowany na 256 px zabierał podgładowi wysokość, której
                   ten i tak miał najmniej. */}
-              <div className={galeriaSiatka ? 'max-h-[55vh] overflow-y-auto' : 'max-h-64 overflow-y-auto'}>
+              <div className={`flex min-h-0 flex-col ${galeriaSiatka ? 'max-h-[55vh]' : 'max-h-72'}`}>
                 <Gallery
                   assets={detail?.assets ?? []}
                   laduje={detail === null || detail.order.id !== orderId}

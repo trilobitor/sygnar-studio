@@ -162,7 +162,7 @@ export function Gallery({
   const shown = images.slice(0, visible);
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex min-h-0 flex-col gap-3">
       {/* Objaśnienie numeru losowania stoi raz nad siatką, nie przy każdym
           kadrze — kafelek jest przyciskiem, a przycisk w przycisku nie działa. */}
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -228,6 +228,12 @@ export function Gallery({
         <Hint text={FIELD_HINTS.seed} />
       </p>
 
+      {/*
+        Przewija się wyłącznie siatka. Wcześniej cały blok miał wspólne
+        przewijanie, więc rząd filtrów odjeżdżał razem z kafelkami i znikał
+        z oczu dokładnie wtedy, gdy był potrzebny.
+      */}
+      <div className="min-h-0 flex-1 overflow-y-auto">
       {/*
         Kolumny dobierają się do szerokości zamiast sztywnych czterech. Szkic
         w SPEC §10 pokazuje pasek czterech miniatur; przy zwiniętych kolumnach
@@ -389,6 +395,7 @@ export function Gallery({
           </div>
         ))}
       </div>
+      </div>
 
       {visible < images.length && (
         <button
@@ -436,7 +443,7 @@ function FaktyOKadrze({ asset }: { asset: Asset }) {
   const przeznaczenie = odczytajPrzeznaczenie(asset.metadataJson);
 
   return (
-    <p className="flex flex-wrap items-center gap-x-2 gap-y-1 px-1 text-xs text-ink-muted">
+    <p className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1 py-0.5 text-xs text-ink-muted">
       <span>
         {asset.width} × {asset.height}
       </span>
@@ -535,21 +542,38 @@ export function Preview({ asset }: { asset: Asset | null }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-1">
-    <div className="relative flex flex-1 items-center justify-center overflow-hidden rounded border border-line bg-surface-0">
+    <div className="group/podglad relative flex flex-1 items-center justify-center overflow-hidden rounded-md border border-line bg-surface-0">
       {/*
         Pobranie oglądanego pliku.
         Kadru ani wgranego pliku nie dało się pobrać wcale — służyły wyłącznie
         do oglądania. Grafik, który chciał wysłać klientowi surowy kadr do
         akceptacji, robił zrzut ekranu albo szukał pliku na dysku.
       */}
-      <a
-        href={`/api/files/${asset.id}?pobierz`}
-        download
-        title="Pobierz ten plik"
-        className="absolute right-2 top-2 z-10 rounded bg-surface-0/80 px-2 py-1 text-xs text-ink-muted transition hover:text-ink"
-      >
-        Pobierz
-      </a>
+      {/* Narzędzia podglądu: pojawiają się po najechaniu, żeby nie leżały
+          na kadrze przez cały czas. Na dotyku `group-hover` nie zadziała,
+          więc obie ikony są tam widoczne od razu (`opacity-100` bez wskaźnika). */}
+      <div className="absolute right-2 top-2 z-10 flex items-center gap-1 opacity-100 transition group-hover/podglad:opacity-100 md:opacity-0">
+        {!isVideo && (
+          <button
+            type="button"
+            onClick={() => setPelnyEkran(true)}
+            aria-label="Powiększ na cały ekran"
+            title="Powiększ na cały ekran — klawisz F"
+            className="flex h-9 w-9 items-center justify-center rounded-md border border-line bg-surface-0/85 text-sm text-ink-muted transition hover:border-field hover:text-ink"
+          >
+            ⤢
+          </button>
+        )}
+
+        <a
+          href={`/api/files/${asset.id}?pobierz`}
+          download
+          title="Pobierz ten plik"
+          className="flex h-9 items-center rounded-md border border-line bg-surface-0/85 px-3 text-xs text-ink-muted transition hover:border-field hover:text-ink"
+        >
+          Pobierz
+        </a>
+      </div>
 
       {isVideo ? (
         /*
