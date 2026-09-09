@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
 import { MAX_GENERATION_PIXELS, OUTPUT_PRESETS } from './output-presets'
-import { briefSchema, generateJobSchema, videoJobSchema } from './schemas'
+import {
+  briefSchema,
+  generateJobSchema,
+  renameOrderSchema,
+  videoJobSchema,
+} from './schemas'
 
 /**
  * Mapowanie briefu na parametry generowania i walidacja limitu powierzchni
@@ -131,5 +136,58 @@ describe('zakres przycięcia wideo', () => {
     })
 
     expect(wynik.success).toBe(true)
+  })
+})
+
+describe('losowanie numerów po stronie serwera', () => {
+  const podstawa = {
+    kind: 'image_generate',
+    orderId: '11111111-1111-4111-8111-111111111111',
+    promptEn: 'an empty law office with an oak desk',
+    width: 1024,
+    height: 1024,
+    purpose: 'services-wide',
+  }
+
+  it('przepuszcza zadanie bez numerów — wylosuje je serwer', () => {
+    // Losowanie robiła przeglądarka, w dwóch miejscach naraz. Dwie kopie tej
+    // samej reguły rozjeżdżają się przy pierwszej zmianie, a numer losowania
+    // jest jedyną rzeczą pozwalającą odtworzyć kadr.
+    const wynik = generateJobSchema.safeParse({ ...podstawa, variants: 4 })
+
+    expect(wynik.success).toBe(true)
+    if (wynik.success) expect(wynik.data.seeds).toBeUndefined()
+  })
+
+  it('nadal przyjmuje numery podane wprost', () => {
+    const wynik = generateJobSchema.safeParse({ ...podstawa, seeds: [1, 2, 3] })
+
+    expect(wynik.success).toBe(true)
+    if (wynik.success) expect(wynik.data.seeds).toEqual([1, 2, 3])
+  })
+
+  it('domyślnie cztery warianty', () => {
+    const wynik = generateJobSchema.safeParse(podstawa)
+
+    expect(wynik.success).toBe(true)
+    if (wynik.success) expect(wynik.data.variants).toBe(4)
+  })
+})
+
+describe('zmiana branży zlecenia', () => {
+  it('branża jest opcjonalna przy zmianie nazwy', () => {
+    expect(renameOrderSchema.safeParse({ name: 'Kancelaria Nowak' }).success).toBe(true)
+  })
+
+  it('branżę da się zmienić', () => {
+    // Wcześniej nie dało się wcale, więc pomyłka przy zakładaniu zlecenia
+    // oznaczała konieczność założenia go od nowa.
+    const wynik = renameOrderSchema.safeParse({ name: 'Kancelaria Nowak', industry: 'medical' })
+
+    expect(wynik.success).toBe(true)
+  })
+
+  it('nie przyjmuje branży spoza listy', () => {
+    expect(renameOrderSchema.safeParse({ name: 'Test', industry: 'kosmos' }).success).toBe(false)
   })
 })

@@ -18,8 +18,18 @@ export const createOrderSchema = z.object({
 export type CreateOrderInput = z.infer<typeof createOrderSchema>
 
 /** Zmiana nazwy zlecenia. Branży nie ruszamy — ta siedzi w nazwach plików. */
+/**
+ * Zmiana nazwy i branży zlecenia.
+ *
+ * Branży wcześniej nie dało się zmienić — komentarz twierdził, że „siedzi
+ * w nazwach plików", ale nazwy powstają przy eksporcie, nie przy zakładaniu
+ * zlecenia. Pomyłka przy zakładaniu oznaczała więc konieczność założenia
+ * zlecenia od nowa. Pliki już oddane zachowują swoje nazwy; zmiana dotyczy
+ * kolejnych.
+ */
 export const renameOrderSchema = z.object({
   name: z.string().min(2).max(120),
+  industry: orderIndustrySchema.optional(),
 })
 
 export type RenameOrderInput = z.infer<typeof renameOrderSchema>
@@ -66,7 +76,18 @@ export const generateJobSchema = z.object({
   promptEn: z.string().min(10).max(2000),
   width: z.number().int().min(256).max(2048).multipleOf(16),
   height: z.number().int().min(256).max(2048).multipleOf(16),
-  seeds: z.array(z.number().int().min(0).max(2_147_483_647)).min(1).max(8),
+  /*
+   * Numery losowania podane wprost albo — gdy ich nie ma — wylosowane przez
+   * serwer na podstawie `variants`.
+   *
+   * Losowanie robiła przeglądarka, w dwóch miejscach naraz, przez
+   * `Math.random()`. Dwie kopie tej samej reguły rozjeżdżają się przy
+   * pierwszej zmianie, a numer losowania jest jedyną rzeczą pozwalającą
+   * odtworzyć kadr — nie powinien zależeć od tego, który przycisk kliknięto.
+   */
+  seeds: z.array(z.number().int().min(0).max(2_147_483_647)).min(1).max(8).optional(),
+  /** Ile wariantów policzyć, gdy `seeds` nie podano. */
+  variants: z.number().int().min(1).max(8).default(4),
   /** Klucz presetu — decyduje o skalowaniu i nazwie pliku przy eksporcie. */
   purpose: z.enum(PURPOSE_KEYS),
 })

@@ -2,6 +2,8 @@ import { generateJobSchema, type GenerateJobInput } from '@/lib/schemas'
 import { generate } from '@/server/adapters/mflux'
 import { JobError, type JobContext } from '@/server/adapters/types'
 import type { Job } from '@/server/db/schema'
+import { webcrypto } from 'node:crypto'
+
 import { enqueue } from '@/server/queue/store'
 import { registerRunner, tick } from '@/server/queue/worker'
 import { registerAsset } from './assets'
@@ -12,8 +14,30 @@ import { touchOrder } from './orders'
  * Warstwa serwisów nie importuje niczego z `next/*`.
  */
 
+/**
+ * Numery losowania z generatora kryptograficznego.
+ *
+ * `Math.random()` w przeglądarce wystarczał, ale reguła siedziała w dwóch
+ * miejscach interfejsu naraz — a numer losowania jest jedyną rzeczą
+ * pozwalającą odtworzyć kadr co do piksela.
+ */
+export function losujSeedy(ile: number): number[] {
+  const bufor = new Uint32Array(ile)
+  webcrypto.getRandomValues(bufor)
+
+  // mflux przyjmuje liczby do 2^31-1, więc obcinamy górny bit.
+  return [...bufor].map((n) => n % 2_147_483_647)
+}
+
 export function enqueueGeneration(input: GenerateJobInput): Job {
-  const job = enqueue({ orderId: input.orderId, kind: 'image_generate', params: input })
+  // Numery losuje serwer, jeśli klient ich nie podał — jedna reguła zamiast
+  // dwóch kopii w interfejsie.
+  const params = {
+    ...input,
+    seeds: input.seeds ?? losujSeedy(input.variants),
+  }
+
+  const job = enqueue({ orderId: input.orderId, kind: 'image_generate', params })
   touchOrder(input.orderId, 'active')
   void tick()
   return job
@@ -37,7 +61,9 @@ async function runGeneration(job: Job, ctx: JobContext): Promise<void> {
       promptEn: params.promptEn,
       width: params.width,
       height: params.height,
-      seeds: params.seeds,
+      // Zadanie w bazie zawsze ma już wylosowane numery — `enqueueGeneration`
+      // uzupełnia je przed zapisem. Zapas na wypadek wiersza sprzed zmiany.
+      seeds: params.seeds ?? losujSeedy(params.variants),
     },
     ctx,
   )

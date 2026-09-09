@@ -1125,3 +1125,25 @@ nieistniejący plik, czyli stan, którego galeria nie umie pokazać.
 
 **Zmierzone w przeglądarce:** 12 kafelków, oznaczenie jednego, filtr pokazuje
 jeden, zero błędów w konsoli.
+
+---
+
+## D62 — Numery losowania losuje serwer, branżę da się zmienić
+
+**Decyzja.** `seeds` w `generateJobSchema` jest opcjonalne; przy jego braku
+`enqueueGeneration` losuje `variants` numerów generatorem kryptograficznym.
+`renameOrderSchema` przyjmuje opcjonalną branżę.
+
+**Powód pierwszego.** Losowanie robiła przeglądarka, w **dwóch miejscach
+naraz**, przez `Math.random()`. Dwie kopie tej samej reguły rozjeżdżają się
+przy pierwszej zmianie, a numer losowania jest jedyną rzeczą pozwalającą
+odtworzyć kadr co do piksela — nie powinien zależeć od tego, który przycisk
+kliknięto.
+
+**Powód drugiego.** Komentarz przy schemacie twierdził, że branży nie da się
+zmienić, bo „siedzi w nazwach plików". Nazwy powstają jednak przy eksporcie,
+a nie przy zakładaniu zlecenia, więc pomyłka oznaczała konieczność założenia
+zlecenia od nowa. Pliki już oddane zachowują swoje nazwy.
+
+**Zmierzone:** zadanie wysłane bez `seeds` dostało od serwera
+`[385035724, 1799275389]`.

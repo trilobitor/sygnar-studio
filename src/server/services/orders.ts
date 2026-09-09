@@ -59,9 +59,26 @@ export function listAssets(orderId: string): Asset[] {
 }
 
 /** Zmiana nazwy. Branża zostaje — jest członem nazw plików już oddanych. */
-export function renameOrder(id: string, name: string): Order {
+/**
+ * Zmiana nazwy, opcjonalnie także branży.
+ *
+ * Branży wcześniej nie dało się zmienić — komentarz przy schemacie twierdził,
+ * że „siedzi w nazwach plików". Nazwy powstają jednak przy eksporcie, a nie
+ * przy zakładaniu zlecenia, więc pomyłka oznaczała konieczność założenia go
+ * od nowa. Pliki już oddane zachowują swoje nazwy; zmiana dotyczy kolejnych.
+ */
+export function renameOrder(id: string, name: string, industry?: Order['industry']): Order {
   getOrder(id)
-  db.update(orders).set({ name, updatedAt: Date.now() }).where(eq(orders.id, id)).run()
+
+  db.update(orders)
+    .set({
+      name,
+      ...(industry === undefined ? {} : { industry }),
+      updatedAt: Date.now(),
+    })
+    .where(eq(orders.id, id))
+    .run()
+
   return getOrder(id)
 }
 
