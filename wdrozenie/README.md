@@ -32,7 +32,7 @@ chodzi jeszcze uruchomiony ręcznie:
 
 ```
 launchctl print gui/$(id -u)/pl.sygnar.studio | grep -E "state|last exit"
-curl http://127.0.0.1:3000/api/health
+curl -s http://localhost:3000/api/zyje    # {"ok":true} = proces żyje
 ```
 
 ## 3. Dostęp przez Tailscale
@@ -112,6 +112,51 @@ rozpoznajesz.
 3. Ikona ląduje na pulpicie i otwiera panel w oknie bez paska adresu.
 
 Manifest leży w `src/app/manifest.webmanifest`, ikony w `public/`.
+
+## 5. Kopia zapasowa
+
+```
+npm run kopia                       # do ~/Sygnar/kopie
+npm run kopia -- /Volumes/Dysk      # na dysk zewnętrzny — zalecane
+```
+
+Skrypt robi spójny zrzut bazy przez `database.backup()` i synchronizuje
+`orders/` przez `rsync`. Na koniec **otwiera zrobioną kopię i przepuszcza ją
+przez `quick_check`** — kopia, której nie da się otworzyć, jest bezwartościowa,
+a wychodzi to na jaw dopiero przy odtwarzaniu.
+
+Retencja: 7 kopii dziennych i po jednej z każdego z 4 ostatnich tygodni.
+
+**Nie kopiuj samego pliku `studio.db`.** Baza chodzi w trybie WAL, więc świeże
+zapisy leżą w dzienniku, nie w pliku głównym. Sprawdzone: `cp` bazy z 500
+wierszami dał kopię, w której tabela w ogóle nie istniała.
+
+### Automat
+
+```
+sed -e "s|__SCIEZKA_NODE__|$(which node)|" \
+    -e "s|__SCIEZKA_PROJEKTU__|$(pwd)|" \
+    -e "s|__KATALOG_KOPII__|$HOME/Sygnar/kopie|" \
+    -e "s|__KATALOG_LOGOW__|$HOME/Library/Logs|" \
+    wdrozenie/pl.sygnar.kopia.plist > ~/Library/LaunchAgents/pl.sygnar.kopia.plist
+plutil -lint ~/Library/LaunchAgents/pl.sygnar.kopia.plist
+launchctl load ~/Library/LaunchAgents/pl.sygnar.kopia.plist
+```
+
+### Odtworzenie
+
+```
+cp -R ~/Sygnar/kopie/<data>/. "$STUDIO_DATA_DIR"/
+```
+
+Sprawdzone na żywo: panel uruchomiony na odtworzonej kopii pokazał komplet
+zleceń i wydał zarówno kadr, jak i zmontowane wideo.
+
+### Czego to nie załatwia
+
+Kopia na tym samym dysku nie chroni przed awarią dysku. Wskaż katalog na
+nośniku zewnętrznym albo włącz Time Machine — dziś `tmutil destinationinfo`
+odpowiada „No destinations configured".
 
 ## Czego tu nie ma
 

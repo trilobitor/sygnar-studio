@@ -18,8 +18,14 @@ import { getUser } from '@/server/services/users'
  * filmu 19 MB kończyło się błędem walidacji, a filmu 3 MB przechodziło.
  */
 
-/** Ścieżki dostępne bez zalogowania — sam ekran logowania i jego endpoint. */
-const PUBLIC_PATHS = ['/logowanie', '/api/auth']
+/**
+ * Ścieżki dostępne bez zalogowania.
+ *
+ * `/api/zyje` odpowiada wyłącznie `{ok:true}` — tyle, ile i tak widać po tym,
+ * że serwer odpisał. `/api/health` **nie** jest publiczny, bo zdradza wersje
+ * narzędzi i wolne miejsce na dysku.
+ */
+const PUBLIC_PATHS = ['/logowanie', '/api/auth', '/api/zyje']
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`))

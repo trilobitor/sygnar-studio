@@ -13,7 +13,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node src/server/db/migrate.mts",
     "haslo": "node scripts/haslo.mts",
-    "dostep": "node src/server/db/dostep.mts"
+    "dostep": "node src/server/db/dostep.mts",
+    "kopia": "node scripts/kopia.mts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",

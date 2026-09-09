@@ -670,3 +670,48 @@ i nie dawała przewijać podglądu wideo — pasek postępu był martwy.
 bytes 0-1023/2846179`; `bytes=-500` → ostatnie 500 bajtów; `bytes=99999999-`
 → 416. Fragment `bytes=1000-2023` porównany bajt po bajcie z wycinkiem pliku
 z dysku — sumy kontrolne identyczne.
+
+---
+
+## D37 — Kopia zapasowa przez `database.backup()`, nie przez kopiowanie pliku
+
+**Decyzja.** `npm run kopia` robi zrzut bazy przez `database.backup()`,
+synchronizuje `orders/` rsynkiem i **otwiera zrobioną kopię**, przepuszczając
+ją przez `quick_check`. Retencja: 7 dziennych i 4 tygodniowe. Codzienny
+LaunchAgent w `wdrozenie/pl.sygnar.kopia.plist`.
+
+**Powód.** Nie było żadnej kopii — ani skryptu, ani Time Machine
+(`tmutil destinationinfo` → „No destinations configured"). W katalogu leżą
+pliki oddane klientom, a sam wiersz w bazie bez pliku PNG jest bezużyteczny.
+
+D2 uzasadniała wybór SQLite zdaniem, że „backup to skopiowanie folderu".
+**To nieprawda dla samego pliku bazy.** Zmierzone: baza w trybie WAL z 500
+wierszami, `copyFileSync` pliku `.db` → kopia, w której tabela w ogóle nie
+istnieje, bo wszystko siedziało jeszcze w dzienniku. `backup()` → komplet 500
+wierszy.
+
+**Konsekwencja.** Kopia jest sprawdzana przy tworzeniu, nie przy odtwarzaniu —
+kopia, której nie da się otworzyć, jest bezwartościowa, a wychodzi to na jaw
+w najgorszym możliwym momencie. Odtworzenie sprawdzone na żywo: panel
+uruchomiony na kopii pokazał komplet 6 zleceń i wydał zarówno kadr, jak
+i zmontowane wideo.
+
+Kopia na tym samym dysku nie chroni przed awarią dysku — to zapisane wprost
+w dokumentacji, razem z zaleceniem nośnika zewnętrznego.
+
+---
+
+## D38 — `/api/health` zostaje za bramką, do sprawdzania wdrożenia jest `/api/zyje`
+
+**Decyzja.** Nowy publiczny endpoint `/api/zyje` odpowiada stałym `{ok:true}`.
+`/api/health` zostaje chroniony.
+
+**Powód.** `wdrozenie/README.md` kazał sprawdzać wdrożenie przez `/api/health`,
+który stoi za bramką i zwracał 401 — komenda z instrukcji nie mówiła nic
+o stacji. Otwarcie `/api/health` byłoby jednak złym rozwiązaniem: zdradza
+dokładne wersje ffmpeg, mfluxa i sharpa oraz wolne miejsce na dysku, a panel
+stoi w internecie. To gotowa podpowiedź dla kogoś szukającego znanych dziur
+w konkretnej wersji.
+
+**Konsekwencja.** `/api/zyje` nie mówi niczego, czego nie widać po samym tym,
+że serwer odpisał.
