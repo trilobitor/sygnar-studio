@@ -16,13 +16,12 @@
  */
 export function Wordmark() {
   return (
-    <div className="flex items-baseline gap-2 px-2 pt-1 pb-3">
-      <span className="font-serif text-lg font-semibold tracking-[0.16em] text-ink">
-        SYGNAR<span className="text-accent">.</span>
-      </span>
-      <span className="font-serif text-lg font-semibold tracking-[0.02em] text-studio">
-        Studio
-      </span>
+    <div className="flex items-baseline px-2 pt-1 pb-3 font-serif text-lg font-semibold">
+      <span className="tracking-[0.16em] text-ink">SYGNAR</span>
+      {/* Kropka bez rozstrzelenia. W tracked spanie ciągnęłaby za sobą
+          2,88 px odstępu, przez co „Studio" odjeżdżało od znaku. */}
+      <span className="text-accent">.</span>
+      <span className="ml-1 tracking-[0.02em] text-studio">Studio</span>
     </div>
   )
 }
