@@ -1,13 +1,21 @@
 import { randomUUID } from 'node:crypto'
 import { mkdir, rm } from 'node:fs/promises'
 
-import { desc, eq } from 'drizzle-orm'
+import { and, count, desc, eq, inArray, isNotNull, sql, sum } from 'drizzle-orm'
 
 import { env } from '@/lib/env'
 import { briefSchema, type Brief, type CreateOrderInput } from '@/lib/schemas'
 import { ApiError } from '@/server/adapters/types'
 import { db } from '@/server/db/client'
-import { assets, briefs, orders, promptRuns, type Asset, type Order } from '@/server/db/schema'
+import {
+  assets,
+  briefs,
+  jobs,
+  orders,
+  promptRuns,
+  type Asset,
+  type Order,
+} from '@/server/db/schema'
 import { bucketDir, orderDir } from './paths'
 
 /**
@@ -172,4 +180,73 @@ export function listPromptRuns(
       promptEn: row.promptEn,
       createdAt: row.createdAt,
     }))
+}
+
+/** Liczby do wyceny zlecenia. */
+export interface OrderSummary {
+  /** Ile kadrów policzył generator. */
+  frames: number
+  /** Ile plików grafik przygotował do oddania klientowi. */
+  delivered: number
+  /** Łączny czas zadań liczących: generowanie i montaż, w milisekundach. */
+  stationMs: number
+  /**
+   * Suma przeliczników zużycia warstwy promptowej.
+   *
+   * To **nie** jest kwota do zapłacenia (D14): przy subskrypcji Claude Code
+   * nic z tego nie idzie na fakturę. To miara, ile zlecenie kosztowało pracy
+   * modelu — przydatna przy porównywaniu zleceń między sobą.
+   */
+  promptUsd: number
+  /** Ile razy warstwa promptowa liczyła opis. */
+  promptRuns: number
+}
+
+/**
+ * Jedno zapytanie agregujące zamiast wyciągania wszystkich wierszy.
+ *
+ * Tabela `prompt_runs` zapisywała model, tokeny i koszt każdego wywołania
+ * i nikt jej nigdy nie czytał; czas pracy stacji leżał w `started_at`
+ * i `finished_at` każdego zadania i też nie był nigdzie pokazywany.
+ */
+export function summarizeOrder(orderId: string): OrderSummary {
+  const pliki = db
+    .select({ kind: assets.kind, ile: count() })
+    .from(assets)
+    .where(eq(assets.orderId, orderId))
+    .groupBy(assets.kind)
+    .all()
+
+  const czas = db
+    .select({
+      // Sumujemy w bazie, nie w JavaScripcie: zleceń z setką zadań nie chcemy
+      // wciągać do pamięci tylko po to, żeby policzyć różnicę dwóch liczb.
+      ms: sql<number>`coalesce(sum(${jobs.finishedAt} - ${jobs.startedAt}), 0)`,
+    })
+    .from(jobs)
+    .where(
+      and(
+        eq(jobs.orderId, orderId),
+        inArray(jobs.kind, ['image_generate', 'video_render']),
+        isNotNull(jobs.startedAt),
+        isNotNull(jobs.finishedAt),
+      ),
+    )
+    .get()
+
+  const opisy = db
+    .select({ ile: count(), suma: sum(promptRuns.costUsd) })
+    .from(promptRuns)
+    .where(eq(promptRuns.orderId, orderId))
+    .get()
+
+  const ile = (rodzaj: string): number => pliki.find((wiersz) => wiersz.kind === rodzaj)?.ile ?? 0
+
+  return {
+    frames: ile('generated'),
+    delivered: ile('export') + ile('poster'),
+    stationMs: czas?.ms ?? 0,
+    promptUsd: Number(opisy?.suma ?? 0),
+    promptRuns: opisy?.ile ?? 0,
+  }
 }

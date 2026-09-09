@@ -140,6 +140,21 @@ jest źródłem prawdy dla wymiarów dostarczanych i limitów wagi.
 osobno: brief wymaga pliku `alty.csv` z altem po polsku (6–14 słów) do
 każdego oddawanego pliku — `SPEC.md` nie wspomina o tym ani razu.
 
+**Uzupełnienie (2026-09-09) — zakres tabeli §4.8.** Tabela ma **dziesięć**
+wierszy (nie jedenaście, jak podawał wcześniejszy zapis). `OUTPUT_PRESETS`
+ma dziesięć wpisów — `services-wide`, `services-tall`, `case`, `video-poster`,
+`hero-showcase`, `og`, `portrait`, `square`, `story`, `texture` — i pokrywa
+nimi wszystkie sloty rastrowe, które studio generuje i eksportuje.
+
+Dwa pozostałe wiersze — **wordmark klienta (SVG)** i **GIF newslettera** —
+leżą **poza aplikacją**, świadomie i na stałe. Powód: to praca wektorowa
+i animacyjna, wykonywana innymi narzędziami zgodnie z §12.4 briefu. Studio
+nie generuje krzywych ani klatek animowanego GIF-a i nie ma tego robić:
+generator daje rastry, `sharp` przepisuje rastry, a `ffmpeg` składa wideo.
+
+Wpisanie tych dwóch wierszy do `OUTPUT_PRESETS` byłoby obietnicą bez pokrycia
+— preset niesie wymiar generowania, a dla SVG taki wymiar nie istnieje.
+
 ## D9 — `better-sqlite3` jako sterownik SQLite, nie wbudowany `node:sqlite`
 
 **Data:** 2026-09-08 · **Status:** obowiązuje, do rewizji przy Drizzle 1.0

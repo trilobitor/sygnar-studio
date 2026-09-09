@@ -60,9 +60,24 @@ export async function checkPrompt(): Promise<HealthStatus> {
   return { ok: true, version: PROMPT_MODEL }
 }
 
-export function estimateCostUsd(inputTokens: number, outputTokens: number): number {
+/**
+ * Koszt wywołania w dolarach.
+ *
+ * Tokeny z bufora liczą się inaczej niż zwykłe wejście: **zapis** do bufora
+ * kosztuje 1,25× ceny wejścia, **odczyt** z niego 0,1×. Bez tych dwóch
+ * składników rachunek przy pierwszym briefie był zaniżony, a przy każdym
+ * następnym zawyżony dziesięciokrotnie.
+ */
+export function estimateCostUsd(
+  inputTokens: number,
+  outputTokens: number,
+  cacheWriteTokens = 0,
+  cacheReadTokens = 0,
+): number {
   return (
     (inputTokens / 1_000_000) * PRICE_PER_MTOK_INPUT +
+    (cacheWriteTokens / 1_000_000) * PRICE_PER_MTOK_INPUT * 1.25 +
+    (cacheReadTokens / 1_000_000) * PRICE_PER_MTOK_INPUT * 0.1 +
     (outputTokens / 1_000_000) * PRICE_PER_MTOK_OUTPUT
   )
 }
@@ -164,7 +179,19 @@ export async function briefToPrompt(
         // Zadanie jest proste i powtarzalne — nie ma po co palić tokenów
         // na głębokie rozumowanie.
         output_config: { effort: 'low' },
-        system: loadSystemPrompt(),
+        /*
+         * Prompt systemowy idzie do bufora: jest identyczny przy każdym
+         * briefie i waży 4397 bajtów, czyli grubo powyżej progu 512 tokenów,
+         * od którego Opus 5 w ogóle zakłada wpis. Drugi brief z rzędu czyta
+         * go z bufora za dziesiątą część ceny wejścia.
+         */
+        system: [
+          {
+            type: 'text',
+            text: loadSystemPrompt(),
+            cache_control: { type: 'ephemeral' },
+          },
+        ],
         messages: [
           {
             role: 'user',
@@ -195,7 +222,15 @@ export async function briefToPrompt(
         throw new JobError('PROMPT_SERVICE_FAILED', 'odpowiedź nie przeszła walidacji')
       }
 
-      const costUsd = estimateCostUsd(response.usage.input_tokens, response.usage.output_tokens)
+      const zapisDoBufora = response.usage.cache_creation_input_tokens ?? 0
+      const odczytZBufora = response.usage.cache_read_input_tokens ?? 0
+
+      const costUsd = estimateCostUsd(
+        response.usage.input_tokens,
+        response.usage.output_tokens,
+        zapisDoBufora,
+        odczytZBufora,
+      )
 
       /*
        * Zapis do `prompt_runs` robi **wyłącznie** `services/prompt.ts`.
@@ -210,6 +245,8 @@ export async function briefToPrompt(
         orderId: ctx.orderId,
         inputTokens: response.usage.input_tokens,
         outputTokens: response.usage.output_tokens,
+        zapisDoBufora,
+        odczytZBufora,
         costUsd: Number(costUsd.toFixed(6)),
         attempt: attempt + 1,
       })
