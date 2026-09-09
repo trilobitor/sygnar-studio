@@ -1,0 +1,232 @@
+# Dziennik decyzji
+
+Format: numer, data, decyzja, powód, konsekwencja. Wpis raz dodany nie znika —
+jeśli decyzja się zmienia, dopisujemy nowy wpis, który ją odwołuje.
+
+---
+
+## D1 — ComfyUI jako jedyny backend generowania
+
+**Data:** 2026-09-08 (ze `SPEC.md` §3) · **Status:** odroczona przez D5
+
+Nie piszemy integracji per model. Workflow jako wersjonowany JSON, nowy model =
+nowy JSON, nie nowy kod. Adres ComfyUI w zmiennej środowiskowej.
+
+## D2 — SQLite zamiast PostgreSQL
+
+**Data:** 2026-09-08 (ze `SPEC.md` §3) · **Status:** obowiązuje
+
+Odstępstwo od `01-stack-i-konwencje`, zatwierdzone przez właściciela. Aplikacja
+jest jednoosobowa i lokalna, backup to skopiowanie folderu. ORM: Drizzle, żeby
+ta sama warstwa zadziałała z Postgresem, gdyby projekt urósł.
+
+## D3 — Adaptery za jednym interfejsem
+
+**Data:** 2026-09-08 (ze `SPEC.md` §3) · **Status:** obowiązuje
+
+Cztery różne mechanizmy (HTTP, subprocess, biblioteka w procesie) ukryte za
+wspólnym kontraktem `Adapter<TParams, TResult>`. UI nie wie, co jest pod spodem.
+
+## D4 — Powłoka desktopowa odłożona
+
+**Data:** 2026-09-08 (ze `SPEC.md` §3) · **Status:** obowiązuje
+
+Rdzeń to lokalna aplikacja Next.js z pełnym Node. PWA daje ikonę i okno bez
+paska adresu. Tauri — jeśli kiedykolwiek, to później i bez zmian w kodzie.
+
+---
+
+## D5 — mflux jako backend generowania w wersji 1, ComfyUI później
+
+**Data:** 2026-09-08 · **Status:** warunkowa — obowiązuje, jeśli bramka E0 przejdzie
+
+**Decyzja.** Adapter `mflux.ts` jest backendem generowania w wersji 1. ComfyUI
+zostaje w kontrakcie adaptera jako druga implementacja do dołożenia bez zmian
+w UI, kiedy ktoś potwierdzi bf16 na Apple Silicon.
+
+**Powód.** ComfyUI nie jest zainstalowany na maszynie docelowej, a oficjalna
+ścieżka instalacji FLUX.2 klein 4B prowadzi na pliki fp8. Typ `Float8_e4m3fn`
+nie ma wsparcia w backendzie MPS PyTorcha — model nie załaduje się na Apple
+Silicon. Obejście przez bf16 (~13 GB) lub GGUF jest prawdopodobne, ale nie
+znaleziono publicznego potwierdzenia, że ktokolwiek uruchomił ten model
+w ComfyUI na Apple Silicon. mflux 0.19.1 działa na tej maszynie dziś:
+24 gotowe obrazy w `~/flux2-klein`, ~70 s przy 1344 × 768.
+
+**Konsekwencja.** Odstępstwo od D1 — `workflows/` nie zawiera JSON-ów ComfyUI,
+tylko presety mfluxa w tym samym formacie, co jego sidecar `*.metadata.json`.
+Reguła twarda z `CLAUDE.md` obowiązuje bez zmian: kroki (4) i guidance (1.0)
+są liczbami w pliku presetu, nie w kodzie i nie w prompcie, a warstwa promptowa
+nie ma do nich dostępu.
+
+**Co to ułatwia.** mflux ma `--config-from-metadata`, które odtwarza pełną
+konfigurację z sidecara — to jest wprost mechanika „powtórz kadr" z SPEC §10.
+`--seed` przyjmuje listę, `--auto-seeds N` odpowiada polu `variants` w briefie.
+
+## D6 — upscale jako brakujący etap między generowaniem a eksportem
+
+**Data:** 2026-09-08 · **Status:** obowiązuje, wariant techniczny do pomiaru w E0
+
+**Decyzja.** Między generowaniem a eksportem wchodzi krok skalowania w górę.
+`SPEC.md` go nie opisuje w żadnym z etapów E0–E7.
+
+**Powód.** Brief realizacyjny §4.8 wymaga plików do 2400 × 1350 (3,24 Mpx),
+a `SPEC.md` §7 ogranicza generowanie do 2 100 000 px, bo model widział
+w treningu ~1 Mpx. Bez kroku skalowania te dwa wymagania są sprzeczne.
+
+**Konsekwencja.** Współczynniki są łagodne — liniowo 1,20× dla `services.wide`
+i 1,25× dla `hero-showcase`, a `case` 1800 × 1125 nie wymaga skalowania wcale.
+Do rozstrzygnięcia pomiarem w E0: czy generować blisko limitu 2,08 Mpx
+i skalować minimalnie, czy generować ~1,1 Mpx i skalować 1,64× liniowo.
+Kandydaci na skalowanie: Lanczos w sharpie (bez nowej zależności) albo
+`mflux-upscale-seedvr2` (już w środowisku, ale to kolejne zadanie GPU).
+
+## D7 — `purpose` to klucz presetu wyjściowego, nie enum kształtów
+
+**Data:** 2026-09-08 · **Status:** obowiązuje
+
+**Decyzja.** Jeden obiekt `OUTPUT_PRESETS` jest źródłem prawdy. Każdy wpis
+niesie komplet: proporcje, wymiar generowania, wymiar dostarczany, limit wagi
+i człon nazwy pliku. Pole `purpose` w `briefSchema` to klucz tego obiektu,
+a enum Zod wywodzi się z jego kluczy — jedna lista, nie dwie.
+
+**Powód.** Odrzucone zostały obie pierwotne opcje. Enum slotów sygnar.pl
+(`services.wide`, `cases[i]`, …) zabiłby zlecenia klienckie, o których
+`SPEC.md` §1 mówi wprost. Enum abstrakcyjny (`square | story | hero | texture`)
+wymuszałby drugie mapowanie przy eksporcie i zostawiał `buildOutputName()`
+bez członu nazwy, bo brief nazywa pliki slotem: `legal-services-ads.webp`.
+
+**Konsekwencja.** Klucze slotowe pochodzą z briefu §4.8, obok nich generyczne
+dla zleceń klienckich. Nowy slot to jeden wpis, nie zmiana w trzech plikach.
+Zastępuje to enum `purpose` z `SPEC.md` §7 — `SPEC.md` wymaga aktualizacji.
+
+## D8 — limity wagi i wymiary pochodzą z briefu realizacyjnego, nie ze `SPEC.md`
+
+**Data:** 2026-09-08 · **Status:** obowiązuje
+
+**Decyzja.** Tabela §4.8 dokumentu „Sygnar — Brief grafika i wideo" v1.2
+jest źródłem prawdy dla wymiarów dostarczanych i limitów wagi.
+
+**Powód.** `SPEC.md` §6 podaje „180 / 160 / 200 / 60 KB" i pomija slot
+`heroShowcase` (220 KB), OG (300 KB) oraz GIF newslettera (250 KB).
+
+**Konsekwencja.** `SPEC.md` §6 wymaga aktualizacji. Do rozstrzygnięcia
+osobno: brief wymaga pliku `alty.csv` z altem po polsku (6–14 słów) do
+każdego oddawanego pliku — `SPEC.md` nie wspomina o tym ani razu.
+
+## D9 — `better-sqlite3` jako sterownik SQLite, nie wbudowany `node:sqlite`
+
+**Data:** 2026-09-08 · **Status:** obowiązuje, do rewizji przy Drizzle 1.0
+
+**Decyzja.** Sterownikiem bazy jest `better-sqlite3` przez dialekt
+`drizzle-orm/better-sqlite3`.
+
+**Powód.** Node 26.6 ma wbudowany `node:sqlite` i działa on bez flagi
+eksperymentalnej — sprawdzone. Byłby lepszym wyborem, bo `npm install`
+nie kompilowałby wtedy niczego natywnie. Dokumentacja Drizzle wymienia
+dialekt `drizzle-orm/node-sqlite`, ale w stabilnej wersji 0.45.2 tej ścieżki
+**nie ma** — pojawia się dopiero w linii `1.0.0-rc`. Weryfikacja w
+`node_modules`, nie w dokumentacji.
+
+**Konsekwencja.** Jedna zależność natywna więcej. Do rewizji, gdy Drizzle 1.0
+wyjdzie ze stanu release candidate — wtedy przejście na `node:sqlite` jest
+zmianą trzech linii importu.
+
+## D10 — osobna lista kodów błędów dla warstwy API
+
+**Data:** 2026-09-08 · **Status:** obowiązuje, wymaga wpisu w `SPEC.md`
+
+**Decyzja.** `API_ERROR_CODES` żyje obok `JOB_ERROR_CODES` z SPEC §7a.
+
+**Powód.** Tabela w SPEC §7a opisuje awarie *zadań w kolejce*. Route handler
+może się wywrócić bez żadnego zadania — na przykład `/api/health` przy błędzie
+odczytu dysku. Wciśnięcie tego w listę kodów zadań zatarłoby granicę.
+
+**Konsekwencja.** `SPEC.md` §7a wymaga uzupełnienia o drugą tabelę.
+Pierwszy kod: `HEALTH_CHECK_FAILED`. Lista jest zamknięta tak samo jak tamta.
+
+## D11 — własne prymitywy interfejsu zamiast generatora shadcn/ui
+
+**Data:** 2026-09-09 · **Status:** obowiązuje, do rewizji przy pierwszej okazji
+
+**Decyzja.** `src/components/ui/primitives.tsx` zawiera własne komponenty
+`Button`, `Field`, `TextInput`, `TextArea`, `Select`, `Dialog`, `EmptyState`.
+
+**Powód.** `SPEC.md` wymienia shadcn/ui w stacku, ale jego generator
+(`npx shadcn@latest init`) mimo `--yes` zatrzymuje się na pytaniu o bibliotekę
+komponentów i nie da się go uruchomić bez interaktywnego terminala. Dwie próby,
+obie zatrzymane na tym samym pytaniu — trzeciej nie było, zgodnie z regułą
+z `CLAUDE.md`.
+
+**Konsekwencja.** Prymitywy trzymają się tego samego API co shadcn, więc
+podmiana będzie zamianą importów, nie przepisywaniem ekranów. Do zrobienia
+przy okazji, gdy ktoś uruchomi generator ręcznie.
+
+## D12 — `caffeinate` per zadanie, nie per proces serwera
+
+**Data:** 2026-09-09 · **Status:** obowiązuje
+
+**Decyzja.** `src/server/queue/keep-awake.ts` uruchamia `caffeinate -i`
+na czas zadania GPU i gasi go po zakończeniu, licząc zagnieżdżenia.
+
+**Powód.** „Mac zasypia w trakcie zadania" jest ryzykiem o wysokim wpływie
+(`SPEC.md` §15). Trzymanie maszyny wybudzonej przez cały czas życia serwera
+byłoby jednak nadużyciem — panel stoi jako usługa systemowa i działa non stop.
+
+**Konsekwencja.** Blokada dotyczy bezczynności, nie zamknięcia klapy.
+Zamknięcie klapy MacBooka i tak uśpi maszynę i tego nie obchodzimy.
+
+## D13 — E6 pozostaje niezweryfikowane: darktable nie da się zainstalować
+
+**Data:** 2026-09-09 · **Status:** blokada zewnętrzna
+
+**Decyzja.** Adapter `darktable.ts` i serwis `photo-batch.ts` są napisane
+i przechodzą kompilację, ale **nie zostały uruchomione ani razu**.
+
+**Powód.** `brew install --cask darktable` odmawia:
+*„Cask 'darktable' has been disabled because it does not pass the macOS
+Gatekeeper check! It was disabled on 2026-09-01."* To jest blokada po stronie
+Homebrew, nie konfiguracji.
+
+**Konsekwencja.** `/api/health` pokazuje obróbkę wsadową jako jawnie
+niedostępną i tak ma zostać. Otwarte pytanie z `CLAUDE.md` — czy `darktable-cli`
+znosi równoległe uruchomienia — **nadal jest otwarte** i nie da się go
+rozstrzygnąć na tej maszynie. Do czasu instalacji wywołania są i tak
+serializowane wewnątrz jednego zadania, więc równoległość nie powstanie
+przypadkiem.
+
+## D14 — trzy źródła opisu po angielsku, model językowy przestaje być zależnością krytyczną
+
+**Data:** 2026-09-09 · **Status:** obowiązuje
+
+**Decyzja.** Warstwa promptowa ma trzy źródła, próbowane w tej kolejności
+(`PROMPT_BACKEND=auto`):
+
+1. **Claude Code** (`claude -p --system-prompt … --output-format json`) —
+   korzysta z subskrypcji zapisanej przy logowaniu, nie wymaga klucza API.
+2. **Klucz API Anthropic** — dla kogoś, kto woli rozliczać to osobno.
+3. **Składacz deterministyczny** (`services/prompt-builder.ts`) — bez sieci,
+   bez kosztu, bez możliwości awarii.
+
+**Powód.** Właściciel ma wykupioną subskrypcję i nie chce drugiego,
+osobno płatnego klucza API. Ale ważniejszy jest wniosek architektoniczny:
+**brief jest formularzem**. Siedem z dwunastu pól to listy wyboru, a ich
+zamiana na angielski to tabela, nie zadanie dla modelu językowego. Pierwotny
+projekt zakładał, że cały brief wymaga LLM-a — i to był błąd, bo czynił
+zewnętrzną usługę zależnością krytyczną tam, gdzie wystarczy kod.
+
+**Konsekwencja.** Model językowy jest potrzebny wyłącznie do swobodnego opisu
+w punkcie pierwszym. Wszystko inne — kolejność informacji, światło, paletę
+per branża (brief §4.2), język fotograficzny (§4.4), martwe strefy kadru
+(§4.5), zakazy (§4.6) i realia polskie (§4.7) — składa kod, zawsze tak samo.
+Gdy żadne źródło sieciowe nie odpowie, składacz oddaje pełną scenę, a grafik
+dostaje ostrzeżenie, że punkt pierwszy poszedł bez tłumaczenia.
+
+**Zapis w `prompt_runs`.** Wywołania przez Claude Code są zapisywane jak
+każde inne, z modelem `claude-code-cli`. Pole `cost_usd` niesie wtedy
+przelicznik zużycia podawany przez CLI, **nie kwotę do zapłacenia** —
+na subskrypcji wywołanie liczy się do limitów planu.
+
+**Ostrzeżenia mają pierwszeństwo.** Limit trzech pozycji w `assumptions`
+jest twardy (SPEC §6), więc wpisy wymagające reakcji grafika idą przed
+informacjami o wartościach domyślnych. Bez tego „przyjąłem fotografię"
+wypychało z listy ostrzeżenie o zniekształconym napisie — wykryte testem.

@@ -1,0 +1,9 @@
+.env*
+!.env.example
+node_modules/
+.next/
+.DS_Store
+
+# Wyniki Playwrighta — artefakty przebiegu, nie kod.
+test-results/
+playwright-report/

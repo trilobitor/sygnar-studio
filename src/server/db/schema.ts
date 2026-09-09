@@ -1,0 +1,110 @@
+import { index, integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+
+/**
+ * Schemat bazy (SPEC §5). Tabele `snake_case` w liczbie mnogiej,
+ * klucze obce `<tabela_pojedyncza>_id`, znaczniki czasu jako `INTEGER`
+ * (milisekundy epoki), bo SQLite nie ma typu daty.
+ */
+
+export const orderStatuses = ['draft', 'active', 'done', 'archived'] as const
+export const orderIndustries = ['legal', 'medical', 'estate', 'build', 'other'] as const
+export const jobKinds = ['image_generate', 'video_render', 'image_export', 'photo_batch'] as const
+export const jobStatuses = ['queued', 'running', 'done', 'failed', 'cancelled'] as const
+export const assetKinds = ['generated', 'uploaded', 'export', 'poster'] as const
+
+/** Zlecenie — byt spinający całą pracę. */
+export const orders = sqliteTable('orders', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  industry: text('industry', { enum: orderIndustries }),
+  status: text('status', { enum: orderStatuses }).notNull(),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+})
+
+/** Brief wypełniony przez grafika. Zapisywany przy każdym uruchomieniu. */
+export const briefs = sqliteTable('briefs', {
+  id: text('id').primaryKey(),
+  orderId: text('order_id')
+    .notNull()
+    .references(() => orders.id, { onDelete: 'cascade' }),
+  /** Zgodny z `briefSchema`. Walidowany przy odczycie, nie tylko przy zapisie. */
+  payloadJson: text('payload_json').notNull(),
+  createdAt: integer('created_at').notNull(),
+})
+
+/** Zadanie w kolejce. Stan trzymany w bazie, żeby restart nie gubił kolejki. */
+export const jobs = sqliteTable(
+  'jobs',
+  {
+    id: text('id').primaryKey(),
+    orderId: text('order_id')
+      .notNull()
+      .references(() => orders.id, { onDelete: 'cascade' }),
+    kind: text('kind', { enum: jobKinds }).notNull(),
+    status: text('status', { enum: jobStatuses }).notNull(),
+    paramsJson: text('params_json').notNull(),
+    /** 0..1 */
+    progress: real('progress').notNull().default(0),
+    /** Etykieta dla interfejsu, po polsku. */
+    phase: text('phase'),
+    /** Kod z listy w SPEC §7a. Nigdy treść błędu wewnętrznego. */
+    errorCode: text('error_code'),
+    createdAt: integer('created_at').notNull(),
+    startedAt: integer('started_at'),
+    finishedAt: integer('finished_at'),
+  },
+  (table) => [
+    index('jobs_status_created_idx').on(table.status, table.createdAt),
+    index('jobs_order_idx').on(table.orderId),
+  ],
+)
+
+/** Każdy plik w systemie. `path` jest względny wobec `STUDIO_DATA_DIR`. */
+export const assets = sqliteTable(
+  'assets',
+  {
+    id: text('id').primaryKey(),
+    orderId: text('order_id')
+      .notNull()
+      .references(() => orders.id, { onDelete: 'cascade' }),
+    jobId: text('job_id').references(() => jobs.id, { onDelete: 'set null' }),
+    kind: text('kind', { enum: assetKinds }).notNull(),
+    path: text('path').notNull(),
+    mime: text('mime').notNull(),
+    bytes: integer('bytes').notNull(),
+    width: integer('width'),
+    height: integer('height'),
+    durationMs: integer('duration_ms'),
+    /** Numer losowania. Bez niego nie da się powtórzyć kadru. */
+    seed: integer('seed'),
+    metadataJson: text('metadata_json'),
+    starred: integer('starred').notNull().default(0),
+    createdAt: integer('created_at').notNull(),
+  },
+  (table) => [index('assets_order_kind_idx').on(table.orderId, table.kind)],
+)
+
+/** Rygor C: każde wywołanie modelu językowego jest zapisane razem z kosztem. */
+export const promptRuns = sqliteTable('prompt_runs', {
+  id: text('id').primaryKey(),
+  orderId: text('order_id')
+    .notNull()
+    .references(() => orders.id, { onDelete: 'cascade' }),
+  model: text('model').notNull(),
+  inputTokens: integer('input_tokens').notNull(),
+  outputTokens: integer('output_tokens').notNull(),
+  costUsd: real('cost_usd').notNull(),
+  briefJson: text('brief_json').notNull(),
+  promptEn: text('prompt_en').notNull(),
+  createdAt: integer('created_at').notNull(),
+})
+
+export type Order = typeof orders.$inferSelect
+export type NewOrder = typeof orders.$inferInsert
+export type Brief = typeof briefs.$inferSelect
+export type Job = typeof jobs.$inferSelect
+export type NewJob = typeof jobs.$inferInsert
+export type Asset = typeof assets.$inferSelect
+export type NewAsset = typeof assets.$inferInsert
+export type PromptRun = typeof promptRuns.$inferSelect

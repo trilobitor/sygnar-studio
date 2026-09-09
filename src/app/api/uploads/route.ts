@@ -1,0 +1,81 @@
+import { randomUUID } from 'node:crypto'
+import { writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
+
+import { NextResponse } from 'next/server'
+
+import { env } from '@/lib/env'
+import { logger } from '@/lib/logger'
+import { readDimensions } from '@/server/adapters/sharp'
+import { fail, handleError } from '@/server/api/respond'
+import { ensureStarted } from '@/server/bootstrap'
+import { registerAsset } from '@/server/services/assets'
+import { detectType, isVideo, MAX_UPLOAD_BYTES } from '@/server/services/file-type'
+import { getOrder, touchOrder } from '@/server/services/orders'
+import { bucketDir } from '@/server/services/paths'
+
+export const dynamic = 'force-dynamic'
+
+/**
+ * Wgranie pliku do zlecenia (SPEC §8).
+ *
+ * Typ sprawdzany po zawartości, nie po rozszerzeniu ani po `Content-Type`.
+ * Nazwa pliku generowana przez serwer, nigdy przyjmowana od klienta —
+ * nazwa od użytkownika w ścieżce to zapis w dowolne miejsce na dysku.
+ */
+export async function POST(request: Request): Promise<NextResponse> {
+  try {
+    ensureStarted()
+
+    const form = await request.formData()
+    const orderId = form.get('orderId')
+    const file = form.get('file')
+
+    if (typeof orderId !== 'string' || !(file instanceof File)) {
+      return fail('VALIDATION_FAILED', 400)
+    }
+
+    const order = getOrder(orderId)
+
+    if (file.size > MAX_UPLOAD_BYTES) {
+      return fail('UPLOAD_TOO_LARGE', 413)
+    }
+
+    const bytes = new Uint8Array(await file.arrayBuffer())
+    const detected = detectType(bytes)
+
+    if (detected === null) {
+      logger.warn('odrzucono wgranie o nierozpoznanym typie', {
+        orderId,
+        // Rozmiar i deklarowany typ zostają w logu; treści pliku nie logujemy.
+        declared: file.type,
+        bytes: file.size,
+      })
+      return fail('UPLOAD_UNSUPPORTED_TYPE', 415)
+    }
+
+    // Nazwa w całości od serwera: identyfikator plus rozszerzenie z sygnatury.
+    const fileName = `${randomUUID()}.${detected.extension}`
+    const absolutePath = join(bucketDir(env.STUDIO_DATA_DIR, order.id, 'uploads'), fileName)
+
+    await writeFile(absolutePath, bytes)
+
+    const dimensions = isVideo(detected.mime) ? null : await readDimensions(absolutePath)
+
+    const asset = await registerAsset({
+      orderId: order.id,
+      jobId: null,
+      kind: 'uploaded',
+      absolutePath,
+      mime: detected.mime,
+      width: dimensions?.width,
+      height: dimensions?.height,
+    })
+
+    touchOrder(order.id, 'active')
+
+    return NextResponse.json({ asset }, { status: 201 })
+  } catch (error) {
+    return handleError(error, 'POST /api/uploads')
+  }
+}

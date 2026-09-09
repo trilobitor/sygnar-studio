@@ -1,0 +1,110 @@
+/**
+ * Mapowanie kodów błędów na zdania dla grafika (SPEC §7a).
+ *
+ * `error_code` jest identyfikatorem technicznym. Użytkownik nigdy nie widzi
+ * kodu ani treści wyjątku — widzi zdanie mówiące, **co zrobić dalej**,
+ * nie co się zepsuło wewnątrz.
+ *
+ * Lista jest zamknięta. Nowy tryb awarii = nowy kod i nowy wpis,
+ * nie ogólne „wystąpił błąd".
+ */
+
+export const ERROR_MESSAGES: Record<string, string> = {
+  COMFY_UNREACHABLE: 'Stacja jest offline. Napisz do Kamila, żeby ją włączył.',
+  COMFY_WORKFLOW_INVALID:
+    'Coś jest nie tak z ustawieniami generowania — to po naszej stronie, nie po Twojej.',
+  OUT_OF_MEMORY: 'Zabrakło pamięci na tak duży kadr. Spróbuj mniejszego formatu.',
+  JOB_TIMEOUT: 'Zadanie trwało zbyt długo i zostało przerwane. Spróbuj jeszcze raz.',
+  JOB_CANCELLED: 'Zadanie anulowane.',
+  INTERRUPTED_BY_RESTART: 'Stacja została zrestartowana w trakcie. Uruchom zadanie ponownie.',
+  UPLOAD_TOO_LARGE: 'Ten plik jest za duży. Maksymalnie 512 MB.',
+  UPLOAD_UNSUPPORTED_TYPE:
+    'Ten format pliku nie jest obsługiwany. Przyjmujemy JPG, PNG, MP4 i MOV.',
+  FFMPEG_FAILED:
+    'Nie udało się przygotować pliku wideo. Sprawdź, czy klip otwiera się poprawnie.',
+  EXPORT_WEIGHT_UNREACHABLE:
+    'Nie da się zejść do zadanej wagi bez utraty jakości. Podnieś limit albo zmniejsz kadr.',
+  PROMPT_SERVICE_FAILED:
+    'Nie udało się przygotować opisu po angielsku. Możesz wpisać go ręcznie poniżej.',
+  VALIDATION_FAILED: 'Coś w formularzu się nie zgadza. Sprawdź zaznaczone pola.',
+  NOT_FOUND: 'Nie znaleźliśmy tego elementu. Odśwież stronę.',
+  PATH_INVALID: 'Nie udało się otworzyć pliku — to po naszej stronie, nie po Twojej.',
+  HEALTH_CHECK_FAILED: 'Nie udało się sprawdzić stanu stacji. Odśwież stronę za chwilę.',
+  QUEUE_BUSY: 'Stacja liczy inne zadanie. Twoje ruszy, gdy tamto się skończy.',
+}
+
+/** Zdanie dla grafika. Nieznany kod też nie pokazuje kodu. */
+export function messageForCode(code: string | null | undefined): string {
+  if (code === null || code === undefined) return 'Coś poszło nie tak. Spróbuj jeszcze raz.'
+  return ERROR_MESSAGES[code] ?? 'Coś poszło nie tak. Spróbuj jeszcze raz.'
+}
+
+/**
+ * Słowniczek do dymków przy polach formularza (SPEC §7a).
+ *
+ * Grafik nie zobaczy w aplikacji ani jednego terminu technicznego
+ * bez wyjaśnienia. Słowa „guidance", „kroki", „VAE", „ComfyUI" i „workflow"
+ * nie pojawiają się w interfejsie ani raz.
+ */
+export const FIELD_HINTS = {
+  subject:
+    'Najważniejsze pole. Napisz, co ma być widać w kadrze — rzeczownikami, nie hasłami. „Puste biuro kancelarii o poranku" działa lepiej niż „kancelaria, elegancja, profesjonalizm".',
+  purpose:
+    'Gdzie ten obraz trafi. Od tego zależy kształt kadru i to, ile plik może ważyć — nie musisz o tym myśleć.',
+  shot: 'Jak blisko jesteśmy tematu. Zbliżenie pokazuje detal, plan pełny pokazuje całą sytuację.',
+  angle: 'Z jakiej wysokości patrzymy. Wysokość oczu jest neutralna i najbezpieczniejsza.',
+  timeOfDay: 'Pora dnia zmienia kolor i kierunek światła. „Późne popołudnie" daje ciepłe, długie cienie.',
+  lighting: 'Rodzaj światła. Naturalne wygląda jak zdjęcie, studyjne jak katalog.',
+  place: 'Gdzie to się dzieje. Konkret pomaga: „nowoczesne polskie biuro, jasny dąb i beton" zamiast „ładne wnętrze".',
+  mood: 'Nastrój sceny jednym–dwoma słowami. „Spokojny", „skupiony", „ciepły".',
+  colors: 'Paleta, w której ma być utrzymany kadr. Możesz podać nazwy kolorów albo klimat.',
+  style: 'Czy to ma wyglądać jak zdjęcie, ilustracja, czy render.',
+  textOnImage:
+    'Napis, który ma się pojawić w kadrze. Krótkie, wielkie litery wychodzą najpewniej. Dłuższy tekst często wychodzi zniekształcony.',
+  avoid:
+    'Czego nie chcesz w kadrze. Napisz normalnie — zamienimy to na opis tego, co ma być zamiast tego.',
+  variants:
+    'Ile różnych podejść do tej samej sceny policzyć. Każde trwa około pół minuty.',
+  seed: 'Numer losowania — ten sam numer daje ten sam kadr. Zapisz go, jeśli chcesz wrócić do tego ujęcia.',
+} as const
+
+/** Etykiety etapów paska postępu (SPEC §10). */
+export const STAGES = ['Brief', 'Generowanie', 'Wybór', 'Obróbka', 'Eksport'] as const
+
+export const SHOT_LABELS: Record<string, string> = {
+  closeup: 'Zbliżenie',
+  medium: 'Plan średni',
+  full: 'Plan pełny',
+  wide: 'Plan szeroki',
+}
+
+export const ANGLE_LABELS: Record<string, string> = {
+  eye: 'Wysokość oczu',
+  high: 'Z góry',
+  low: 'Z dołu',
+  top: 'Prosto z góry',
+}
+
+export const LIGHTING_LABELS: Record<string, string> = {
+  natural: 'Naturalne',
+  studio: 'Studyjne',
+  neon: 'Neonowe',
+  candle: 'Świeca',
+  overcast: 'Pochmurne',
+}
+
+export const STYLE_LABELS: Record<string, string> = {
+  photo: 'Fotografia',
+  illustration: 'Ilustracja',
+  render3d: 'Render 3D',
+  sketch: 'Szkic',
+  flat: 'Grafika płaska',
+}
+
+export const INDUSTRY_LABELS: Record<string, string> = {
+  legal: 'Kancelarie',
+  medical: 'Kliniki',
+  estate: 'Nieruchomości',
+  build: 'Budowlana',
+  other: 'Inne',
+}

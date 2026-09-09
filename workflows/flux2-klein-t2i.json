@@ -1,0 +1,15 @@
+{
+  "id": "flux2-klein-t2i",
+  "label": "FLUX.2 klein 4B — obraz z opisu",
+  "engine": "mflux",
+  "generator": "mflux-generate-flux2",
+  "model": "flux2-klein-4b",
+  "steps": 4,
+  "guidance": 1.0,
+  "notes": [
+    "Kroki i guidance są zamrożone tutaj, nie w kodzie i nie w prompcie.",
+    "Model jest step- i guidance-distilled: podnoszenie tych wartości szkodzi.",
+    "Żadna warstwa aplikacji nie może ich nadpisać z zewnątrz.",
+    "Zmiana którejkolwiek liczby unieważnia odtwarzalność wcześniejszych kadrów."
+  ]
+}

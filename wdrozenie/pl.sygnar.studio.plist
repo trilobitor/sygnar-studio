@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Usługa launchd dla panelu (SPEC §12, etap E7).
+
+  Instalacja:
+    cp wdrozenie/pl.sygnar.studio.plist ~/Library/LaunchAgents/
+    launchctl load -w ~/Library/LaunchAgents/pl.sygnar.studio.plist
+
+  Zatrzymanie:
+    launchctl unload -w ~/Library/LaunchAgents/pl.sygnar.studio.plist
+
+  Podmień <SCIEZKA_PROJEKTU> i <UZYTKOWNIK> przed pierwszym uruchomieniem.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>pl.sygnar.studio</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/local/bin/npm</string>
+    <string>run</string>
+    <string>start</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string><SCIEZKA_PROJEKTU></string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>NODE_ENV</key>
+    <string>production</string>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>/Users/<UZYTKOWNIK>/Library/Logs/sygnar-studio.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/<UZYTKOWNIK>/Library/Logs/sygnar-studio.error.log</string>
+</dict>
+</plist>

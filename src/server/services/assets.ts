@@ -1,0 +1,75 @@
+import { randomUUID } from 'node:crypto'
+import { stat } from 'node:fs/promises'
+
+import { eq } from 'drizzle-orm'
+
+import { env } from '@/lib/env'
+import { ApiError } from '@/server/adapters/types'
+import { db } from '@/server/db/client'
+import { assets, type Asset } from '@/server/db/schema'
+import { resolveAssetPath, toRelativePath } from './paths'
+
+/**
+ * Rejestr plików. Klient posługuje się wyłącznie `assetId`; ścieżkę składa
+ * serwer z katalogu danych i wartości z bazy, a potem sprawdza, że wynik
+ * nadal leży w katalogu danych (SPEC §13).
+ */
+
+export interface RegisterAssetInput {
+  orderId: string
+  jobId: string | null
+  kind: Asset['kind']
+  /** Ścieżka bezwzględna do pliku, który już leży na dysku. */
+  absolutePath: string
+  mime: string
+  width?: number
+  height?: number
+  durationMs?: number
+  seed?: number
+  metadata?: unknown
+}
+
+export async function registerAsset(input: RegisterAssetInput): Promise<Asset> {
+  const relativePath = toRelativePath(env.STUDIO_DATA_DIR, input.absolutePath)
+  const stats = await stat(input.absolutePath)
+
+  const row: Asset = {
+    id: randomUUID(),
+    orderId: input.orderId,
+    jobId: input.jobId,
+    kind: input.kind,
+    path: relativePath,
+    mime: input.mime,
+    bytes: stats.size,
+    width: input.width ?? null,
+    height: input.height ?? null,
+    durationMs: input.durationMs ?? null,
+    seed: input.seed ?? null,
+    metadataJson: input.metadata === undefined ? null : JSON.stringify(input.metadata),
+    starred: 0,
+    createdAt: Date.now(),
+  }
+
+  db.insert(assets).values(row).run()
+  return row
+}
+
+export function getAsset(id: string): Asset {
+  const row = db.select().from(assets).where(eq(assets.id, id)).get()
+  if (row === undefined) {
+    throw new ApiError('NOT_FOUND', 'nie ma takiego pliku', 404)
+  }
+  return row
+}
+
+/** Bezpieczna ścieżka do pliku na dysku. Jedyna droga od `assetId` do bajtów. */
+export function assetFilePath(asset: Asset): string {
+  return resolveAssetPath(env.STUDIO_DATA_DIR, asset.path)
+}
+
+export function setStarred(id: string, starred: boolean): void {
+  db.update(assets)
+    .set({ starred: starred ? 1 : 0 })
+    .where(eq(assets.id, id))
+    .run()
+}
