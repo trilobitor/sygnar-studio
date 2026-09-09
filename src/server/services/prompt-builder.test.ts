@@ -99,9 +99,14 @@ describe('założenia wypisywane grafikowi', () => {
     expect(result.assumptions.join(' ')).not.toContain('Przyjąłem fotografię')
   })
 
-  it('ostrzega, gdy pole „czego unikać" zostało po polsku', () => {
+  it('nie ostrzega o „czego unikać", gdy zakaz da się przepisać', () => {
+    // Zmiana względem poprzedniej wersji: rozpoznany zakaz trafia teraz do
+    // opisu jako sformułowanie pozytywne, więc nie ma o czym ostrzegać.
+    // Wcześniej pole było porzucane, a komunikat sugerował coś innego.
     const result = buildPrompt(brief({ avoid: 'nie chcę ludzi w kadrze' }), null)
-    expect(result.assumptions.join(' ')).toContain('czego unikać')
+
+    expect(result.promptEn).toContain('no people present')
+    expect(result.assumptions.join(' ')).not.toContain('pominięte')
   })
 })
 
@@ -135,5 +140,67 @@ describe('wykrywanie polszczyzny', () => {
     'a quiet reading room with tall windows',
   ])('nie myli angielskiego z polskim: %s', (text) => {
     expect(looksPolish(text)).toBe(false)
+  })
+})
+
+describe('bezwzględne zakazy §4.6 przy napisie w kadrze', () => {
+  it('napis nie kasuje reguły o anatomii', () => {
+    // Zakazy były jednym napisem doklejanym tylko wtedy, gdy grafik NIE podał
+    // napisu na obrazie. Przy zadanym napisie znikało razem z „bez liter"
+    // także „ręce i twarze anatomicznie poprawne" — akurat ta reguła, która
+    // z napisem nie ma nic wspólnego, a przy postaciach waży najwięcej.
+    const wynik = buildPrompt(brief({ textOnImage: 'OTWARTE' }), null)
+
+    expect(wynik.promptEn).toContain('anatomically correct')
+    expect(wynik.promptEn).toContain('no one looking into the lens')
+  })
+
+  it('napis kasuje wyłącznie zakaz liter', () => {
+    const zNapisem = buildPrompt(brief({ textOnImage: 'OTWARTE' }), null)
+
+    expect(zNapisem.promptEn).not.toContain('No lettering')
+  })
+
+  it('bez napisu obowiązuje pełny zestaw', () => {
+    const bezNapisu = buildPrompt(brief(), null)
+
+    expect(bezNapisu.promptEn).toContain('No lettering')
+    expect(bezNapisu.promptEn).toContain('anatomically correct')
+  })
+})
+
+describe('pole „czego unikać" w składaczu', () => {
+  it('rozpoznany zakaz trafia do opisu jako sformułowanie pozytywne', () => {
+    // Model obrazu nie ma negatywnego promptu: „bez ludzi" działa w nim
+    // podobnie jak „ludzie", bo liczy się obecność słowa. Zakaz musi wejść
+    // jako opis tego, co ma być zamiast.
+    const wynik = buildPrompt(brief({ avoid: 'nie chcę ludzi w kadrze' }), null)
+
+    expect(wynik.promptEn).toContain('no people present')
+    expect(wynik.promptEn).not.toMatch(/nie chcę|ludzi/)
+  })
+
+  it('rozpoznaje kilka zakazów naraz, bez powtórzeń', () => {
+    const wynik = buildPrompt(brief({ avoid: 'żadnych logo, marek ani tekstu' }), null)
+
+    expect(wynik.promptEn).toContain('unbranded surfaces')
+    expect(wynik.promptEn).toContain('blank surfaces without lettering')
+  })
+
+  it('nierozpoznany zakaz jest pomijany, i mówimy o tym wprost', () => {
+    // Poprzedni komunikat mówił, że pole „zostało przy opisie po polsku",
+    // co brzmiało jakby jednak trafiło do promptu. Nie trafiało.
+    const wynik = buildPrompt(brief({ avoid: 'zbyt barokowa kompozycja' }), null)
+
+    expect(wynik.promptEn).not.toMatch(/barokowa/)
+    expect(wynik.assumptions.join(' ')).toMatch(/pominięte/)
+  })
+
+  it('puste pole nie dokłada niczego ani nie ostrzega', () => {
+    const zPustym = buildPrompt(brief({ avoid: '   ' }), null)
+    const bez = buildPrompt(brief(), null)
+
+    expect(zPustym.promptEn).toBe(bez.promptEn)
+    expect(zPustym.assumptions.join(' ')).not.toMatch(/pominięte/)
   })
 })

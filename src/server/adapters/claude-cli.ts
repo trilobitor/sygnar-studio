@@ -18,8 +18,14 @@ import { JobError, type HealthStatus, type Logger } from './types'
  * podawany przez CLI, nie kwota do zapłacenia — zapisujemy je w `prompt_runs`
  * jako miarę zużycia, nie jako koszt.
  *
- * Narzędzia są wyłączone (`--allowed-tools ""`), bo to zadanie tekstowe:
+ * Narzędzia są wyłączone przełącznikiem `--tools ""`, bo to zadanie tekstowe:
  * model ma zamienić brief na opis sceny, a nie sięgać po pliki czy sieć.
+ *
+ * **Nie `--allowed-tools`.** Ten drugi ogranicza wyłącznie uprawnienia, ale
+ * definicje narzędzi i tak lecą do modelu. Zmierzone na tej maszynie, po trzy
+ * przebiegi: `--allowed-tools ""` daje 19 150 tokenów odczytu z cache'u
+ * i 9 720 zapisu, czyli około 28 900 kontekstu; `--tools ""` — 6 215 zapisu
+ * i zero odczytu. Około 4,6 razy mniej.
  */
 
 /** Domyślna ścieżka. Nadpisywalna zmienną `CLAUDE_CLI_PATH`. */
@@ -38,6 +44,7 @@ const cliResultSchema = z.object({
       input_tokens: z.number().optional(),
       output_tokens: z.number().optional(),
       cache_creation_input_tokens: z.number().optional(),
+      cache_read_input_tokens: z.number().optional(),
     })
     .optional(),
 })
@@ -69,7 +76,7 @@ export function runClaudeCli(
       '--system-prompt',
       systemPrompt,
       // Zadanie jest czysto tekstowe — model nie ma powodu dotykać dysku.
-      '--allowed-tools',
+      '--tools',
       '',
       '--output-format',
       'json',
@@ -81,6 +88,10 @@ export function runClaudeCli(
       // Katalog roboczy poza projektem: CLI nie ma po co widzieć naszych
       // plików, a brief jest danymi, nie zaproszeniem do przeglądania repo.
       cwd: '/tmp',
+      // Bez `ignore` na wejściu CLI czeka trzy sekundy na dane ze stdin,
+      // których nigdy nie wyśle, i wypisuje ostrzeżenie na stderr. Zmierzone:
+      // 5846 ms wobec 2822 ms po zmianie, ostrzeżenie znika.
+      stdio: ['ignore', 'pipe', 'pipe'],
     })
 
     let stdout = ''
@@ -161,4 +172,22 @@ export function extractJsonObject(text: string): string {
   }
 
   return text.slice(start, end + 1)
+}
+
+/**
+ * Cały kontekst wysłany do modelu, nie samo `input_tokens`.
+ *
+ * `input_tokens` liczy wyłącznie to, czego nie objął cache — przy tym
+ * wywołaniu jest to stale **2**, choć realny kontekst to kilka albo
+ * kilkadziesiąt tysięcy tokenów. Zapis w `prompt_runs` miał być miarą
+ * zużycia, a pokazywał dwójkę niezależnie od tego, co się działo.
+ */
+export function kontekstWejsciowy(usage: CliResult['usage']): number {
+  if (usage === undefined) return 0
+
+  return (
+    (usage.input_tokens ?? 0) +
+    (usage.cache_read_input_tokens ?? 0) +
+    (usage.cache_creation_input_tokens ?? 0)
+  )
 }

@@ -1,6 +1,6 @@
 import type { Brief } from '@/lib/schemas'
 import type { Order } from '@/server/db/schema'
-import { COMPOSITION, CONSTRAINTS, paletteFor, REALISM } from './scene-rules'
+import { ALWAYS, COMPOSITION, CONSTRAINTS, paletteFor, REALISM } from './scene-rules'
 
 /**
  * Deterministyczny składacz opisu sceny.
@@ -155,8 +155,30 @@ export function buildPrompt(brief: Brief, order: Order | null): BuiltPrompt {
         'Napis jest dłuższy niż kilkanaście znaków — przy takiej długości litery często wychodzą zniekształcone.',
       )
     }
+    // Napis w kadrze wyklucza „bez liter", ale nie zwalnia z reszty §4.6.
+    // Wcześniej cała gałąź `else` była pomijana i razem z zakazem liter
+    // znikała anatomia oraz brak kontaktu wzrokowego — akurat te reguły,
+    // które z napisem nie mają nic wspólnego.
+    parts.push(ALWAYS)
   } else {
     parts.push(CONSTRAINTS)
+  }
+
+  // Pole „czego unikać" **przed** złożeniem opisu — inaczej dopisek trafiałby
+  // do tablicy, z której już nic nie czytamy.
+  const avoid = brief.avoid?.trim()
+  if (avoid !== undefined && avoid.length > 0) {
+    const przepisane = przepiszZakazy(avoid)
+
+    if (przepisane.length > 0) {
+      // FLUX nie ma negatywnego promptu, więc zakaz musi wejść jako opis
+      // pozytywny: „bez ludzi" → „pusta przestrzeń bez ludzi".
+      parts.push(przepisane.join(', '))
+    } else {
+      warnings.push(
+        'Pola „czego unikać" nie potrafię przepisać na angielski bez modelu językowego — zostało pominięte. Wpisz to wprost w opisie sceny.',
+      )
+    }
   }
 
   parts.push(REALISM)
@@ -166,15 +188,6 @@ export function buildPrompt(brief: Brief, order: Order | null): BuiltPrompt {
   // Twardy limit z `promptResultSchema` — lepiej przyciąć na granicy zdania
   // niż oddać opis ucięty w połowie słowa.
   const trimmed = promptEn.length <= 1500 ? promptEn : `${promptEn.slice(0, 1497).replace(/[^.]*$/, '')}`.trim()
-
-  // Pole „czego unikać" przepisujemy na pozytyw tylko wtedy, gdy grafik
-  // coś wpisał — sam model pracuje bez negatywnego promptu.
-  const avoid = brief.avoid?.trim()
-  if (avoid !== undefined && avoid.length > 0) {
-    warnings.push(
-      'Pole „czego unikać" zostało przy opisie po polsku — bez modelu językowego nie przepiszę go na angielski. Sprawdź opis przed uruchomieniem.',
-    )
-  }
 
   return { promptEn: trimmed, assumptions: [...warnings, ...assumptions].slice(0, 3) }
 }
@@ -189,4 +202,38 @@ export function looksPolish(text: string): boolean {
   // Krótkie polskie słowa funkcyjne bez znaków diakrytycznych.
   const markers = /\b(jest|nie|oraz|przy|dla|pod|nad|jak|tego|która|który|takie|bardzo)\b/i
   return markers.test(text)
+}
+
+/**
+ * Najczęstsze zakazy po polsku przepisane na sformułowania pozytywne.
+ *
+ * Model obrazu nie przyjmuje negatywnego promptu — „bez ludzi" w opisie
+ * działa równie dobrze jak „ludzie", bo liczy się obecność słowa. Zakaz musi
+ * więc zostać zamieniony na to, co ma być **zamiast**.
+ *
+ * Lista jest krótka i celowo zachowawcza: czego nie rozpoznamy, tego nie
+ * zgadujemy — grafik dostaje wtedy wprost informację, że pole zostało
+ * pominięte. Wcześniej komunikat mówił, że pole „zostało przy opisie po
+ * polsku", co brzmiało jakby jednak trafiło do promptu. Nie trafiało.
+ */
+const ZAKAZY: { wzorzec: RegExp; naAngielski: string }[] = [
+  { wzorzec: /\blud(zi|zie|zki)|\bosob|\bpostac|\bczłowiek/i, naAngielski: 'an empty space with no people present' },
+  { wzorzec: /\bmarek?\b|\bmarki\b|\blogo|\blogotyp/i, naAngielski: 'unbranded surfaces without logos' },
+  { wzorzec: /\btekst|\bnapis|\bliter/i, naAngielski: 'blank surfaces without lettering' },
+  { wzorzec: /\bsamochod|\baut[ao]\b|\bpojazd/i, naAngielski: 'no vehicles in frame' },
+  { wzorzec: /\bbałagan|\bbalagan|\bnieporząd|\bnieporzad/i, naAngielski: 'a tidy, uncluttered setting' },
+  { wzorzec: /\bciemn|\bmrok/i, naAngielski: 'an evenly lit scene' },
+  { wzorzec: /\bjaskraw|\bkrzykliw|\bneon/i, naAngielski: 'a restrained, muted palette' },
+]
+
+export function przepiszZakazy(avoid: string): string[] {
+  const wynik: string[] = []
+
+  for (const { wzorzec, naAngielski } of ZAKAZY) {
+    if (wzorzec.test(avoid) && !wynik.includes(naAngielski)) {
+      wynik.push(naAngielski)
+    }
+  }
+
+  return wynik
 }

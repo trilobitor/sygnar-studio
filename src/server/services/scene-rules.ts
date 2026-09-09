@@ -39,8 +39,23 @@ export const COMPOSITION =
   'The subject sits in the middle horizontal band of the frame, well clear of the top and bottom edges, positioned in the left or right third with the centre left open'
 
 /** Bezwzględne zakazy z §4.6, przepisane na sformułowania pozytywne. */
-export const CONSTRAINTS =
-  'No lettering or logos anywhere in the scene, no one looking into the lens, hands and faces anatomically correct'
+/**
+ * Zakazy z §4.6 rozbite na dwie części.
+ *
+ * Wcześniej były jednym napisem doklejanym **tylko wtedy, gdy grafik nie podał
+ * napisu na obrazie**. Skutek: przy zadanym napisie znikało nie tylko „bez
+ * liter", ale też „ręce i twarze anatomicznie poprawne" i „nikt nie patrzy
+ * w obiektyw" — czyli akurat te reguły, które z napisem nie mają nic wspólnego,
+ * a przy postaciach ważą najwięcej.
+ */
+export const NO_LETTERING = 'No lettering or logos anywhere in the scene'
+
+/** Obowiązuje zawsze, także gdy w kadrze ma być napis. */
+export const ALWAYS =
+  'no one looking into the lens, hands and faces anatomically correct, no brand marks on clothing or props'
+
+/** Pełny zestaw — dla scen bez zadanego napisu. */
+export const CONSTRAINTS = `${NO_LETTERING}, ${ALWAYS}`
 
 /** Realia polskie — §4.7. */
 export const REALISM =

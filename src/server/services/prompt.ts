@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 
 import { env, hasAnthropicKey } from '@/lib/env'
 import { promptResultSchema, type Brief } from '@/lib/schemas'
-import { runClaudeCli, cliPath } from '@/server/adapters/claude-cli'
+import { runClaudeCli, cliPath, kontekstWejsciowy } from '@/server/adapters/claude-cli'
 import {
   briefToPrompt as callApi,
   extractJson,
@@ -93,7 +93,8 @@ async function viaCli(brief: Brief, order: Order, logger: Logger): Promise<Promp
   recordRun({
     orderId,
     model: 'claude-code-cli',
-    inputTokens: result.usage?.input_tokens ?? 0,
+    // Cały kontekst, łącznie z cache'em — samo `input_tokens` to stale 2.
+    inputTokens: kontekstWejsciowy(result.usage),
     outputTokens: result.usage?.output_tokens ?? 0,
     // Na subskrypcji to przelicznik zużycia, nie kwota do zapłacenia.
     costUsd: result.total_cost_usd ?? 0,

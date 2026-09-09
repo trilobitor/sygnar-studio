@@ -757,3 +757,56 @@ wyszukiwania na 30 nowy test upada, stary przechodził. Ta sama zasada dotyczy
 dopisanych testów zakresów bajtów — nie mają cichego pomijania przy nieudanym
 przygotowaniu, bo dokładnie ta pułapka zdarzyła się już raz w tym projekcie
 (testy ffmpega przechodzące pusto przez nieistniejącą ścieżkę do binarki).
+
+---
+
+## D41 — `--tools ""` zamiast `--allowed-tools ""`, i zamknięte wejście procesu
+
+**Decyzja.** Claude Code jest wołany z `--tools ""` oraz
+`stdio: ['ignore', 'pipe', 'pipe']`.
+
+**Powód.** `--allowed-tools` ogranicza wyłącznie **uprawnienia** — definicje
+narzędzi i tak lecą do modelu. Zmierzone na tej maszynie, po trzy przebiegi:
+
+| przełącznik | odczyt z cache'u | zapis do cache'u | razem |
+|---|---|---|---|
+| `--allowed-tools ""` | 19 150 | ok. 9 720 | **ok. 28 900** |
+| `--tools ""` | 0 | ok. 6 215 | **ok. 6 215** |
+
+Audyt podawał „29× więcej tokenów wejścia" — to liczba zawyżona i licząca
+inaczej. Rzeczywista różnica to około **4,6×**, i widać ją dopiero w polach
+cache'u, bo samo `input_tokens` wynosi 2 w obu przypadkach.
+
+Bez `stdio: ['ignore', …]` CLI czeka trzy sekundy na dane ze standardowego
+wejścia, których nigdy nie dostanie, i wypisuje ostrzeżenie. Zmierzone:
+5846 ms wobec 2822 ms.
+
+**Konsekwencja.** `prompt_runs.input_tokens` zapisywał stale **2**, choć realny
+kontekst szedł w dziesiątki tysięcy — pole miało być miarą zużycia, a nie było.
+Zapisujemy teraz cały kontekst. Po zmianie pierwszy zapis to 2 268 tokenów.
+
+---
+
+## D42 — Zakazy §4.6 rozbite, a „czego unikać" przepisywane na pozytyw
+
+**Decyzja.** Zakazy dzielą się na `NO_LETTERING` (pomijane, gdy grafik zadał
+napis) i `ALWAYS` (anatomia, brak kontaktu wzrokowego, brak znaków marek) —
+doklejane zawsze. Pole „czego unikać" przechodzi przez słownik przepisujący
+typowe zakazy na sformułowania pozytywne.
+
+**Powód.** Zakazy były jednym napisem doklejanym **tylko wtedy, gdy nie było
+napisu w kadrze**. Przy zadanym napisie znikała razem z „bez liter" także
+reguła o anatomii — akurat ta, która przy postaciach waży najwięcej i której
+brak grafik zgłosił jako kadry z trzema nogami.
+
+Pole „czego unikać" składacz porzucał zupełnie, a komunikat mówił, że
+„zostało przy opisie po polsku", co brzmiało jakby jednak trafiło do promptu.
+
+**Konsekwencja.** Model obrazu nie ma negatywnego promptu — „bez ludzi" działa
+w nim podobnie jak „ludzie", bo liczy się obecność słowa. Zakaz musi wejść jako
+opis tego, co ma być **zamiast**. Słownik jest celowo krótki: czego nie
+rozpoznamy, tego nie zgadujemy, a grafik dostaje wprost informację, że pole
+zostało pominięte.
+
+Pierwsza wersja tej poprawki dopisywała zakaz do tablicy **po** złożeniu
+opisu, więc nie robiła nic — złapane testem, nie typecheckiem.
