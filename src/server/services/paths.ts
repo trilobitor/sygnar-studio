@@ -108,3 +108,15 @@ export function buildOutputName(parts: {
   const number = String(parts.index).padStart(2, '0')
   return `${industry}-${parts.slug}-${number}.${parts.extension}`
 }
+
+/**
+ * Katalog miniatur zlecenia.
+ *
+ * Osobno od `AssetBucket`, bo miniatury nie są zasobami: nie mają wiersza
+ * w bazie, powstają na żądanie i wolno je skasować bez straty. Galeria
+ * ściągała pełne pliki źródłowe — zmierzone, jedno zlecenie z pięcioma
+ * klipami to **46 MB** przy każdym otwarciu.
+ */
+export function thumbsDir(dataDir: string, orderId: string): string {
+  return join(orderDir(dataDir, orderId), 'thumbs')
+}

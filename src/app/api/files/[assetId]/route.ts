@@ -1,6 +1,11 @@
 import { createReadStream } from 'node:fs'
-import { stat } from 'node:fs/promises'
+import { mkdir, readFile, stat } from 'node:fs/promises'
+import { join } from 'node:path'
 import { Readable } from 'node:stream'
+
+import { env } from '@/lib/env'
+import { SZEROKOSC_MINIATURY, zrobMiniature } from '@/server/adapters/sharp'
+import { thumbsDir } from '@/server/services/paths'
 
 import { fail, handleError } from '@/server/api/respond'
 import { ensureStarted } from '@/server/bootstrap'
@@ -30,6 +35,25 @@ export async function GET(
     if (stats === null) {
       // Wpis w bazie jest, pliku nie ma — dla klienta to po prostu brak pliku.
       return fail('NOT_FOUND', 404)
+    }
+
+    // Miniatura do siatki galerii. Bez tego kafelki ściągały pełne pliki
+    // źródłowe — zmierzone, jedno zlecenie z pięcioma klipami to 46 MB.
+    const chceMiniature = new URL(request.url).searchParams.get('miniatura') !== null
+
+    if (chceMiniature && asset.mime.startsWith('image/')) {
+      const miniatura = await wezMiniature(asset.orderId, asset.id, path)
+
+      if (miniatura !== null) {
+        return new Response(new Uint8Array(miniatura), {
+          headers: {
+            'Content-Type': 'image/webp',
+            'Content-Length': String(miniatura.byteLength),
+            'Cache-Control': 'private, max-age=31536000, immutable',
+          },
+        })
+      }
+      // Nie udało się — oddajemy oryginał, lepszy duży obraz niż żaden.
     }
 
     // Eksporty i plansze mają się pobierać pod właściwą nazwą, a nie
@@ -125,4 +149,29 @@ function przeczytajZakres(
   if (od >= rozmiar || od < 0 || koniec < od) return 'bledny'
 
   return { od, do: Math.min(koniec, rozmiar - 1) }
+}
+
+/**
+ * Miniatura z dysku albo policzona i zapisana przy pierwszym żądaniu.
+ *
+ * Zwraca `null`, gdy pliku nie da się przeskalować — wtedy trasa oddaje
+ * oryginał. Uszkodzony kadr nie ma znikać z galerii przez brak miniatury.
+ */
+async function wezMiniature(
+  orderId: string,
+  assetId: string,
+  zrodlo: string,
+): Promise<Buffer | null> {
+  const katalog = thumbsDir(env.STUDIO_DATA_DIR, orderId)
+  const cel = join(katalog, `${assetId}-${SZEROKOSC_MINIATURY}.webp`)
+
+  const zastana = await readFile(cel).catch(() => null)
+  if (zastana !== null) return zastana
+
+  try {
+    await mkdir(katalog, { recursive: true })
+    return await zrobMiniature(zrodlo, cel)
+  } catch {
+    return null
+  }
 }

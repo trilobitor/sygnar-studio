@@ -24,6 +24,8 @@ export const ERROR_MESSAGES: Record<string, string> = {
     'Nie udało się przygotować pliku wideo. Sprawdź, czy klip otwiera się poprawnie.',
   EXPORT_WEIGHT_UNREACHABLE:
     'Nie da się zejść do zadanej wagi bez utraty jakości. Podnieś limit albo zmniejsz kadr.',
+  EXPORT_FAILED:
+    'Nie udało się przygotować pliku do oddania. Sprawdź, czy kadr otwiera się poprawnie.',
   DATABASE_UNAVAILABLE:
     'Baza zleceń nie odpowiada. Napisz do Kamila — plik bazy może być uszkodzony albo dysk pełny.',
   PROMPT_SERVICE_FAILED:

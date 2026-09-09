@@ -12,6 +12,7 @@ import {
   TextInput,
 } from '@/components/ui/primitives'
 import { INDUSTRY_LABELS, messageForCode, STAGES } from '@/lib/messages'
+import { MAX_UPLOAD_BYTES } from '@/server/services/file-type'
 import type { Asset, ErrorResponse, Order, OrderDetail } from '@/types/api'
 import { BriefDialog } from './BriefDialog'
 import { ContextPanel } from './ContextPanel'
@@ -54,6 +55,13 @@ export function StudioScreen({
   const [ready, setReady] = useState(false)
   const [briefOpen, setBriefOpen] = useState(false)
   const [problem, setProblem] = useState<string | null>(null)
+  /**
+   * `null` = nie wgrywamy. Liczba = trwa wysyłka.
+   *
+   * Wcześniej nic nie blokowało przycisku, więc podwójne kliknięcie
+   * wysyłało ten sam plik dwa razy i zakładało dwa wiersze w bazie.
+   */
+  const [wgrywanie, setWgrywanie] = useState<number | null>(null)
   const [newName, setNewName] = useState('')
   const [newIndustry, setNewIndustry] = useState('legal')
   const [creating, setCreating] = useState(false)
@@ -62,7 +70,7 @@ export function StudioScreen({
   const [toDelete, setToDelete] = useState<Order | null>(null)
   const [deleting, setDeleting] = useState(false)
 
-  const { jobs } = useQueue()
+  const { jobs, connected } = useQueue()
   const fileInput = useRef<HTMLInputElement>(null)
 
   // Licznik wymuszający ponowne pobranie. Podbicie go jest jedynym sposobem,
@@ -192,22 +200,38 @@ export function StudioScreen({
   }
 
   async function upload(file: File): Promise<void> {
-    if (orderId === null) return
+    if (orderId === null || wgrywanie !== null) return
     setProblem(null)
+
+    // Sprawdzenie po stronie klienta, zanim ruszy wysyłka. Serwer i tak
+    // odrzuci po `Content-Length`, ale grafik dowiadywałby się o tym dopiero
+    // po przesłaniu stu megabajtów przez łącze.
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setProblem(messageForCode('UPLOAD_TOO_LARGE'))
+      return
+    }
 
     const form = new FormData()
     form.set('orderId', orderId)
     form.set('file', file)
 
-    const response = await fetch('/api/uploads', { method: 'POST', body: form })
+    setWgrywanie(0)
 
-    if (!response.ok) {
-      const error = (await response.json()) as ErrorResponse
-      setProblem(messageForCode(error.errorCode))
-      return
+    try {
+      const response = await fetch('/api/uploads', { method: 'POST', body: form })
+
+      if (!response.ok) {
+        const error = (await response.json()) as ErrorResponse
+        setProblem(messageForCode(error.errorCode))
+        return
+      }
+
+      reload()
+    } catch {
+      setProblem('Nie udało się wgrać pliku. Sprawdź połączenie i spróbuj jeszcze raz.')
+    } finally {
+      setWgrywanie(null)
     }
-
-    reload()
   }
 
   /**
@@ -389,7 +413,12 @@ export function StudioScreen({
                 >
                   Nowy brief
                 </Button>
-                <Button onClick={() => fileInput.current?.click()}>Wgraj własny plik</Button>
+                <Button
+                  disabled={wgrywanie !== null}
+                  onClick={() => fileInput.current?.click()}
+                >
+                  {wgrywanie !== null ? 'Wgrywam…' : 'Wgraj własny plik'}
+                </Button>
                 <input
                   ref={fileInput}
                   type="file"
@@ -439,6 +468,7 @@ export function StudioScreen({
 
       <QueueBar
         jobs={jobs}
+        connected={connected}
         onChanged={reload}
       />
 

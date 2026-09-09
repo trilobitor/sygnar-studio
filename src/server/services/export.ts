@@ -37,7 +37,10 @@ async function runExport(job: Job, ctx: JobContext): Promise<void> {
   const parsed = exportJobSchema.safeParse(JSON.parse(job.paramsJson))
 
   if (!parsed.success) {
-    throw new JobError('COMFY_WORKFLOW_INVALID', 'parametry eksportu nie przeszły walidacji')
+    // Nie `COMFY_WORKFLOW_INVALID`: ten kod mapuje się na komunikat
+    // „coś jest nie tak z ustawieniami **generowania**", a grafik właśnie
+    // eksportował gotowy kadr i szukałby błędu zupełnie gdzie indziej.
+    throw new JobError('EXPORT_FAILED', 'parametry eksportu nie przeszły walidacji')
   }
 
   const params = parsed.data
@@ -150,7 +153,7 @@ async function zajmijNazwe(parts: {
     }
   }
 
-  throw new JobError('EXPORT_WEIGHT_UNREACHABLE', 'nie udało się znaleźć wolnej nazwy pliku')
+  throw new JobError('EXPORT_FAILED', 'nie udało się znaleźć wolnej nazwy pliku')
 }
 
 /** Ile plików eksportu powstało już w tym zleceniu dla tego slotu. */

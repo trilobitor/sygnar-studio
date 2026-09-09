@@ -1,3 +1,5 @@
+import { writeFile } from 'node:fs/promises'
+
 import sharpLib, { type Sharp } from 'sharp'
 
 import { JobError, type HealthStatus, type JobContext } from './types'
@@ -150,4 +152,31 @@ export async function readDimensions(
     // Plik nie jest obrazem albo jest uszkodzony — wywołujący to obsłuży.
     return null
   }
+}
+
+/** Szerokość miniatury w siatce galerii. Jedna wartość, żeby cache miał sens. */
+export const SZEROKOSC_MINIATURY = 320
+
+/**
+ * Miniatura obrazu, zapisana obok i serwowana z dysku przy kolejnym żądaniu.
+ *
+ * Galeria wstawiała w kafelki **pełne pliki źródłowe** — zmierzone, jedno
+ * zlecenie z pięcioma klipami to 46 MB przy każdym otwarciu. Przez Funnel,
+ * z telefonu, jest to nie do przyjęcia.
+ *
+ * WebP przy jakości 72: format ma najlepszy stosunek wagi do wyglądu przy tej
+ * wielkości, a wszystkie przeglądarki, dla których panel jest budowany, go
+ * czytają.
+ */
+export async function zrobMiniature(zrodlo: string, cel: string): Promise<Buffer> {
+  const bufor = await sharpLib(zrodlo)
+    .resize(SZEROKOSC_MINIATURY, null, { withoutEnlargement: true })
+    .webp({ quality: 72 })
+    .toBuffer()
+
+  // Zapis jest optymalizacją, nie warunkiem powodzenia — gdy się nie uda,
+  // następne żądanie po prostu policzy miniaturę jeszcze raz.
+  await writeFile(cel, bufor).catch(() => {})
+
+  return bufor
 }

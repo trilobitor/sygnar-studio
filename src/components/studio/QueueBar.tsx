@@ -7,15 +7,34 @@ import { Button } from '@/components/ui/primitives'
 import { activeJobs, formatElapsed } from './use-queue'
 import type { Job } from '@/types/api'
 
+/** Rodzaj zadania po polsku — bez tego komunikat nie mówił, czego dotyczy. */
+const RODZAJE: Record<string, string> = {
+  image_generate: 'Generowanie',
+  image_export: 'Eksport',
+  video_render: 'Montaż',
+  photo_batch: 'Obróbka zdjęć',
+}
+
 /**
  * Pasek kolejki na dole ekranu (SPEC §10).
  *
  * Pokazuje, co się dzieje, jak długo już trwa i daje przycisk Anuluj.
  * Zadanie potrafi trwać osiem minut — grafik musi widzieć, że coś żyje.
  */
-export function QueueBar({ jobs, onChanged }: { jobs: Job[]; onChanged: () => void }) {
+export function QueueBar({
+  jobs,
+  connected,
+  onChanged,
+}: {
+  jobs: Job[]
+  /** Czy strumień kolejki żyje. `false` po zerwaniu połączenia. */
+  connected: boolean
+  onChanged: () => void
+}) {
   const [tick, setTick] = useState(0)
   const [cancelling, setCancelling] = useState<string | null>(null)
+  /** Identyfikator awarii schowanej przyciskiem „Rozumiem". */
+  const [odrzucone, setOdrzucone] = useState<string | null>(null)
 
   const active = activeJobs(jobs)
   const running = active.find((job) => job.status === 'running')
@@ -40,19 +59,56 @@ export function QueueBar({ jobs, onChanged }: { jobs: Job[]; onChanged: () => vo
 
   const lastFailed = jobs.find((job) => job.status === 'failed')
 
+  // Zerwany strumień ma własny stan. Wcześniej pasek pokazywał ostatnią znaną
+  // kolejkę jako aktualną, więc grafik patrzył na dane sprzed minut, nie mając
+  // jak poznać, że nic już nie przychodzi.
+  if (!connected) {
+    return (
+      <div
+        role="status"
+        className="flex items-center gap-2 border-t border-line bg-surface-1 px-4 py-2 text-sm text-ink-muted"
+      >
+        <span className="text-danger-text">Straciłem kontakt ze stacją.</span>
+        <span>Próbuję połączyć się ponownie — zadania w toku biegną dalej.</span>
+      </div>
+    )
+  }
+
+  /**
+   * Informacja o nieudanym zadaniu, widoczna **niezależnie od stanu kolejki**.
+   *
+   * Wcześniej pokazywała się wyłącznie wtedy, gdy kolejka była pusta: zadanie,
+   * które padło, a po nim ruszyło następne, znikało bez śladu. Grafik nie miał
+   * jak się dowiedzieć, że coś poszło nie tak, ani czego to dotyczyło.
+   */
+  const awaria =
+    lastFailed !== undefined && odrzucone !== lastFailed.id ? (
+      <span className="flex items-center gap-2">
+        <span className="text-danger-text">
+          {RODZAJE[lastFailed.kind] ?? 'Zadanie'} — {messageForCode(lastFailed.errorCode)}
+        </span>
+        <button
+          type="button"
+          onClick={() => setOdrzucone(lastFailed.id)}
+          className="rounded border border-line px-2 py-0.5 text-xs text-ink-muted hover:text-ink"
+        >
+          Rozumiem
+        </button>
+      </span>
+    ) : null
+
   if (running === undefined && waiting.length === 0) {
     return (
       <div className="flex items-center justify-between border-t border-line bg-surface-1 px-4 py-2 text-sm text-ink-muted">
         <span>Stacja jest wolna.</span>
-        {lastFailed !== undefined && (
-          <span className="text-danger-text">{messageForCode(lastFailed.errorCode)}</span>
-        )}
+        {awaria}
       </div>
     )
   }
 
   return (
     <div className="flex items-center gap-4 border-t border-line bg-surface-1 px-4 py-2 text-sm">
+      {awaria}
       {running !== undefined ? (
         <>
           <span className="text-ink">{running.phase ?? 'Pracuję'}</span>

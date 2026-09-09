@@ -810,3 +810,33 @@ zostało pominięte.
 
 Pierwsza wersja tej poprawki dopisywała zakaz do tablicy **po** złożeniu
 opisu, więc nie robiła nic — złapane testem, nie typecheckiem.
+
+---
+
+## D43 — Galeria dostaje miniatury, nie pliki źródłowe
+
+**Decyzja.** `/api/files/[assetId]?miniatura` zwraca WebP o szerokości 320 px,
+policzony sharpem przy pierwszym żądaniu i zapisany w `orders/<id>/thumbs/`.
+Miniatury nie mają wiersza w bazie — powstają na żądanie i wolno je skasować
+bez straty.
+
+**Powód.** Kafelki siatki wstawiały **pełne pliki źródłowe**. Zmierzone:
+jedno zlecenie z pięcioma klipami to 46 MB przy każdym otwarciu galerii,
+inne 30 MB. Przez Funnel, z telefonu, jest to nie do przyjęcia.
+
+**Konsekwencja.** Zmierzone na pojedynczym kadrze: 1 650 791 B → 7 382 B, czyli
+224 razy mniej; drugie żądanie schodzi z dysku w 7 ms. W przeglądarce, na
+prawdziwym zleceniu: **108 KB zamiast ok. 30 MB**. Gdy skalowanie się nie uda,
+trasa oddaje oryginał — uszkodzony kadr nie ma znikać z galerii przez brak
+miniatury.
+
+---
+
+## D44 — `EXPORT_FAILED` jako osobny kod
+
+**Decyzja.** Eksport rzuca `EXPORT_FAILED`, nie `COMFY_WORKFLOW_INVALID`.
+
+**Powód.** Ten drugi mapuje się na komunikat „coś jest nie tak z ustawieniami
+**generowania**". Grafik, który właśnie eksportował gotowy kadr, szukałby błędu
+zupełnie gdzie indziej. `EXPORT_WEIGHT_UNREACHABLE` też nie pasował — jest
+o wadze pliku, a przyczyną bywa co innego.

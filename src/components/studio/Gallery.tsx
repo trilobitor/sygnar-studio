@@ -85,7 +85,10 @@ export function Gallery({
                       i nie chcemy ich przepuszczać przez optymalizator. */}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={`/api/files/${asset.id}`}
+                      // Miniatura, nie pełny plik: kafelek ma 320 px, a kadr
+                      // z mfluxa waży 1,6 MB. Zmierzone przed zmianą — jedno
+                      // zlecenie to 46 MB przy każdym otwarciu galerii.
+                    src={`/api/files/${asset.id}?miniatura`}
                     alt={`Wygenerowany kadr, numer losowania ${asset.seed ?? 'nieznany'}`}
                     loading="lazy"
                     className="h-full w-full object-cover"

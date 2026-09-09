@@ -69,6 +69,8 @@ export const JOB_ERROR_CODES = [
   'PROMPT_SERVICE_FAILED',
   /** Baza nie odpowiada — uszkodzony plik albo brak prawa zapisu. */
   'DATABASE_UNAVAILABLE',
+  /** Eksport nie doszedł do skutku z powodu innego niż waga pliku. */
+  'EXPORT_FAILED',
 ] as const
 
 export type JobErrorCode = (typeof JOB_ERROR_CODES)[number]
