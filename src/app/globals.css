@@ -17,6 +17,21 @@
   --color-ink-muted: #9a9a9a;
   --color-accent: #b8935a;
   --color-danger: #d9534f;
+
+  /*
+   * Wrzos — kolor słowa „Studio" w znaku.
+   *
+   * Dobrany tak, żeby nie kolidował z żadnym akcentem marki: 274° odcienia,
+   * 55° od najbliższego (błękit Estate), kontrast 8,29:1 na tle aplikacji.
+   * Fiolet jest jedynym odcieniem nieobecnym w palecie Sygnara, więc czyta
+   * się jako narzędzie wewnętrzne, a nie kolejna branża. Zgaszony celowo —
+   * nasycony kolor obok podglądu zaburzałby ocenę barw zdjęcia (SPEC §10).
+   */
+  --color-studio: #c0a3d6;
+
+  /* Krój marki podpięty pod `font-serif`. Bez tego Tailwind użyłby
+     własnego domyślnego stosu szeryfowego i znak wyszedłby Georgią. */
+  --font-serif: var(--font-fraunces), Georgia, serif;
 }
 
 :root {

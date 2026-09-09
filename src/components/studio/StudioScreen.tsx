@@ -17,6 +17,7 @@ import { BriefDialog } from './BriefDialog'
 import { ContextPanel } from './ContextPanel'
 import { Gallery, Preview } from './Gallery'
 import { HealthBanner } from './HealthBanner'
+import { Wordmark } from './Wordmark'
 import { QueueBar } from './QueueBar'
 import { useQueue } from './use-queue'
 
@@ -200,7 +201,12 @@ export function StudioScreen({ initialOrderId }: { initialOrderId: string | null
 
       <div className="flex min-h-0 flex-1">
         <aside className="flex w-64 shrink-0 flex-col gap-3 border-r border-line bg-surface-1 p-3">
-          <h1 className="text-sm font-medium tracking-wide text-ink">Zlecenia</h1>
+          {/* Znak marki jest nagłówkiem pierwszego poziomu — lista zleceń
+              schodzi o poziom niżej, żeby nagłówki szły bez przeskoków. */}
+          <h1 className="sr-only">Sygnar Studio</h1>
+          <Wordmark />
+
+          <h2 className="text-sm font-medium tracking-wide text-ink">Zlecenia</h2>
 
           <div className="flex flex-col gap-2 rounded border border-line p-2">
             <Field label="Nowe zlecenie">
