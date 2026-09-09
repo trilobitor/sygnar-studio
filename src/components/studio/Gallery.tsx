@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { EmptyState, Hint } from "@/components/ui/primitives";
 import { FIELD_HINTS } from "@/lib/messages";
 import type { Asset } from "@/types/api";
+
+import { Lightbox } from "./Lightbox";
 
 /**
  * Galeria wariantów (SPEC §10).
@@ -194,6 +196,35 @@ export function Gallery({
 
 /** Duży podgląd wybranego kadru na neutralnym tle, bez cieni i gradientów. */
 export function Preview({ asset }: { asset: Asset | null }) {
+  const [pelnyEkran, setPelnyEkran] = useState(false);
+
+  /*
+   * Klawisz `F` otwiera podgląd pełnoekranowy. Nasłuch stoi tutaj, a nie
+   * w nakładce, bo nakładki wtedy jeszcze nie ma. Pomijamy go, gdy grafik
+   * pisze w polu tekstowym — inaczej „f" w opisie sceny otwierałoby okno.
+   */
+  useEffect(() => {
+    function klawisz(event: KeyboardEvent): void {
+      if (event.key.toLowerCase() !== "f" || event.metaKey || event.ctrlKey) return;
+
+      const cel = event.target;
+      if (
+        cel instanceof HTMLElement &&
+        (cel.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(cel.tagName))
+      ) {
+        return;
+      }
+
+      if (asset !== null && !asset.mime.startsWith("video/")) {
+        event.preventDefault();
+        setPelnyEkran(true);
+      }
+    }
+
+    window.addEventListener("keydown", klawisz);
+    return () => window.removeEventListener("keydown", klawisz);
+  }, [asset]);
+
   if (asset === null) {
     return (
       <div className="flex flex-1 items-center justify-center rounded border border-line text-sm text-ink-muted">
@@ -236,7 +267,11 @@ export function Preview({ asset }: { asset: Asset | null }) {
       ) : (
         // Szachownica siedzi dokładnie pod obrazem, nie wokół niego — inaczej
         // wzór wchodziłby w pole widzenia przy ocenie koloru (SPEC §10).
-        <span className="checkerboard inline-flex max-h-full max-w-full">
+        <span
+          className="checkerboard inline-flex max-h-full max-w-full"
+          onDoubleClick={() => setPelnyEkran(true)}
+          title="Dwuklik albo klawisz F — podgląd na cały ekran"
+        >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={`/api/files/${asset.id}`}
@@ -244,6 +279,10 @@ export function Preview({ asset }: { asset: Asset | null }) {
             className="max-h-full max-w-full object-contain"
           />
         </span>
+      )}
+
+      {pelnyEkran && !isVideo && (
+        <Lightbox asset={asset} onClose={() => setPelnyEkran(false)} />
       )}
     </div>
   );
