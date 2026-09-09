@@ -48,3 +48,6 @@ export function loadWorkflow(id: string): Workflow {
 
 /** Preset używany do generowania obrazu z opisu. */
 export const TEXT_TO_IMAGE_WORKFLOW = 'flux2-klein-t2i'
+
+/** Preset używany do poprawiania istniejącego kadru. */
+export const IMAGE_EDIT_WORKFLOW = 'flux2-klein-edit'

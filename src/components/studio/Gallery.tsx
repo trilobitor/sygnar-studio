@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 
-import { EmptyState, Hint } from "@/components/ui/primitives";
-import { FIELD_HINTS } from "@/lib/messages";
+import { Button, Dialog, EmptyState, Field, Hint, TextArea } from "@/components/ui/primitives";
+import { FIELD_HINTS, messageForCode } from "@/lib/messages";
 import { OUTPUT_PRESETS } from "@/lib/output-presets";
-import type { Asset } from "@/types/api";
+import type { Asset, ErrorResponse } from "@/types/api";
 
 import { Lightbox } from "./Lightbox";
 
@@ -500,8 +500,62 @@ function odczytajPrzeznaczenie(raw: string | null): string | null {
   }
 }
 
-export function Preview({ asset }: { asset: Asset | null }) {
+export function Preview({
+  asset,
+  orderId,
+  onChanged,
+}: {
+  asset: Asset | null;
+  orderId: string | null;
+  /** Wołane po zleceniu poprawki — kolejka i galeria muszą się odświeżyć. */
+  onChanged: () => void;
+}) {
   const [pelnyEkran, setPelnyEkran] = useState(false);
+  const [poprawkaOtwarta, setPoprawkaOtwarta] = useState(false);
+  const [instrukcja, setInstrukcja] = useState("");
+  const [wysylam, setWysylam] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+
+  /**
+   * Zlecenie poprawki kadru.
+   *
+   * To nie to samo co „ten sam numer, nowy opis" z panelu eksportu: tam kadr
+   * powstaje od zera i wychodzi inny, choćby zmiana była drobna. Tutaj model
+   * dostaje gotowy kadr i zdanie mówiące, co ma być inaczej — reszta zostaje.
+   */
+  async function zlecPoprawke(): Promise<void> {
+    if (asset === null || orderId === null) return;
+
+    setWysylam(true);
+    setProblem(null);
+
+    try {
+      const odpowiedz = await fetch("/api/jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: "image_edit",
+          orderId,
+          assetId: asset.id,
+          instructionEn: instrukcja.trim(),
+        }),
+      });
+
+      if (!odpowiedz.ok) {
+        const blad = (await odpowiedz.json()) as ErrorResponse;
+        setProblem(messageForCode(blad.errorCode));
+        return;
+      }
+
+      setPoprawkaOtwarta(false);
+      setInstrukcja("");
+      onChanged();
+    } catch {
+      setProblem("Nie udało się zlecić poprawki. Sprawdź połączenie.");
+    } finally {
+      setWysylam(false);
+    }
+  }
 
   /*
    * Klawisz `F` otwiera podgląd pełnoekranowy. Nasłuch stoi tutaj, a nie
@@ -554,15 +608,27 @@ export function Preview({ asset }: { asset: Asset | null }) {
           więc obie ikony są tam widoczne od razu (`opacity-100` bez wskaźnika). */}
       <div className="absolute right-2 top-2 z-10 flex items-center gap-1 opacity-100 transition group-hover/podglad:opacity-100 md:opacity-0">
         {!isVideo && (
-          <button
-            type="button"
-            onClick={() => setPelnyEkran(true)}
-            aria-label="Powiększ na cały ekran"
-            title="Powiększ na cały ekran — klawisz F"
-            className="flex h-9 w-9 items-center justify-center rounded-md border border-line bg-surface-0/85 text-sm text-ink-muted transition hover:border-field hover:text-ink"
-          >
-            ⤢
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={() => setPoprawkaOtwarta(true)}
+              aria-label="Popraw ten kadr"
+              title="Popraw fragment kadru — model zostawi resztę bez zmian"
+              className="flex h-9 w-9 items-center justify-center rounded-md border border-line bg-surface-0/85 text-sm text-ink-muted transition hover:border-field hover:text-ink"
+            >
+              🖌
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setPelnyEkran(true)}
+              aria-label="Powiększ na cały ekran"
+              title="Powiększ na cały ekran — klawisz F"
+              className="flex h-9 w-9 items-center justify-center rounded-md border border-line bg-surface-0/85 text-sm text-ink-muted transition hover:border-field hover:text-ink"
+            >
+              ⤢
+            </button>
+          </>
         )}
 
         <a
@@ -606,6 +672,60 @@ export function Preview({ asset }: { asset: Asset | null }) {
         </span>
       )}
 
+      <Dialog
+        open={poprawkaOtwarta}
+        onClose={() => setPoprawkaOtwarta(false)}
+        title="Popraw ten kadr"
+        footer={
+          <>
+            <Button onClick={() => setPoprawkaOtwarta(false)}>Anuluj</Button>
+            <Button
+              variant="primary"
+              disabled={wysylam || instrukcja.trim().length < 3}
+              onClick={() => void zlecPoprawke()}
+            >
+              {wysylam ? "Zlecam…" : "Popraw"}
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          <p className="text-sm text-ink-muted">
+            Model dostanie ten kadr i Twoje zdanie. Zmieni to, o co poprosisz, a resztę
+            zostawi — kompozycję, światło i wszystko, czego nie wymienisz.
+          </p>
+      
+          <Field
+            label="Co ma być inaczej"
+            hint="Po angielsku, jedno zdanie. Na przykład: change the wall colour to deep navy, keep everything else identical."
+            counter={`${instrukcja.length}/600`}
+          >
+            {(id) => (
+              <TextArea
+                id={id}
+                value={instrukcja}
+                onChange={setInstrukcja}
+                rows={4}
+                maxLength={600}
+                lang="en"
+                placeholder="change the wall colour to deep navy, keep everything else identical"
+              />
+            )}
+          </Field>
+      
+          {problem !== null && (
+            <p role="alert" className="text-sm text-danger">
+              {problem}
+            </p>
+          )}
+      
+          <p className="text-xs text-ink-muted">
+            Poprawka zajmuje stację na mniej więcej dwie minuty. Powstanie nowy kadr —
+            pierwowzór zostaje.
+          </p>
+        </div>
+      </Dialog>
+      
       {pelnyEkran && !isVideo && (
         <Lightbox assets={[asset]} onClose={() => setPelnyEkran(false)} />
       )}

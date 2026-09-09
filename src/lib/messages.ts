@@ -88,6 +88,7 @@ export const STAGES = ['Brief', 'Generowanie', 'Wybór', 'Obróbka', 'Eksport'] 
 /** Nazwy rodzajów zadań dla grafika. Bez „render", „job" i innego żargonu. */
 export const JOB_LABELS: Record<string, string> = {
   image_generate: 'Generowanie',
+  image_edit: 'Poprawka kadru',
   image_export: 'Eksport',
   video_render: 'Montaż',
   photo_batch: 'Obróbka zdjęć',

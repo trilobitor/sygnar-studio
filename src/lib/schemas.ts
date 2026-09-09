@@ -205,6 +205,23 @@ export const uploadFormSchema = z.object({
   orderId: z.string().uuid(),
 })
 
+/**
+ * Poprawka istniejącego kadru.
+ *
+ * Numer losowania jest opcjonalny: podany daje powtarzalny wynik, pominięty
+ * każe serwerowi wylosować — tak samo jak przy generowaniu, bo przeglądarka
+ * numerów nie losuje.
+ */
+export const imageEditSchema = z.object({
+  orderId: z.string().uuid(),
+  assetId: z.string().uuid(),
+  /** Co ma wyjść inaczej. Reszta kadru ma zostać. */
+  instructionEn: z.string().min(3).max(600),
+  seed: z.number().int().min(0).max(2_147_483_647).optional(),
+})
+
+export type ImageEditInput = z.infer<typeof imageEditSchema>
+
 export const photoBatchSchema = z.object({
   orderId: z.string().uuid(),
   assetIds: z.array(z.string().uuid()).min(1).max(200),

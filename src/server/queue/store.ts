@@ -26,7 +26,12 @@ export type JobStatus = Job['status']
  * zadanej przepływności — plik wyszedł trzykrotnie lżejszy od zamówionego.
  * Nie ma więc powodu, żeby montaż w ogóle dotykał GPU.
  */
-export const GPU_JOB_KINDS: readonly JobKind[] = ['image_generate']
+/*
+ * Poprawka kadru zajmuje GPU tak samo jak generowanie — zmierzone 17,50 GB
+ * szczytu przy kadrze 1024 × 1344 wobec 27,81 GB przy generowaniu 2,08 Mpx.
+ * Mniej, ale nie na tyle, żeby puścić oba naraz na maszynie z 32 GB.
+ */
+export const GPU_JOB_KINDS: readonly JobKind[] = ['image_generate', 'image_edit']
 
 /**
  * Montaż ma własną pulę o rozmiarze jeden.

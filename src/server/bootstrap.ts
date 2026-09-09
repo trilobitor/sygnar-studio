@@ -35,6 +35,7 @@ function sprawdzKatalogDanych(): void {
  * i nie miałby czym go wykonać.
  */
 import '@/server/services/generation'
+import '@/server/services/edit'
 import '@/server/services/export'
 import '@/server/services/video'
 import '@/server/services/photo-batch'

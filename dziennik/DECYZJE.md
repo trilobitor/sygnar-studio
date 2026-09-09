@@ -1514,3 +1514,35 @@ w 16 sekund, z etapami po polsku. Pojedynczy plik: 3,9 s.
 **Co pozostaje otwarte.** Sprzeczność SPEC §7a (RAW) kontra §12 (JPEG) i brak
 interfejsu do wgrania presetu XMP — pozycja #25 audytu, decyzja właściciela.
 Wsad działa dziś na JPEG-ach bez presetu, na domyślnych ustawieniach darktable.
+
+---
+
+## D73 — Poprawianie kadru jako drugi rodzaj zadania GPU
+
+**Data:** 2026-09-09 · **Status:** obowiązuje
+
+**Decyzja.** Dochodzi rodzaj zadania `image_edit`, obsługiwany przez
+`mflux-generate-flux2-edit` z presetem `workflows/flux2-klein-edit.json`.
+Wchodzi do **tej samej puli GPU** co generowanie, o rozmiarze jeden.
+
+**Czym się różni od „ten sam numer, nowy opis".** Tamten przycisk generuje
+kadr **od zera** z poprawionego opisu — przy drobnej zmianie i tak wychodzi
+inny obraz. Tutaj model dostaje gotowy kadr i zdanie mówiące, co ma być
+inaczej. Zmierzone na plakacie HAIT: prośba o zmianę koloru nieba zostawiła
+wieżę, roboty, tłum i psa bez zmian.
+
+**Dlaczego do puli GPU, skoro jest lżejsze.** Szczyt pamięci to 17,50 GB przy
+kadrze 1024 × 1344 wobec 27,81 GB przy generowaniu 2,08 Mpx. Mniej, ale suma
+obu przekracza 32 GB maszyny, więc równoległość odpada.
+
+**Ograniczenie, o którym trzeba wiedzieć.** Model jest słaby w tekście —
+przy prośbie o zmianę koloru napisu „HAIT" na złoty kolor się zmienił, ale
+litery wyszły jako „HAIO". To ta sama słabość, którą widać przy generowaniu
+(napis 33-znakowy poprawny w około 4 przypadkach na 13). Poprawek dotyczących
+liter nie należy obiecywać.
+
+**Refaktor przy okazji.** Uruchamianie binarki mfluxa — przerywanie przez
+`SIGTERM`, rozstrzyganie dopiero po śmierci procesu, rozpoznawanie braku
+pamięci — było napisane raz i użyte raz. Wyodrębnione do `uruchomMflux()`,
+bo generowanie i poprawianie różnią się wyłącznie listą argumentów i etykietą
+etapu, a dwie kopie tej logiki rozjechałyby się przy pierwszej poprawce.

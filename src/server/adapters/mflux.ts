@@ -5,7 +5,7 @@ import { basename, dirname, join } from 'node:path'
 import { env } from '@/lib/env'
 import { isExecutable } from './run-binary'
 import { JobError, type HealthStatus, type JobContext } from './types'
-import { loadWorkflow, TEXT_TO_IMAGE_WORKFLOW } from './workflow'
+import { IMAGE_EDIT_WORKFLOW, loadWorkflow, TEXT_TO_IMAGE_WORKFLOW } from './workflow'
 
 /**
  * Adapter generowania obrazów (decyzja D5).
@@ -20,6 +20,17 @@ import { loadWorkflow, TEXT_TO_IMAGE_WORKFLOW } from './workflow'
  */
 
 export const MFLUX_GENERATOR = 'mflux-generate-flux2'
+
+export interface EditParams {
+  /** Ścieżka bezwzględna do kadru, który poprawiamy. */
+  sourcePath: string
+  /** Opis zmiany po angielsku — co ma wyjść inaczej. */
+  instructionEn: string
+  /** Numer losowania; ten sam numer i ten sam opis dają ten sam wynik. */
+  seed: number
+  width: number
+  height: number
+}
 
 export interface GenerateParams {
   promptEn: string
@@ -39,8 +50,15 @@ export interface GeneratedImage {
 }
 
 /** Ścieżka do binarki generatora, złożona ze zmiennej środowiskowej. */
-export function generatorPath(): string {
-  return join(env.MFLUX_BIN_DIR, MFLUX_GENERATOR)
+/**
+ * Ścieżka do binarki mfluxa.
+ *
+ * Nazwa pochodzi z presetu w `workflows/`, a nie ze stałej w kodzie — od kiedy
+ * poza generowaniem doszło poprawianie kadru, są dwie różne binarki i to plik
+ * presetu mówi, której użyć.
+ */
+export function generatorPath(nazwa: string = MFLUX_GENERATOR): string {
+  return join(env.MFLUX_BIN_DIR, nazwa)
 }
 
 /**
@@ -160,6 +178,101 @@ export function looksLikeOutOfMemory(text: string): boolean {
  */
 export function nazwaWyjscia(ileSeedow: number): string {
   return ileSeedow > 1 ? 'kadr.png' : 'kadr_seed_{seed}.png'
+}
+
+/**
+ * Uruchomienie binarki mfluxa i przetłumaczenie jej wyjścia na postęp zadania.
+ *
+ * Wyodrębnione, bo generowanie i poprawianie kadru różnią się wyłącznie listą
+ * argumentów i etykietą etapu. Cała reszta — przerywanie przez `SIGTERM`,
+ * rozstrzyganie dopiero po śmierci procesu, rozpoznawanie braku pamięci —
+ * jest wspólna i nie ma powodu, żeby istniała w dwóch kopiach.
+ */
+async function uruchomMflux(
+  binarka: string,
+  args: string[],
+  ctx: JobContext,
+  postep: { krokiRazem: number; etykieta: (krok: number) => string },
+): Promise<void> {
+  let stderrTail = ''
+
+  await new Promise<void>((resolvePromise, rejectPromise) => {
+    // Zawsze tablica argumentów, nigdy powłoka (SPEC §13).
+    const child = spawn(binarka, args, { shell: false })
+
+    let settled = false
+    /** Ustawiany przez `onAbort`, odczytywany w handlerze `close`. */
+    let powodPrzerwania: JobError | null = null
+
+    const finish = (fn: () => void): void => {
+      if (settled) return
+      settled = true
+      ctx.signal.removeEventListener('abort', onAbort)
+      fn()
+    }
+
+    function onAbort(): void {
+      powodPrzerwania = new JobError('JOB_CANCELLED', 'zadanie anulowane')
+
+      child.kill('SIGTERM')
+      setTimeout(() => {
+        if (!child.killed) child.kill('SIGKILL')
+      }, 1000)
+    }
+
+    ctx.signal.addEventListener('abort', onAbort)
+
+    child.stderr.setEncoding('utf8')
+    child.stderr.on('data', (chunk: string) => {
+      stderrTail = (stderrTail + chunk).slice(-4000)
+
+      const progress = parseStepProgress(chunk)
+      if (progress === null) return
+
+      ctx.onProgress({
+        percent: Math.min(progress.step / postep.krokiRazem, 1),
+        phase: postep.etykieta(progress.step),
+      })
+    })
+
+    child.on('error', (error) => {
+      finish(() =>
+        rejectPromise(
+          new JobError('COMFY_UNREACHABLE', 'nie udało się uruchomić generatora', {
+            cause: error,
+          }),
+        ),
+      )
+    })
+
+    child.on('close', (code) => {
+      finish(() => {
+        // Przerwanie rozstrzyga się dopiero tutaj — proces już nie żyje,
+        // więc wywołujący może bezpiecznie sprzątnąć katalog.
+        if (powodPrzerwania !== null) {
+          rejectPromise(powodPrzerwania)
+          return
+        }
+
+        if (code === 0) {
+          resolvePromise()
+          return
+        }
+
+        ctx.logger.error('generator zakończył się błędem', {
+          code: code ?? -1,
+          tail: stderrTail.slice(-500),
+        })
+
+        if (looksLikeOutOfMemory(stderrTail)) {
+          rejectPromise(new JobError('OUT_OF_MEMORY', 'zabrakło pamięci'))
+          return
+        }
+
+        rejectPromise(new JobError('COMFY_WORKFLOW_INVALID', `generator zwrócił kod ${code}`))
+      })
+    })
+  })
 }
 
 export async function generate(
@@ -368,5 +481,71 @@ async function readSidecar(path: string): Promise<Record<string, unknown> | null
   } catch {
     // Brak sidecara nie unieważnia obrazu — seed i tak znamy z parametrów.
     return null
+  }
+}
+
+/**
+ * Poprawka istniejącego kadru.
+ *
+ * Model dostaje kadr źródłowy i zdanie mówiące, **co zmienić** — resztę ma
+ * zostawić. Zmierzone na tej maszynie: kadr 1024 × 1344, cztery kroki, 108 s
+ * i szczyt 17,50 GB. To mniej niż generowanie od zera (27,81 GB), ale wciąż
+ * dość, żeby trzymać to w tej samej puli jednego zadania GPU naraz.
+ */
+export async function editImage(params: EditParams, ctx: JobContext): Promise<GeneratedImage> {
+  const workflow = loadWorkflow(IMAGE_EDIT_WORKFLOW)
+  const outputBase = join(ctx.workDir, `poprawka_seed_${String(params.seed)}.png`)
+
+  const args = [
+    '--model',
+    workflow.model,
+    '--image-paths',
+    params.sourcePath,
+    '--prompt',
+    params.instructionEn,
+    '--seed',
+    String(params.seed),
+    '--steps',
+    String(workflow.steps),
+    '--guidance',
+    String(workflow.guidance),
+    '--metadata',
+    '--output',
+    outputBase,
+  ]
+
+  ctx.logger.info('start poprawiania kadru', {
+    seed: params.seed,
+    steps: workflow.steps,
+  })
+
+  await uruchomMflux(generatorPath(workflow.generator), args, ctx, {
+    krokiRazem: workflow.steps,
+    etykieta: () => 'Poprawiam kadr',
+  })
+
+  /*
+   * Mflux dokleja `_seed_<numer>` także tutaj, mimo że numer jest jeden —
+   * ta sama pułapka, która przy generowaniu dała nazwy `kadr_seed_1_seed_1.png`.
+   * Sprawdzamy obie postacie zamiast zakładać którąkolwiek.
+   */
+  const dir = dirname(outputBase)
+  const obecne = new Set(await readdir(dir))
+  const kandydaci = [
+    basename(outputBase),
+    basename(outputBase).replace(/\.png$/, `_seed_${String(params.seed)}.png`),
+  ]
+  const nazwa = kandydaci.find((k) => obecne.has(k))
+
+  if (nazwa === undefined) {
+    throw new JobError('COMFY_WORKFLOW_INVALID', 'poprawka nie zapisała pliku wyjściowego')
+  }
+
+  return {
+    seed: params.seed,
+    path: join(dir, nazwa),
+    width: params.width,
+    height: params.height,
+    metadata: await readSidecar(join(dir, nazwa.replace(/\.png$/, '.metadata.json'))),
   }
 }

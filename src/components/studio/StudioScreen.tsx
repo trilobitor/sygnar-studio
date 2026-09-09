@@ -858,7 +858,7 @@ export function StudioScreen({
                 />
               </div>
 
-              <Preview asset={selected} />
+              <Preview asset={selected} orderId={orderId} onChanged={reload} />
 
               {/* Pasek miniatur albo pełna siatka — przełącznik pod klawiszem G.
                   Blok zablokowany na 256 px zabierał podgładowi wysokość, której

@@ -45,13 +45,21 @@ beforeEach(() => {
 })
 
 describe('podział na pule', () => {
-  it('tylko generowanie zajmuje GPU', () => {
+  it('GPU zajmuje generowanie i poprawianie kadru, nic więcej', () => {
+    // Poprawka idzie tym samym modelem: zmierzone 17,50 GB szczytu wobec
+    // 27,81 GB przy generowaniu. Mniej, ale nie na tyle, żeby puścić oba naraz.
+    expect(isGpuJob('image_generate')).toBe(true)
+    expect(isGpuJob('image_edit')).toBe(true)
+
     // Montaż wypadł z tej puli: ffmpeg liczy na procesorze. Sprawdzone —
     // `h264_videotoolbox` jest na tej maszynie wolniejszy niż `libx264`
     // i nie trzyma zadanej przepływności, więc nie ma powodu sięgać po GPU.
-    expect(isGpuJob('image_generate')).toBe(true)
     expect(isGpuJob('video_render')).toBe(false)
-    expect(GPU_JOB_KINDS).toHaveLength(1)
+    expect(isGpuJob('image_export')).toBe(false)
+    expect(isGpuJob('photo_batch')).toBe(false)
+
+    // Liczba pilnuje, żeby nowy rodzaj zadania nie wpadł do tej puli po cichu.
+    expect(GPU_JOB_KINDS).toHaveLength(2)
   })
 
   it('montaż ma własną pulę, nie dzieli jej z generowaniem', () => {

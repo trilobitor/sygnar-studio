@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import {
   exportJobSchema,
   generateJobSchema,
+  imageEditSchema,
   jobKindSchema,
   photoBatchSchema,
   videoJobSchema,
@@ -10,6 +11,7 @@ import {
 import { handleError, fail, tooMany } from '@/server/api/respond'
 import { clientKey, consume, JOB_LIMIT } from '@/server/services/rate-limit'
 import { ensureStarted } from '@/server/bootstrap'
+import { enqueueEdit } from '@/server/services/edit'
 import { listJobs, positionInQueue } from '@/server/queue/store'
 import { enqueueExport } from '@/server/services/export'
 import { enqueueGeneration } from '@/server/services/generation'
@@ -53,6 +55,10 @@ export async function POST(request: Request): Promise<NextResponse> {
     switch (kind.data) {
       case 'image_generate': {
         const job = enqueueGeneration(generateJobSchema.parse(body))
+        return NextResponse.json({ jobId: job.id, position: positionInQueue(job) }, { status: 202 })
+      }
+      case 'image_edit': {
+        const job = enqueueEdit(imageEditSchema.parse(body))
         return NextResponse.json({ jobId: job.id, position: positionInQueue(job) }, { status: 202 })
       }
       case 'image_export': {

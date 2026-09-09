@@ -11,6 +11,12 @@
 
 export const ORDER_STATUSES = ['draft', 'active', 'done', 'archived'] as const
 export const ORDER_INDUSTRIES = ['legal', 'medical', 'estate', 'build', 'other'] as const
-export const JOB_KINDS = ['image_generate', 'video_render', 'image_export', 'photo_batch'] as const
+export const JOB_KINDS = [
+  'image_generate',
+  'image_edit',
+  'video_render',
+  'image_export',
+  'photo_batch',
+] as const
 export const JOB_STATUSES = ['queued', 'running', 'done', 'failed', 'cancelled'] as const
 export const ASSET_KINDS = ['generated', 'uploaded', 'export', 'poster'] as const

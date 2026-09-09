@@ -43,6 +43,9 @@ const NON_GPU_JOB_KINDS: readonly JobKind[] = ['image_export', 'photo_batch']
 /** Każdy rodzaj zadania ma własny, konfigurowalny limit czasu. */
 const TIMEOUTS_MS: Record<JobKind, number> = {
   image_generate: env.JOB_TIMEOUT_MS,
+  // Poprawka idzie tym samym modelem i tyloma samymi krokami co generowanie,
+  // więc dzieli z nim limit czasu.
+  image_edit: env.JOB_TIMEOUT_MS,
   video_render: env.VIDEO_TIMEOUT_MS,
   image_export: env.EXPORT_TIMEOUT_MS,
   photo_batch: env.PHOTO_BATCH_TIMEOUT_MS,
