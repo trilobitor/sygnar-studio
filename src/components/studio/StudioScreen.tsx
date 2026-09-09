@@ -894,7 +894,7 @@ export function StudioScreen({
                 disabled={!ready}
                 onQueued={reload}
               />
-              <Deliverables assets={detail?.assets ?? []} />
+              <Deliverables assets={detail?.assets ?? []} orderId={orderId} />
             </>
           )}
             </>

@@ -1,6 +1,7 @@
 'use client'
 
 import { EmptyState } from '@/components/ui/primitives'
+import { brakujaceFormaty, sprawdzPlik } from '@/server/services/quality-check'
 import type { Asset } from '@/types/api'
 
 /**
@@ -34,8 +35,19 @@ function rodzaj(asset: Asset): string {
   return asset.mime.replace('image/', '').toUpperCase()
 }
 
-export function Deliverables({ assets }: { assets: Asset[] }) {
+export function Deliverables({ assets, orderId }: { assets: Asset[]; orderId: string }) {
   const pliki = assets.filter((a) => a.kind === 'export' || a.kind === 'poster')
+
+  /*
+   * Kontrola przed oddaniem — wyłącznie z liczb, które aplikacja już zapisuje.
+   * Dotąd eksport zapisany na granicy jakości kończył się tak samo, na zielono,
+   * jak eksport idealny. Liczy się w przeglądarce: serwis jest czysty, a dane
+   * już tu są.
+   */
+  const zastrzezenia = new Map(pliki.map((plik) => [plik.id, sprawdzPlik(plik)]))
+  const naCalosci = brakujaceFormaty(pliki)
+  const ileUwag = [...zastrzezenia.values()].reduce((suma, lista) => suma + lista.length, 0) +
+    naCalosci.length
 
   return (
     <section className="flex flex-col gap-2 border-t border-line pt-3">
@@ -61,9 +73,41 @@ export function Deliverables({ assets }: { assets: Asset[] }) {
                 <span className="shrink-0 text-ink-muted">{rodzaj(plik)}</span>
                 <span className="shrink-0 tabular-nums text-ink-muted">{waga(plik.bytes)}</span>
               </a>
+
+              {(zastrzezenia.get(plik.id) ?? []).map((uwaga) => (
+                <p key={uwaga.kod} className="px-2 pb-1 text-xs text-danger">
+                  {uwaga.tresc}
+                </p>
+              ))}
             </li>
           ))}
         </ul>
+      )}
+
+      {naCalosci.map((uwaga) => (
+        <p key={uwaga.tresc} className="px-2 text-xs text-danger">
+          {uwaga.tresc}
+        </p>
+      ))}
+
+      {pliki.length > 0 && (
+        <>
+          {ileUwag === 0 && (
+            /* Ostrożnie z tym zdaniem: aplikacja obrazu nie widzi (SPEC §7a)
+               i nie ma prawa twierdzić, że jest dobry. Mówi tylko o liczbach. */
+            <p className="px-2 text-xs text-ink-muted">
+              Wymiary, formaty i jakość zgadzają się z tabelą. Sam obraz oceń wzrokiem.
+            </p>
+          )}
+
+          <a
+            href={`/api/orders/${orderId}/paczka`}
+            download
+            className="rounded border border-line px-2 py-1.5 text-center text-xs text-ink transition hover:border-field"
+          >
+            Pobierz wszystko jednym plikiem
+          </a>
+        </>
       )}
     </section>
   )
