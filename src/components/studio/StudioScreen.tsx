@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 
 import {
   Button,
@@ -38,6 +38,29 @@ const INDUSTRY_OPTIONS = Object.entries(INDUSTRY_LABELS).map(([value, label]) =>
   label,
 }))
 
+/**
+ * Flaga układu z `localStorage`.
+ *
+ * Odczyt jest w try/catch, bo dostęp do magazynu potrafi rzucić w oknie
+ * prywatnym i przy zablokowanych danych stron — a brak zapamiętanego układu
+ * nie może wywrócić panelu.
+ */
+function wczytajFlage(klucz: string): boolean {
+  try {
+    return globalThis.localStorage?.getItem(klucz) === '1'
+  } catch {
+    return false
+  }
+}
+
+function zapiszFlage(klucz: string, wartosc: boolean): void {
+  try {
+    globalThis.localStorage?.setItem(klucz, wartosc ? '1' : '0')
+  } catch {
+    // Brak magazynu nie jest awarią — układ po prostu nie przetrwa odświeżenia.
+  }
+}
+
 export function StudioScreen({
   initialOrderId,
   autoLogoutSeconds,
@@ -56,6 +79,33 @@ export function StudioScreen({
    * „Nie ma jeszcze żadnego zlecenia" — komunikat, którego serwer nie
    * potwierdził i który po chwili sam się podmieniał.
    */
+  /*
+   * Układ kolumn i tryb galerii. Zapamiętywane w `localStorage`, bo to
+   * ustawienie stanowiska, nie stan zlecenia — grafik ustawia je raz i nie
+   * chce powtarzać przy każdym wejściu.
+   *
+   * Odczyt idzie przez leniwy inicjator `useState`, żeby nie wykonał się przy
+   * renderze po stronie serwera, gdzie `localStorage` nie istnieje.
+   */
+  const [lewaZwinieta, setLewaZwinieta] = useState(false)
+  const [prawaZwinieta, setPrawaZwinieta] = useState(false)
+  const [galeriaSiatka, setGaleriaSiatka] = useState(false)
+  const [pomocOtwarta, setPomocOtwarta] = useState(false)
+
+  /*
+   * Zapamiętany układ wczytujemy **po** zamontowaniu, nie w inicjatorze stanu.
+   * Serwer renderuje układ domyślny, bo `localStorage` po jego stronie nie
+   * istnieje; odczyt w inicjatorze dawał inny pierwszy render w przeglądarce
+   * i React zgłaszał niezgodność hydratacji (błąd 418). Kosztem jest jedna
+   * dodatkowa ramka z układem domyślnym.
+   */
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLewaZwinieta(wczytajFlage('studio:lewa-zwinieta'))
+    setPrawaZwinieta(wczytajFlage('studio:prawa-zwinieta'))
+    setGaleriaSiatka(wczytajFlage('studio:galeria-siatka'))
+  }, [])
+
   const [orders, setOrders] = useState<Order[] | null>(null)
   const [orderId, setOrderId] = useState<string | null>(initialOrderId)
   const [detail, setDetail] = useState<OrderDetail | null>(null)
@@ -249,6 +299,94 @@ export function StudioScreen({
    * warunek patrzył wyłącznie na to, czy w zleceniu są jakiekolwiek pliki.
    * Grafik po eksporcie widział pasek w tym samym miejscu co przed nim.
    */
+  /*
+   * Skróty klawiszowe (SPEC §10 nic o nich nie mówi, ale narzędzie do
+   * przeglądania setek kadrów obsługiwane wyłącznie myszą zmusza do celowania
+   * kursorem w kafelek po kafelku).
+   *
+   * Nasłuch milknie, gdy focus siedzi w polu tekstowym albo gdy otwarte jest
+   * okno modalne — inaczej „n" wpisywane w opis zakładałoby nowy brief.
+   */
+  useEffect(() => {
+    function klawisz(event: KeyboardEvent): void {
+      if (event.metaKey || event.ctrlKey || event.altKey) return
+
+      const cel = event.target
+      if (
+        cel instanceof HTMLElement &&
+        (cel.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(cel.tagName))
+      ) {
+        return
+      }
+
+      if (briefOpen) return
+
+      const kadry = (detail?.assets ?? []).filter(
+        (asset) => asset.kind === 'generated' || asset.kind === 'uploaded',
+      )
+      const teraz = kadry.findIndex((asset) => asset.id === selected?.id)
+
+      const przesun = (o: number): void => {
+        if (kadry.length === 0) return
+        const nastepny = kadry[Math.min(Math.max(teraz + o, 0), kadry.length - 1)]
+        if (nastepny !== undefined) setSelected(nastepny)
+      }
+
+      switch (event.key) {
+        case 'ArrowRight':
+        case 'j':
+        case 'J':
+          event.preventDefault()
+          przesun(teraz === -1 ? 0 : 1)
+          break
+        case 'ArrowLeft':
+        case 'k':
+        case 'K':
+          event.preventDefault()
+          przesun(teraz === -1 ? 0 : -1)
+          break
+        case 'n':
+        case 'N':
+          if (orderId !== null && ready) {
+            event.preventDefault()
+            setBriefOpen(true)
+          }
+          break
+        case 'g':
+        case 'G':
+          event.preventDefault()
+          setGaleriaSiatka((biezaca) => {
+            zapiszFlage('studio:galeria-siatka', !biezaca)
+            return !biezaca
+          })
+          break
+        case '[':
+          event.preventDefault()
+          setLewaZwinieta((biezaca) => {
+            zapiszFlage('studio:lewa-zwinieta', !biezaca)
+            return !biezaca
+          })
+          break
+        case ']':
+          event.preventDefault()
+          setPrawaZwinieta((biezaca) => {
+            zapiszFlage('studio:prawa-zwinieta', !biezaca)
+            return !biezaca
+          })
+          break
+        case '?':
+          event.preventDefault()
+          setPomocOtwarta(true)
+          break
+        default:
+          break
+      }
+    }
+
+    window.addEventListener('keydown', klawisz)
+    return () => window.removeEventListener('keydown', klawisz)
+  }, [briefOpen, detail, orderId, ready, selected])
+
   const stageIndex = ((): number => {
     if (detail === null) return 0
     if (detail.assets.some((a) => a.kind === 'export' || a.kind === 'poster')) return 4
@@ -279,8 +417,32 @@ export function StudioScreen({
             przeskakiwać między nimi zamiast czytać wszystko po kolei. */}
         <aside
           aria-label="Zlecenia"
-          className="flex w-64 shrink-0 flex-col gap-3 border-r border-line bg-surface-1 p-3"
+          className={`flex shrink-0 flex-col gap-3 border-r border-line bg-surface-1 transition-all ${lewaZwinieta ? 'w-10 items-center p-1' : 'w-64 p-3'}`}
         >
+          {/*
+            Zwijanie kolumny — klawisz [ albo ten przycisk. Podgląd kadru jest
+            najcenniejszą przestrzenią na ekranie 1366 px i dostawał jej najmniej;
+            zwinięcie obu kolumn oddaje mu sto trzydzieści sześć pikseli.
+          */}
+          <button
+            type="button"
+            onClick={() =>
+              setLewaZwinieta((biezaca) => {
+                zapiszFlage('studio:lewa-zwinieta', !biezaca)
+                return !biezaca
+              })
+            }
+            aria-expanded={!lewaZwinieta}
+            title={`${lewaZwinieta ? 'Rozwiń' : 'Zwiń'} — klawisz [`}
+            className="self-end rounded px-1 text-xs text-ink-muted hover:text-ink"
+          >
+            {lewaZwinieta ? '»' : '«'}
+          </button>
+
+          {/* Zwinięta kolumna to sam pasek — treść znika, zamiast wylewać się
+              poza czterdzieści pikseli. */}
+          {!lewaZwinieta && (
+            <>
           {/* Znak marki jest nagłówkiem pierwszego poziomu — lista zleceń
               schodzi o poziom niżej, żeby nagłówki szły bez przeskoków. */}
           <h1 className="sr-only">Sygnar Studio</h1>
@@ -407,6 +569,8 @@ export function StudioScreen({
               )
             )}
           </nav>
+            </>
+          )}
         </aside>
 
         <main id="tresc" className="flex min-w-0 flex-1 flex-col gap-3 p-4">
@@ -499,7 +663,10 @@ export function StudioScreen({
 
               <Preview asset={selected} />
 
-              <div className="max-h-64 overflow-y-auto">
+              {/* Pasek miniatur albo pełna siatka — przełącznik pod klawiszem G.
+                  Blok zablokowany na 256 px zabierał podgładowi wysokość, której
+                  ten i tak miał najmniej. */}
+              <div className={galeriaSiatka ? "max-h-[45vh] overflow-y-auto" : "overflow-y-auto"}>
                 <Gallery
                   assets={detail?.assets ?? []}
                   laduje={detail === null || detail.order.id !== orderId}
@@ -514,8 +681,32 @@ export function StudioScreen({
 
         <aside
           aria-label="Eksport i pliki do oddania"
-          className="flex w-72 shrink-0 flex-col gap-4 overflow-y-auto border-l border-line bg-surface-1 p-3"
+          className={`flex shrink-0 flex-col gap-3 overflow-y-auto border-l border-line bg-surface-1 transition-all ${prawaZwinieta ? 'w-10 items-center p-1' : 'w-72 p-3'}`}
         >
+          {/*
+            Zwijanie kolumny — klawisz ] albo ten przycisk. Podgląd kadru jest
+            najcenniejszą przestrzenią na ekranie 1366 px i dostawał jej najmniej;
+            zwinięcie obu kolumn oddaje mu sto trzydzieści sześć pikseli.
+          */}
+          <button
+            type="button"
+            onClick={() =>
+              setPrawaZwinieta((biezaca) => {
+                zapiszFlage('studio:prawa-zwinieta', !biezaca)
+                return !biezaca
+              })
+            }
+            aria-expanded={!prawaZwinieta}
+            title={`${prawaZwinieta ? 'Rozwiń' : 'Zwiń'} — klawisz ]`}
+            className="self-start rounded px-1 text-xs text-ink-muted hover:text-ink"
+          >
+            {prawaZwinieta ? '«' : '»'}
+          </button>
+
+          {/* Zwinięta kolumna to sam pasek — treść znika, zamiast wylewać się
+              poza czterdzieści pikseli. */}
+          {!prawaZwinieta && (
+            <>
           {orderId === null ? (
             <EmptyState>Najpierw wybierz zlecenie.</EmptyState>
           ) : (
@@ -530,6 +721,8 @@ export function StudioScreen({
                 onQueued={reload}
               />
               <Deliverables assets={detail?.assets ?? []} />
+            </>
+          )}
             </>
           )}
         </aside>
@@ -562,6 +755,30 @@ export function StudioScreen({
           Jeśli chcesz je tylko schować z listy, powiedz — dorobimy archiwizowanie zamiast
           kasowania.
         </p>
+      </Dialog>
+
+      <Dialog
+        open={pomocOtwarta}
+        onClose={() => setPomocOtwarta(false)}
+        title="Skróty klawiszowe"
+      >
+        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+          {[
+            ['← → albo J K', 'poprzedni i następny kadr'],
+            ['F', 'podgląd na cały ekran'],
+            ['Z', 'skala podglądu: wpasuj, 100 %, 200 %'],
+            ['G', 'pasek miniatur albo pełna siatka'],
+            ['N', 'nowy brief'],
+            ['[ i ]', 'zwiń lewą i prawą kolumnę'],
+            ['?', 'to okno'],
+            ['Escape', 'zamknij okno albo podgląd'],
+          ].map(([klawisz, opis]) => (
+            <Fragment key={klawisz}>
+              <dt className="font-mono text-ink">{klawisz}</dt>
+              <dd className="text-ink-muted">{opis}</dd>
+            </Fragment>
+          ))}
+        </dl>
       </Dialog>
 
       {orderId !== null && detail?.order.id === orderId && (
