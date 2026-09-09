@@ -17,13 +17,19 @@ import type { Asset } from '@/types/api'
  * Sterowanie: `F` albo dwuklik otwiera, `Escape` zamyka, `Z` przełącza skalę
  * wpasuj → 100 % → 200 %. Powyżej wpasowania kadr przesuwa się przeciąganiem
  * i kółkiem.
+ *
+ * Przy dwóch kadrach ekran dzieli się na pół, przy trzech i czterech na siatkę
+ * dwa na dwa. **Skala i przesunięcie są wspólne dla wszystkich pól** — inaczej
+ * porównanie nie ma sensu: różnice, o które w tej pracy chodzi (kierunek
+ * światła, temperatura barwowa, ułożenie tematu), znikają, gdy każdy kadr jest
+ * pokazany w innym powiększeniu.
  */
 
 type Skala = 'fit' | 1 | 2
 
 const NASTEPNA: Record<string, Skala> = { fit: 1, '1': 2, '2': 'fit' }
 
-export function Lightbox({ asset, onClose }: { asset: Asset; onClose: () => void }) {
+export function Lightbox({ assets, onClose }: { assets: Asset[]; onClose: () => void }) {
   const [skala, setSkala] = useState<Skala>('fit')
   const [naturalne, setNaturalne] = useState<{ w: number; h: number } | null>(null)
   const [przesuniecie, setPrzesuniecie] = useState({ x: 0, y: 0 })
@@ -106,7 +112,11 @@ export function Lightbox({ asset, onClose }: { asset: Asset; onClose: () => void
       ref={ramka}
       role="dialog"
       aria-modal="true"
-      aria-label={`Podgląd kadru na cały ekran, skala ${etykieta}`}
+      aria-label={
+        assets.length === 1
+          ? `Podgląd kadru na cały ekran, skala ${etykieta}`
+          : `Porównanie ${String(assets.length)} kadrów, skala ${etykieta}`
+      }
       tabIndex={-1}
       className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-surface-0 outline-none"
       onWheel={(event) => {
@@ -142,36 +152,57 @@ export function Lightbox({ asset, onClose }: { asset: Asset; onClose: () => void
         className="absolute inset-0 cursor-default"
       />
 
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={`/api/files/${asset.id}`}
-        alt="Kadr w podglądzie pełnoekranowym"
-        onLoad={(event) =>
-          setNaturalne({
-            w: event.currentTarget.naturalWidth,
-            h: event.currentTarget.naturalHeight,
-          })
-        }
-        draggable={false}
-        className={
-          skala === 'fit'
-            ? 'relative max-h-full max-w-full object-contain'
-            : 'relative max-w-none'
-        }
-        style={
-          skala === 'fit'
-            ? undefined
-            : {
-                width: naturalne === null ? undefined : naturalne.w * skala,
-                transform: `translate(${String(przesuniecie.x)}px, ${String(przesuniecie.y)}px)`,
+      <div
+        className={`relative grid h-full w-full gap-px ${
+          assets.length === 1
+            ? 'grid-cols-1'
+            : assets.length === 2
+              ? 'grid-cols-2'
+              : 'grid-cols-2 grid-rows-2'
+        }`}
+      >
+        {assets.map((kadr, numer) => (
+          <div key={kadr.id} className="flex items-center justify-center overflow-hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={`/api/files/${kadr.id}`}
+              alt={
+                assets.length === 1
+                  ? 'Kadr w podglądzie pełnoekranowym'
+                  : `Kadr ${String(numer + 1)} z ${String(assets.length)} w porównaniu`
               }
-        }
-      />
+              onLoad={(event) => {
+                // Wymiary bierzemy z pierwszego kadru — skala jest wspólna,
+                // więc liczymy ją raz.
+                if (numer === 0) {
+                  setNaturalne({
+                    w: event.currentTarget.naturalWidth,
+                    h: event.currentTarget.naturalHeight,
+                  })
+                }
+              }}
+              draggable={false}
+              className={skala === 'fit' ? 'max-h-full max-w-full object-contain' : 'max-w-none'}
+              style={
+                skala === 'fit'
+                  ? undefined
+                  : {
+                      width: naturalne === null ? undefined : naturalne.w * skala,
+                      transform: `translate(${String(przesuniecie.x)}px, ${String(przesuniecie.y)}px)`,
+                    }
+              }
+            />
+          </div>
+        ))}
+      </div>
 
       {/* Etykieta skali: grafik musi wiedzieć, czy patrzy na piksele, czy na
           pomniejszenie, w którym wady i tak nie byłoby widać. */}
       <p className="pointer-events-none absolute bottom-4 left-4 text-xs text-ink-muted">
         {etykieta}
+        {assets.length > 1 && (
+          <span className="ml-3">porównanie {assets.length} kadrów, wspólna skala</span>
+        )}
         <span className="ml-3">Z — skala · Escape — zamknij</span>
       </p>
     </div>

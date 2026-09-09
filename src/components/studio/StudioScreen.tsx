@@ -18,6 +18,7 @@ import { BriefDialog } from './BriefDialog'
 import { ContextPanel } from './ContextPanel'
 import { Deliverables } from './Deliverables'
 import { Gallery, Preview } from './Gallery'
+import { Lightbox } from './Lightbox'
 import { HealthBanner } from './HealthBanner'
 import { Wordmark } from './Wordmark'
 import { QueueBar } from './QueueBar'
@@ -93,6 +94,15 @@ export function StudioScreen({
   const [pomocOtwarta, setPomocOtwarta] = useState(false)
   /** Czy nad kolumną środkową wisi przeciągany plik. */
   const [przeciaganie, setPrzeciaganie] = useState(false)
+  /**
+   * Kadry zestawione do porównania. `null` znaczy „nie porównujemy".
+   *
+   * Wybór między czterema podejściami do tej samej sceny polegał na
+   * przełączaniu się między nimi i pamiętaniu, jak wyglądał poprzedni —
+   * a przy różnicach, o które w tej pracy chodzi (kierunek światła,
+   * temperatura barwowa, ułożenie tematu), pamięć wzrokowa nie wystarcza.
+   */
+  const [porownanie, setPorownanie] = useState<Asset[] | null>(null)
 
   /*
    * Zapamiętany układ wczytujemy **po** zamontowaniu, nie w inicjatorze stanu.
@@ -426,6 +436,39 @@ export function StudioScreen({
             return !biezaca
           })
           break
+        case 'c':
+        case 'C': {
+          event.preventDefault()
+
+          // Do porównania idą kadry odłożone gwiazdką; gdy nie ma ich co
+          // najmniej dwóch, bierzemy zaznaczony i sąsiednie.
+          const odlozone = kadry.filter((asset) => asset.starred === 1).slice(0, 4)
+          const wybrane =
+            odlozone.length >= 2
+              ? odlozone
+              : kadry.slice(Math.max(teraz, 0), Math.max(teraz, 0) + 4)
+
+          if (wybrane.length >= 2) setPorownanie(wybrane)
+          break
+        }
+        case ' ': {
+          // Spacja odkłada zaznaczony kadr — jak w Lightroomie.
+          if (selected === null) break
+          event.preventDefault()
+
+          void fetch(`/api/assets/${selected.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ starred: selected.starred !== 1 }),
+          })
+            .then(() => {
+              reload()
+            })
+            .catch(() => {
+              setProblem('Nie udało się odłożyć kadru.')
+            })
+          break
+        }
         case '?':
           event.preventDefault()
           setPomocOtwarta(true)
@@ -437,7 +480,7 @@ export function StudioScreen({
 
     window.addEventListener('keydown', klawisz)
     return () => window.removeEventListener('keydown', klawisz)
-  }, [briefOpen, detail, orderId, ready, selected])
+  }, [briefOpen, detail, orderId, ready, reload, selected])
 
   /**
    * Generowanie w biegu dla otwartego zlecenia — do kafelków-widm w galerii.
@@ -888,6 +931,10 @@ export function StudioScreen({
         </p>
       </Dialog>
 
+      {porownanie !== null && (
+        <Lightbox assets={porownanie} onClose={() => setPorownanie(null)} />
+      )}
+
       <Dialog
         open={pomocOtwarta}
         onClose={() => setPomocOtwarta(false)}
@@ -901,6 +948,8 @@ export function StudioScreen({
             ['G', 'pasek miniatur albo pełna siatka'],
             ['N', 'nowy brief'],
             ['[ i ]', 'zwiń lewą i prawą kolumnę'],
+            ['C', 'porównaj odłożone kadry obok siebie'],
+            ['Spacja', 'odłóż zaznaczony kadr na bok'],
             ['?', 'to okno'],
             ['Escape', 'zamknij okno albo podgląd'],
           ].map(([klawisz, opis]) => (

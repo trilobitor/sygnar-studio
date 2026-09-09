@@ -574,7 +574,7 @@ export function Preview({ asset }: { asset: Asset | null }) {
       )}
 
       {pelnyEkran && !isVideo && (
-        <Lightbox asset={asset} onClose={() => setPelnyEkran(false)} />
+        <Lightbox assets={[asset]} onClose={() => setPelnyEkran(false)} />
       )}
       </div>
 
