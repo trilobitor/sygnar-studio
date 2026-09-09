@@ -100,6 +100,16 @@ const envSchema = z.object({
    * jawnie, wpisując `0`.
    */
   STUDIO_REQUIRE_LOGIN: z.enum(['0', '1']).default('1'),
+
+  /**
+   * Poziom logowania.
+   *
+   * Sam logger czyta `process.env` wprost — nie może importować `env`, bo ten
+   * moduł loguje błędy konfiguracji i powstałby cykl. Wpis tutaj zatrzymuje
+   * start przy literówce (`infoo`), zamiast po cichu wrócić do wartości
+   * domyślnej i zostawić kogoś przekonanego, że ustawił `debug`.
+   */
+  LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).optional(),
 })
 
 export type Env = z.infer<typeof envSchema>

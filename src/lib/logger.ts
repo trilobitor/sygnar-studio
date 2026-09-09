@@ -15,6 +15,13 @@ const LEVEL_ORDER: Record<LogLevel, number> = {
   error: 40,
 }
 
+/**
+ * Czytamy `process.env` wprost, nie przez `env`.
+ *
+ * `lib/env.ts` loguje problemy z konfiguracją, więc import w drugą stronę
+ * dałby cykl. Wartość jest jednak walidowana schematem Zod w `env.ts` —
+ * literówka zatrzymuje start, zanim ten kod się wykona.
+ */
 function resolveMinimumLevel(): LogLevel {
   const raw = process.env.LOG_LEVEL
   if (raw === 'debug' || raw === 'info' || raw === 'warn' || raw === 'error') {

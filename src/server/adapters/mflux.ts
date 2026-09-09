@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process'
-import { readdir, readFile } from 'node:fs/promises'
+import { access, constants, readdir, readFile } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 
 import { env } from '@/lib/env'
@@ -69,11 +69,37 @@ async function readVersion(): Promise<string | undefined> {
   return undefined
 }
 
+/**
+ * Katalog wag modelu w pamięci podręcznej HuggingFace.
+ *
+ * Nazwa repozytorium zamieniona na katalog wedle konwencji HF:
+ * `org/model` → `models--org--model`.
+ */
+function katalogWag(): string {
+  const dom = process.env.HOME ?? ''
+  const cache = process.env.HF_HOME ?? join(dom, '.cache', 'huggingface')
+  return join(cache, 'hub', 'models--black-forest-labs--FLUX.2-klein-4B')
+}
+
 export async function checkMflux(): Promise<HealthStatus> {
   const path = generatorPath()
 
   if (!(await isExecutable(path))) {
     return { ok: false, reason: 'missing_binary' }
+  }
+
+  /*
+   * Sama binarka nie wystarcza.
+   *
+   * `mflux-generate-flux2 --version` odpowiada także wtedy, gdy wag nie ma
+   * wcale — pierwsze generowanie zaczynało się wtedy od kilkunastu gigabajtów
+   * pobierania, a panel przez cały ten czas meldował „Generowanie obrazów: ok"
+   * i pokazywał pasek postępu, który nie ruszał.
+   */
+  try {
+    await access(katalogWag(), constants.R_OK)
+  } catch {
+    return { ok: false, reason: 'misconfigured' }
   }
 
   const version = await readVersion()

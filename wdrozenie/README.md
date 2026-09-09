@@ -202,6 +202,31 @@ E2E biegnie na osobnym katalogu `.e2e-dane` i porcie 3100 — nigdy nie dotyka
 danych grafika. Bez zmiennej `E2E_VIDEO_FIXTURE` scenariusz montażu jest
 pomijany.
 
+## 8. Logi
+
+Usługa pisze do `~/Library/Logs/sygnar-studio.log`. Plik rośnie bez
+ograniczenia, bo proces chodzi tygodniami i loguje każdą zmianę postępu —
+dlatego warto włączyć rotację:
+
+```
+sed "s|__KATALOG_LOGOW__|$HOME/Library/Logs|" \
+    wdrozenie/pl.sygnar.studio.newsyslog.conf \
+  | sudo tee /etc/newsyslog.d/pl.sygnar.studio.conf > /dev/null
+sudo newsyslog -nv          # podgląd bez zmian
+```
+
+Przeglądanie na bieżąco:
+
+```
+tail -f ~/Library/Logs/sygnar-studio.log | grep -v '"level":"debug"'
+```
+
+Log jest w formacie JSON po jednym wpisie na linię, więc da się go filtrować:
+
+```
+grep '"level":"error"' ~/Library/Logs/sygnar-studio.log | tail -20
+```
+
 ## Czego tu nie ma
 
 **Usługi `launchd` dla ComfyUI nie ma i nie będzie w tej wersji.** Backendem

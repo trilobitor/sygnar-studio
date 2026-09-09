@@ -1,4 +1,6 @@
 {
+  "//": "`id` zamraża tożsamość aplikacji niezależnie od adresu startowego — bez niego zmiana `start_url` tworzy w przeglądarce drugą, osobną instalację.",
+  "id": "/",
   "name": "Sygnar Studio",
   "short_name": "Sygnar",
   "description": "Panel do grafiki i wideo — brief, kadry, montaż, eksport.",
