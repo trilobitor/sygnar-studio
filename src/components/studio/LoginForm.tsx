@@ -68,7 +68,7 @@ export function LoginForm() {
             autoComplete="current-password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            className="w-full rounded border border-line bg-surface-2 px-3 py-2 text-sm text-ink"
+            className="w-full rounded border border-field bg-surface-2 px-3 py-2 text-sm text-ink"
           />
         )}
       </Field>

@@ -16,7 +16,14 @@
 export const COUNTDOWN_VISIBLE_SECONDS = 60
 
 /** Od ilu sekund licznik jest ogłaszany czytnikowi ekranu. */
-export const IDLE_WARNING_SECONDS = 10
+/*
+ * Trzydzieści sekund, nie dziesięć.
+ *
+ * Czytnik ekranu ogłasza komunikat dopiero po dokończeniu bieżącej wypowiedzi,
+ * a osoba niewidoma potrzebuje jeszcze chwili na zrozumienie i reakcję.
+ * Dziesięć sekund to za mało, żeby zdążyć cokolwiek zrobić przed wylogowaniem.
+ */
+export const IDLE_WARNING_SECONDS = 30
 
 /**
  * Zwraca `m:ss` powyżej minuty, a poniżej samą liczbę sekund z jednostką.

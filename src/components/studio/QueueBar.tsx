@@ -59,15 +59,40 @@ export function QueueBar({
 
   const lastFailed = jobs.find((job) => job.status === 'failed')
 
+  /*
+   * Zwięzły komunikat dla czytnika ekranu, zamontowany **na stałe**.
+   *
+   * Wcześniej nic nie ogłaszało końca zadania: osoba niewidoma nie miała jak
+   * się dowiedzieć, że kadry są gotowe, poza cyklicznym sprawdzaniem galerii.
+   * Obszar `aria-live` dokładany dopiero z treścią bywa pomijany przez
+   * czytnik, dlatego stoi zawsze, a zmienia się tylko jego zawartość.
+   */
+  const doOgloszenia = ((): string => {
+    if (!connected) return 'Utracono kontakt ze stacją.'
+    if (running !== undefined) return `Trwa: ${RODZAJE[running.kind] ?? 'zadanie'}.`
+    if (waiting.length > 0) return `W kolejce: ${waiting.length}.`
+    if (lastFailed !== undefined && odrzucone !== lastFailed.id) {
+      return `Zadanie nieudane: ${RODZAJE[lastFailed.kind] ?? 'zadanie'}.`
+    }
+    return 'Stacja jest wolna, zadania zakończone.'
+  })()
+
   // Zerwany strumień ma własny stan. Wcześniej pasek pokazywał ostatnią znaną
   // kolejkę jako aktualną, więc grafik patrzył na dane sprzed minut, nie mając
   // jak poznać, że nic już nie przychodzi.
+  const ogloszenie = (
+    <p role="status" aria-live="polite" className="sr-only">
+      {doOgloszenia}
+    </p>
+  )
+
   if (!connected) {
     return (
       <div
         role="status"
         className="flex items-center gap-2 border-t border-line bg-surface-1 px-4 py-2 text-sm text-ink-muted"
       >
+        {ogloszenie}
         <span className="text-danger-text">Straciłem kontakt ze stacją.</span>
         <span>Próbuję połączyć się ponownie — zadania w toku biegną dalej.</span>
       </div>
@@ -100,6 +125,7 @@ export function QueueBar({
   if (running === undefined && waiting.length === 0) {
     return (
       <div className="flex items-center justify-between border-t border-line bg-surface-1 px-4 py-2 text-sm text-ink-muted">
+        {ogloszenie}
         <span>Stacja jest wolna.</span>
         {awaria}
       </div>
@@ -108,6 +134,7 @@ export function QueueBar({
 
   return (
     <div className="flex items-center gap-4 border-t border-line bg-surface-1 px-4 py-2 text-sm">
+      {ogloszenie}
       {awaria}
       {running !== undefined ? (
         <>

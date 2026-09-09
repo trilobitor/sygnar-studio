@@ -121,9 +121,16 @@ export function ContextPanel({
             )}
           </Field>
 
+          {/* Słowniczek przeznaczeń był napisany w `OUTPUT_PRESETS`, ale
+              nigdzie niepokazany — grafik wybierał slot po samej nazwie. */}
+          <p className="-mt-2 text-xs text-ink-muted">{preset.hint}</p>
+
           <p className="text-xs text-ink-muted">
             Wyjdzie {preset.deliver.width} × {preset.deliver.height} pikseli, maksymalnie{' '}
-            {preset.maxWeightKb} KB, w formatach {preset.formats.join(' i ').toUpperCase()}.
+            {preset.maxWeightKb} KB, w formatach{' '}
+            {/* Wersaliki nakładamy na same nazwy formatów: `.toUpperCase()`
+                na całości zamieniał polski spójnik „i" na „I". */}
+            {preset.formats.map((f) => f.toUpperCase()).join(' i ')}.
             Jakość dobierzemy sami tak, żeby zmieścić się w wadze.
           </p>
 
@@ -236,7 +243,7 @@ export function ContextPanel({
                       }),
                     )
                   }
-                className="w-full rounded border border-line bg-surface-2 px-3 py-2 text-sm"
+                className="w-full rounded border border-field bg-surface-2 px-3 py-2 text-sm"
               />
             )}
           </Field>

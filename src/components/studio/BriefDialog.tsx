@@ -248,6 +248,7 @@ export function BriefDialog({
             label="Co ma być na obrazie"
             hint={FIELD_HINTS.subject}
             counter={`${subject.length}/500`}
+            required
           >
             {(id) => (
               <TextArea
@@ -271,11 +272,16 @@ export function BriefDialog({
           )}
 
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Przeznaczenie" hint={FIELD_HINTS.purpose}>
-              {(id) => (
-                <Select id={id} value={purpose} onChange={setPurpose} options={PURPOSE_OPTIONS} />
-              )}
-            </Field>
+            <div className="flex flex-col gap-1">
+              <Field label="Przeznaczenie" hint={FIELD_HINTS.purpose}>
+                {(id) => (
+                  <Select id={id} value={purpose} onChange={setPurpose} options={PURPOSE_OPTIONS} />
+                )}
+              </Field>
+              {/* Słowniczek przeznaczeń istniał w `OUTPUT_PRESETS`, ale nigdy
+                  nie trafiał na ekran. */}
+              <p className="text-xs text-ink-muted">{preset.hint}</p>
+            </div>
 
             <Field label="Styl" hint={FIELD_HINTS.style}>
               {(id) => (

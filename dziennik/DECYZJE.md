@@ -933,3 +933,37 @@ się od pojedynczego ukośnika.
 zaczyna się od ukośnika, a przeglądarka czyta taki zapis jako adres
 bezwzględny z bieżącym protokołem. Przy panelu wystawionym publicznie dawało
 to link „zaloguj się i wróć" prowadzący gdzie indziej.
+
+---
+
+## D51 — Osobny token granicy pól formularza
+
+**Decyzja.** `--color-field: #707070` używany wyłącznie przez pola wejściowe.
+`--color-line` zostaje `#333333` zgodnie ze SPEC §10 i nadal obsługuje ramki
+paneli.
+
+**Powód.** `--line` przy polach dawał kontrast **1,20:1** wobec ich tła — pole
+zlewało się z panelem. WCAG wymaga 3:1 dla elementów sterujących.
+
+**Konsekwencja.** Propozycja audytu (`#565656`) dawała **2,06:1**, czyli nadal
+za mało — policzone, nie przyjęte na słowo. `#707070` to pierwsza wartość
+spełniająca próg: 3,06:1 na `surface-2` i 3,44:1 na `surface-1`.
+
+---
+
+## D52 — Panel mówi czytnikowi ekranu, co się dzieje
+
+**Decyzja.** Pasek kolejki ma zamontowany na stałe obszar `aria-live` ze
+zwięzłym zdaniem o stanie. Obszary strony dostały nazwy, doszło przejście do
+treści, pola wymagane mają znacznik, a focus wraca tam, skąd otwarto okno.
+Ostrzeżenie o wylogowaniu przesunięte z 10 na 30 sekund.
+
+**Powód.** Nic nie ogłaszało końca zadania: osoba niewidoma nie miała jak się
+dowiedzieć, że kadry są gotowe, poza cyklicznym sprawdzaniem galerii. Obszary
+strony brzmiały identycznie („uzupełniające", „uzupełniające", „główne"), focus
+przepadał na `<body>` po zamknięciu okna, a dziesięć sekund nie starcza, żeby
+czytnik dokończył wypowiedź i człowiek zdążył zareagować.
+
+**Konsekwencja.** Menu pod trzema kropkami straciło role `menu`/`menuitem` —
+deklarowały obsługę strzałek, której nie ma. Zwykła lista przycisków odpowiada
+temu, co komponent naprawdę robi.

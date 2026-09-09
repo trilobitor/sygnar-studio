@@ -88,6 +88,7 @@ export function Hint({ text }: { text: string }) {
 
 /** Pole z etykietą i dymkiem ze słowniczka. */
 export function Field({
+  required = false,
   label,
   hint,
   children,
@@ -97,6 +98,8 @@ export function Field({
   hint?: string
   children: (id: string) => ReactNode
   counter?: string
+  /** Pole wymagane — dostaje widoczny znacznik i informację dla czytnika. */
+  required?: boolean
 }) {
   const id = useId()
 
@@ -107,6 +110,15 @@ export function Field({
       <div className="flex items-baseline justify-between text-sm text-ink">
         <span className="flex items-baseline">
           <label htmlFor={id}>{label}</label>
+          {/* Wymagalność była niewidoczna: pole różniło się od reszty tylko
+              tym, że bez niego przycisk zostawał wyłączony, a nic nie mówiło
+              dlaczego. */}
+          {required && (
+            <span className="ml-1 text-accent" aria-hidden="true">
+              *
+            </span>
+          )}
+          {required && <span className="sr-only"> (pole wymagane)</span>}
           {hint !== undefined && <Hint text={hint} />}
         </span>
         {counter !== undefined && <span className="text-xs text-ink-muted">{counter}</span>}
@@ -117,7 +129,7 @@ export function Field({
 }
 
 const INPUT_CLASS =
-  'w-full rounded border border-line bg-surface-2 px-3 py-2 text-sm text-ink placeholder:text-ink-muted'
+  'w-full rounded border border-field bg-surface-2 px-3 py-2 text-sm text-ink placeholder:text-ink-muted'
 
 export function TextInput({
   id,
@@ -283,7 +295,17 @@ export function Dialog({
   // wtedy co sekundę i wyrywał kursor z pola, w którym grafik pisał brief.
   useEffect(() => {
     if (!open) return
+
+    // Focus wraca tam, skąd okno otwarto. Bez tego po zamknięciu przepadał
+    // na `<body>` i osoba pracująca z klawiatury musiała przechodzić całą
+    // stronę od początku, żeby wrócić do przycisku, który właśnie nacisnęła.
+    const skad = document.activeElement
+
     panelRef.current?.focus()
+
+    return () => {
+      if (skad instanceof HTMLElement) skad.focus()
+    }
   }, [open])
 
   if (!open) return null
@@ -370,14 +392,16 @@ export function RowMenu({
 
       {open && (
         <div
-          role="menu"
+          // Bez ról `menu`/`menuitem`: deklarowały obsługę strzałek, której
+          // nie było, więc czytnik ekranu obiecywał zachowanie nieistniejące.
+          // Zwykła lista przycisków odpowiada temu, co komponent naprawdę robi.
+          role="group"
           className="absolute right-0 top-full z-20 mt-1 min-w-40 overflow-hidden rounded border border-line bg-surface-2 shadow-lg"
         >
           {items.map((item) => (
             <button
               key={item.label}
               type="button"
-              role="menuitem"
               onClick={() => {
                 setOpen(false)
                 item.onSelect()

@@ -92,7 +92,14 @@ export function Gallery({
                       // z mfluxa waży 1,6 MB. Zmierzone przed zmianą — jedno
                       // zlecenie to 46 MB przy każdym otwarciu galerii.
                     src={`/api/files/${asset.id}?miniatura`}
-                    alt={`Wygenerowany kadr, numer losowania ${asset.seed ?? 'nieznany'}`}
+                    // Wgrany plik nie jest „wygenerowanym kadrem o nieznanym
+                    // numerze losowania" — to zdanie myliło czytnik ekranu
+                    // i nie odróżniało dwóch zupełnie różnych rzeczy.
+                    alt={
+                      asset.seed === null
+                        ? 'Wgrany plik'
+                        : `Kadr, numer losowania ${asset.seed}`
+                    }
                     loading="lazy"
                     className="h-full w-full object-cover"
                   />

@@ -252,10 +252,27 @@ export function StudioScreen({
 
   return (
     <div className="flex h-screen flex-col bg-surface-0">
+      {/*
+        Przejście do treści — pierwszy element w kolejności tabulacji, niewidoczny
+        dopóki nie dostanie focusu. Bez niego osoba pracująca z klawiaturą
+        przechodzi przez całą listę zleceń, zanim dotrze do galerii.
+      */}
+      <a
+        href="#tresc"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-accent focus:px-3 focus:py-2 focus:text-sm focus:text-surface-0"
+      >
+        Przejdź do kadrów
+      </a>
       <HealthBanner onReadyChange={setReady} />
 
       <div className="flex min-h-0 flex-1">
-        <aside className="flex w-64 shrink-0 flex-col gap-3 border-r border-line bg-surface-1 p-3">
+        {/* Obszary strony bez nazw brzmią w czytniku ekranu identycznie —
+            „uzupełniające", „uzupełniające", „główne". Nazwy pozwalają
+            przeskakiwać między nimi zamiast czytać wszystko po kolei. */}
+        <aside
+          aria-label="Zlecenia"
+          className="flex w-64 shrink-0 flex-col gap-3 border-r border-line bg-surface-1 p-3"
+        >
           {/* Znak marki jest nagłówkiem pierwszego poziomu — lista zleceń
               schodzi o poziom niżej, żeby nagłówki szły bez przeskoków. */}
           <h1 className="sr-only">Sygnar Studio</h1>
@@ -294,7 +311,7 @@ export function StudioScreen({
             </Button>
           </div>
 
-          <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
+          <nav aria-label="Lista zleceń" className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
             {orders.length === 0 ? (
               <EmptyState>
                 Nie ma jeszcze żadnego zlecenia. Załóż pierwsze powyżej — wszystko inne dzieje
@@ -371,7 +388,8 @@ export function StudioScreen({
           </nav>
         </aside>
 
-        <main className="flex min-w-0 flex-1 flex-col gap-3 p-4">
+        <main id="tresc" className="flex min-w-0 flex-1 flex-col gap-3 p-4">
+          <h2 className="sr-only">Kadry wybranego zlecenia</h2>
           {/* Etapy po lewej, sesja po prawej — jeden wiersz, żeby nie zabierać
               pionowego miejsca podglądowi kadru. */}
           <div className="flex items-center justify-between gap-4">
@@ -446,7 +464,10 @@ export function StudioScreen({
           )}
         </main>
 
-        <aside className="flex w-72 shrink-0 flex-col gap-4 overflow-y-auto border-l border-line bg-surface-1 p-3">
+        <aside
+          aria-label="Eksport i pliki do oddania"
+          className="flex w-72 shrink-0 flex-col gap-4 overflow-y-auto border-l border-line bg-surface-1 p-3"
+        >
           {orderId === null ? (
             <EmptyState>Najpierw wybierz zlecenie.</EmptyState>
           ) : (
