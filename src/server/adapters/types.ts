@@ -73,6 +73,8 @@ export const JOB_ERROR_CODES = [
   'EXPORT_FAILED',
   /** Błąd, którego nie przewidzieliśmy. Zawsze 500 i zawsze w logu. */
   'INTERNAL_ERROR',
+  /** Zabrakło miejsca na dysku albo brakuje prawa zapisu. */
+  'DISK_FULL',
 ] as const
 
 export type JobErrorCode = (typeof JOB_ERROR_CODES)[number]

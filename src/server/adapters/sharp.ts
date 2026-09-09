@@ -83,6 +83,14 @@ function encode(
 export async function exportToWeight(
   request: ExportRequest,
   ctx?: Pick<JobContext, 'onProgress' | 'logger' | 'signal'>,
+  /**
+   * Zakres postępu, w którym ma się zmieścić to wywołanie.
+   *
+   * Bez niego każdy format raportował 0→1 osobno, więc przy dwóch formatach
+   * pasek szedł do końca, wracał do połowy i szedł jeszcze raz. Ten sam
+   * wzorzec ma już `runFfmpeg` przez `percentFrom`/`percentTo`.
+   */
+  zakres: { from: number; to: number } = { from: 0, to: 1 },
 ): Promise<ExportOutcome> {
   const source = sharpLib(request.sourcePath).resize(request.width, request.height, {
     fit: 'cover',
@@ -110,7 +118,8 @@ export async function exportToWeight(
     const buffer = await encode(source, request.format, quality)
 
     ctx?.onProgress({
-      percent: iterations / MAX_QUALITY_ITERATIONS,
+      percent:
+        zakres.from + ((zakres.to - zakres.from) * iterations) / MAX_QUALITY_ITERATIONS,
       phase: 'Dobieram jakość do wagi',
     })
 

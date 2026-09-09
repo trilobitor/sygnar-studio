@@ -1,4 +1,4 @@
-import { spawn, type ChildProcess } from 'node:child_process'
+import { spawn } from 'node:child_process'
 
 import { logger } from '@/lib/logger'
 
@@ -13,23 +13,46 @@ import { logger } from '@/lib/logger'
  * MacBooka i tak uśpi maszynę i tego nie obchodzimy.
  */
 
-let holder: ChildProcess | null = null
-let holders = 0
+
+
+/**
+ * Stan na `globalThis`, wzorem reszty projektu.
+ *
+ * Next w trybie deweloperskim przeładowuje moduły przy każdej zmianie —
+ * zmienne modułowe wracały wtedy do zera, a poprzedni `caffeinate` zostawał
+ * bez właściciela i trzymał maszynę wybudzoną w nieskończoność.
+ */
+const globalForCaffeine = globalThis as unknown as {
+  studioCaffeinate?: ReturnType<typeof spawn> | null
+  studioCaffeineHolders?: number
+}
+
+/** Gasi blokadę bezwarunkowo. Wołane z obsługi wyjścia procesu. */
+export function zwolnijBlokade(): void {
+  const proces = globalForCaffeine.studioCaffeinate
+  if (proces !== null && proces !== undefined) proces.kill('SIGTERM')
+
+  globalForCaffeine.studioCaffeinate = null
+  globalForCaffeine.studioCaffeineHolders = 0
+}
 
 export function keepAwake(): () => void {
-  holders += 1
+  globalForCaffeine.studioCaffeineHolders = (globalForCaffeine.studioCaffeineHolders ?? 0) + 1
 
-  if (holder === null) {
+  if (globalForCaffeine.studioCaffeinate == null) {
     try {
-      holder = spawn('/usr/bin/caffeinate', ['-i'], { shell: false, stdio: 'ignore' })
-      holder.on('error', () => {
+      globalForCaffeine.studioCaffeinate = spawn('/usr/bin/caffeinate', ['-i'], {
+        shell: false,
+        stdio: 'ignore',
+      })
+      globalForCaffeine.studioCaffeinate.on('error', () => {
         // Brak `caffeinate` nie jest powodem, żeby nie policzyć kadru.
         logger.warn('nie udało się zablokować usypiania')
-        holder = null
+        globalForCaffeine.studioCaffeinate = null
       })
     } catch {
       logger.warn('nie udało się zablokować usypiania')
-      holder = null
+      globalForCaffeine.studioCaffeinate = null
     }
   }
 
@@ -38,12 +61,10 @@ export function keepAwake(): () => void {
   return () => {
     if (released) return
     released = true
-    holders -= 1
 
-    if (holders <= 0 && holder !== null) {
-      holder.kill('SIGTERM')
-      holder = null
-      holders = 0
-    }
+    const zostalo = (globalForCaffeine.studioCaffeineHolders ?? 1) - 1
+    globalForCaffeine.studioCaffeineHolders = Math.max(0, zostalo)
+
+    if (zostalo <= 0) zwolnijBlokade()
   }
 }

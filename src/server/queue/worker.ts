@@ -6,7 +6,7 @@ import { JobError, type JobContext, type JobErrorCode } from '@/server/adapters/
 import type { Job } from '@/server/db/schema'
 import { jobWorkDir } from '@/server/services/paths'
 import { publish } from './events'
-import { keepAwake } from './keep-awake'
+import { keepAwake, zwolnijBlokade } from './keep-awake'
 import {
   countRunning,
   failInterruptedJobs,
@@ -127,8 +127,23 @@ function hasFreeSlot(kind: JobKind): boolean {
   return countRunning(NON_GPU_JOB_KINDS) < NON_GPU_CONCURRENCY
 }
 
+/** Kody systemu plików, przy których winny jest dysk, nie ustawienia. */
+const KODY_DYSKU = new Set(['ENOSPC', 'EACCES', 'EROFS', 'EDQUOT', 'EPERM'])
+
 function errorCodeFor(error: unknown): JobErrorCode {
   if (error instanceof JobError) return error.code
+
+  /*
+   * Pełny dysk wyglądał jak „coś jest nie tak z ustawieniami generowania".
+   *
+   * Domyślny kod `COMFY_WORKFLOW_INVALID` mapuje się na komunikat o błędzie
+   * po naszej stronie w konfiguracji modelu — grafik szukałby więc czegoś,
+   * czego nie da się poprawić, zamiast zwolnić miejsce albo zawołać kogoś
+   * do maszyny.
+   */
+  const kod: unknown = error === null || typeof error !== 'object' ? null : Reflect.get(error, 'code')
+  if (typeof kod === 'string' && KODY_DYSKU.has(kod)) return 'DISK_FULL'
+
   return 'COMFY_WORKFLOW_INVALID'
 }
 
@@ -264,10 +279,54 @@ export function startWorker(): void {
   if (globalForWorker.studioStarted === true) return
   globalForWorker.studioStarted = true
 
+  // Osierocone dzieci po ubiciu serwera to wyciek, który narasta z każdym
+  // restartem usługi — patrz `armujSprzatanie`.
+  armujSprzatanie()
+
   const interrupted = failInterruptedJobs()
   if (interrupted > 0) {
     logger.warn('oznaczono zadania przerwane restartem', { count: interrupted })
   }
 
   void tick()
+}
+
+/**
+ * Sprzątanie przy wyjściu procesu.
+ *
+ * Bez tego ubicie serwera zostawiało osierocone dzieci: mflux albo ffmpeg
+ * mieliły dalej, trzymając pamięć i pisząc do katalogu, którego nikt już nie
+ * pilnuje, a `caffeinate` nie pozwalał maszynie zasnąć. Przy usłudze
+ * `launchd`, która restartuje panel, narastało to z każdym restartem.
+ *
+ * Rejestrujemy raz na proces — `once` na fladze w `globalThis`, bo Next
+ * przeładowuje moduły i bez tego handlerów przybywałoby przy każdej zmianie.
+ */
+const globalForShutdown = globalThis as unknown as { studioShutdownArmed?: boolean }
+
+export function armujSprzatanie(): void {
+  if (globalForShutdown.studioShutdownArmed === true) return
+  globalForShutdown.studioShutdownArmed = true
+
+  const sprzataj = (sygnal: string): void => {
+    logger.info('zatrzymywanie panelu', { sygnal, biegnacych: aborts.size })
+
+    for (const controller of aborts.values()) {
+      controller.abort(new JobError('INTERRUPTED_BY_RESTART', 'panel się zatrzymuje'))
+    }
+
+    zwolnijBlokade()
+  }
+
+  for (const sygnal of ['SIGTERM', 'SIGINT'] as const) {
+    process.once(sygnal, () => {
+      sprzataj(sygnal)
+      // Dajemy chwilę na dojście sygnału do dzieci, potem wychodzimy.
+      setTimeout(() => process.exit(0), 300)
+    })
+  }
+
+  process.once('beforeExit', () => {
+    zwolnijBlokade()
+  })
 }

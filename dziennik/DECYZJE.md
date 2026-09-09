@@ -1066,3 +1066,40 @@ grafik mógł wpisać `</brief>` w treści i domknąć ramkę przedwcześnie —
 jego tekstu wyglądałaby wtedy jak instrukcja od nas, nie jak dane. To obrona
 przed przypadkiem, nie przed atakiem: panel ma jednego, znanego użytkownika
 na zlecenie.
+
+---
+
+## D59 — Sprzątanie przy wyjściu procesu
+
+**Decyzja.** `armujSprzatanie` rejestruje obsługę `SIGTERM` i `SIGINT`:
+przerywa wszystkie biegnące zadania i gasi `caffeinate`. Stan blokady
+usypiania przeniesiony na `globalThis`, wzorem reszty projektu.
+
+**Powód.** Ubicie serwera zostawiało osierocone dzieci: mflux albo ffmpeg
+mieliły dalej, trzymając pamięć i pisząc do katalogu, którego nikt już nie
+pilnuje, a `caffeinate` nie pozwalał maszynie zasnąć. Przy usłudze `launchd`,
+która restartuje panel, narastało to z każdym restartem.
+
+Stan w zmiennych modułowych wracał do zera przy przeładowaniu modułów przez
+Next — poprzedni `caffeinate` zostawał wtedy bez właściciela.
+
+---
+
+## D60 — Trzy poprawki czytelności kolejki
+
+**Decyzja.**
+
+- **Pełny dysk ma własny kod** `DISK_FULL`. Kody `ENOSPC`, `EACCES`, `EROFS`,
+  `EDQUOT` i `EPERM` rozpoznajemy przed zejściem do domyślnego kodu.
+- **Pozycja w kolejce liczona w obrębie własnej puli.** Zadania GPU i pozostałe
+  stoją w osobnych kolejkach; liczenie ich razem dawało liczbę bez związku
+  z czasem oczekiwania — eksport „miał przed sobą" generowanie, na które nie
+  czekał.
+- **Pasek postępu eksportu nie cofa się.** Każdy format dostaje własny wycinek
+  zakresu, tak jak robi to już `runFfmpeg`.
+
+**Powód pierwszego.** `COMFY_WORKFLOW_INVALID` mapuje się na komunikat o błędzie
+w konfiguracji modelu. Grafik przy pełnym dysku szukałby więc czegoś, czego nie
+da się poprawić, zamiast zwolnić miejsce.
+
+**Zmierzone po poprawce paska:** 0 → 13 → 25 → 38 → 100, monotonicznie.

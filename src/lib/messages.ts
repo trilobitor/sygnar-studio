@@ -26,6 +26,8 @@ export const ERROR_MESSAGES: Record<string, string> = {
     'Nie da się zejść do zadanej wagi bez utraty jakości. Podnieś limit albo zmniejsz kadr.',
   EXPORT_FAILED:
     'Nie udało się przygotować pliku do oddania. Sprawdź, czy kadr otwiera się poprawnie.',
+  DISK_FULL:
+    'Zabrakło miejsca na dysku albo panel nie może pisać do swojego katalogu. Napisz do Kamila.',
   INTERNAL_ERROR: 'Coś poszło nie tak po naszej stronie. Odśwież stronę i spróbuj jeszcze raz.',
   DATABASE_UNAVAILABLE:
     'Baza zleceń nie odpowiada. Napisz do Kamila — plik bazy może być uszkodzony albo dysk pełny.',

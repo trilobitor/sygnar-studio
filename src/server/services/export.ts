@@ -67,8 +67,14 @@ async function runExport(job: Job, ctx: JobContext): Promise<void> {
   let step = 0
   for (const format of preset.formats) {
     step += 1
+
+    // Każdy format dostaje własny wycinek paska. Bez tego pasek szedł do
+    // końca przy pierwszym formacie i wracał do połowy przy drugim.
+    const od = (step - 1) / preset.formats.length
+    const doKad = step / preset.formats.length
+
     ctx.onProgress({
-      percent: (step - 1) / preset.formats.length,
+      percent: od,
       phase: `Zapisuję plik ${step} z ${preset.formats.length}`,
     })
 
@@ -81,6 +87,7 @@ async function runExport(job: Job, ctx: JobContext): Promise<void> {
         maxBytes,
       },
       ctx,
+      { from: od, to: doKad },
     )
 
     const { absolutePath } = await zajmijNazwe({

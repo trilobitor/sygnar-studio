@@ -85,8 +85,23 @@ export function countRunning(kinds: readonly JobKind[]): number {
 }
 
 /** Ile zadań czeka przed tym konkretnym. Zasila komunikat „1 zadanie przed Tobą". */
+/** Rodzaje zadań korzystających z GPU. Mają własną, jednomiejscową pulę. */
+const GPU_KINDS = new Set(['image_generate'])
+
+/**
+ * Ile zadań czeka przed tym konkretnym — **w jego własnej puli**.
+ *
+ * Zadania GPU i pozostałe stoją w osobnych kolejkach: generowanie przepuszcza
+ * jedno naraz, reszta dwa. Liczenie ich razem dawało liczbę bez związku
+ * z rzeczywistym czasem oczekiwania — eksport potrafił „mieć przed sobą"
+ * generowanie, na które w ogóle nie czekał.
+ */
 export function positionInQueue(job: Job): number {
-  return listQueued().filter((candidate) => candidate.createdAt < job.createdAt).length
+  const taSamaPula = (kind: string): boolean => GPU_KINDS.has(kind) === GPU_KINDS.has(job.kind)
+
+  return listQueued().filter(
+    (candidate) => taSamaPula(candidate.kind) && candidate.createdAt < job.createdAt,
+  ).length
 }
 
 export function markRunning(id: string): void {
