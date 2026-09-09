@@ -448,3 +448,45 @@ export async function extractPoster(
     { durationMs: null, phase: 'Zapisuję planszę', percentFrom: 0.9, percentTo: 0.95 },
   )
 }
+
+/**
+ * Pierwsza klatka klipu jako miniatura do siatki galerii.
+ *
+ * Osobno od `extractPoster`, bo nie potrzebuje `JobContext` — miniatura
+ * powstaje na żądanie z trasy plików, poza kolejką zadań.
+ *
+ * Bez tego kafelek wideo był elementem `<video preload="metadata">`, a to
+ * po dodaniu obsługi `Range` okazało się **gorsze niż przed zmianą**:
+ * przeglądarka wysyłała 29 żądań częściowych i ściągała 228 MB przy galerii
+ * ważącej 46 MB. Zmierzone. Obrazek nie ma tego problemu.
+ */
+export async function klatkaDoMiniatury(zrodlo: string, cel: string): Promise<boolean> {
+  try {
+    const wynik = await runBinary(
+      env.FFMPEG_PATH,
+      [
+        '-y',
+        '-hide_banner',
+        '-v',
+        'error',
+        // Klatka z pierwszej sekundy, nie z zerowej — początek bywa czarny.
+        '-ss',
+        '1',
+        '-i',
+        zrodlo,
+        '-frames:v',
+        '1',
+        '-vf',
+        'scale=320:-2',
+        '-q:v',
+        '4',
+        cel,
+      ],
+      { timeoutMs: 20_000 },
+    )
+
+    return wynik.code === 0
+  } catch {
+    return false
+  }
+}

@@ -871,3 +871,23 @@ pytać `access(W_OK)`.
 **Powód.** Bit uprawnień bywa ustawiony tam, gdzie zapis i tak padnie: nośnik
 zamontowany tylko do odczytu, pełny dysk, reguła ACL. Zdrowie ma mówić, czy da
 się pracować, a nie czy teoretycznie wolno.
+
+---
+
+## D47 — Miniatura klipu to obrazek, nie element `<video>`
+
+**Decyzja.** Kafelek wideo w siatce jest `<img>` wskazującym
+`?miniatura`; trasa wyciąga klatkę ffmpegiem i zapisuje ją obok.
+
+**Powód.** Pierwsza wersja poprawki #43 wstawiała `<video preload="metadata">`.
+Po dodaniu obsługi `Range` (D36) okazało się to **gorsze niż stan wyjściowy**:
+przeglądarka wysyłała 29 żądań częściowych i ściągała **228 MB** przy galerii
+ważącej 46 MB — pięciokrotnie więcej niż przed jakąkolwiek zmianą.
+
+**Konsekwencja.** Zmierzone po naprawie: 5 żądań i **0,06 MB**. Klatkę bierzemy
+z pierwszej sekundy, nie z zerowej, bo początek klipu bywa czarny.
+
+Warto zapamiętać sam przebieg: dwie poprawki, każda z osobna słuszna
+i zmierzona, złożyły się na regresję gorszą niż stan wyjściowy. Wyszło to
+wyłącznie dlatego, że po zamknięciu kategorii zmierzyłem galerię jeszcze raz,
+zamiast uznać temat za zamknięty.

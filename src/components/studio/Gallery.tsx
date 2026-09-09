@@ -67,16 +67,19 @@ export function Gallery({
           >
             <div className="checkerboard aspect-4/3">
               {asset.mime.startsWith('video/') ? (
-                // Film wstawiony w `<img>` daje pustą ramkę — przeglądarka nie
-                // ma z czego zbudować obrazka. Pokazujemy pierwszą klatkę
-                // przez `<video>` z `preload="metadata"`, czyli bez ściągania
-                // całego pliku do siatki.
-                <video
-                  src={`/api/files/${asset.id}`}
-                  preload="metadata"
-                  muted
-                  playsInline
-                  aria-label="Wgrany klip wideo"
+                /*
+                 * Klatka klipu jako **obrazek**, nie element `<video>`.
+                 *
+                 * Wersja z `<video preload="metadata">` okazała się po dodaniu
+                 * obsługi `Range` gorsza niż stan wyjściowy: przeglądarka
+                 * wysyłała 29 żądań częściowych i ściągała 228 MB przy galerii
+                 * ważącej 46 MB. Zmierzone, nie oszacowane.
+                 */
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={`/api/files/${asset.id}?miniatura`}
+                  alt="Pierwsza klatka wgranego klipu"
+                  loading="lazy"
                   className="h-full w-full object-cover"
                 />
               ) : (

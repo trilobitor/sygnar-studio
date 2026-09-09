@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { Readable } from 'node:stream'
 
 import { env } from '@/lib/env'
+import { klatkaDoMiniatury } from '@/server/adapters/ffmpeg'
 import { SZEROKOSC_MINIATURY, zrobMiniature } from '@/server/adapters/sharp'
 import { thumbsDir } from '@/server/services/paths'
 
@@ -41,19 +42,20 @@ export async function GET(
     // źródłowe — zmierzone, jedno zlecenie z pięcioma klipami to 46 MB.
     const chceMiniature = new URL(request.url).searchParams.get('miniatura') !== null
 
-    if (chceMiniature && asset.mime.startsWith('image/')) {
-      const miniatura = await wezMiniature(asset.orderId, asset.id, path)
+    if (chceMiniature) {
+      const wideo = asset.mime.startsWith('video/')
+      const miniatura = await wezMiniature(asset.orderId, asset.id, path, wideo)
 
       if (miniatura !== null) {
         return new Response(new Uint8Array(miniatura), {
           headers: {
-            'Content-Type': 'image/webp',
+            'Content-Type': wideo ? 'image/jpeg' : 'image/webp',
             'Content-Length': String(miniatura.byteLength),
             'Cache-Control': 'private, max-age=31536000, immutable',
           },
         })
       }
-      // Nie udało się — oddajemy oryginał, lepszy duży obraz niż żaden.
+      // Nie udało się — oddajemy oryginał, lepszy duży plik niż żaden.
     }
 
     // Eksporty i plansze mają się pobierać pod właściwą nazwą, a nie
@@ -161,15 +163,24 @@ async function wezMiniature(
   orderId: string,
   assetId: string,
   zrodlo: string,
+  wideo: boolean,
 ): Promise<Buffer | null> {
   const katalog = thumbsDir(env.STUDIO_DATA_DIR, orderId)
-  const cel = join(katalog, `${assetId}-${SZEROKOSC_MINIATURY}.webp`)
+  const cel = join(katalog, `${assetId}-${SZEROKOSC_MINIATURY}.${wideo ? 'jpg' : 'webp'}`)
 
   const zastana = await readFile(cel).catch(() => null)
   if (zastana !== null) return zastana
 
   try {
     await mkdir(katalog, { recursive: true })
+
+    if (wideo) {
+      // Klatka z klipu przez ffmpeg. Kafelek `<video>` był gorszy niż brak
+      // miniatury: przeglądarka wysyłała dziesiątki żądań częściowych.
+      const udalo = await klatkaDoMiniatury(zrodlo, cel)
+      return udalo ? await readFile(cel) : null
+    }
+
     return await zrobMiniature(zrodlo, cel)
   } catch {
     return null
