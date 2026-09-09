@@ -45,7 +45,7 @@ export function QueueBar({ jobs, onChanged }: { jobs: Job[]; onChanged: () => vo
       <div className="flex items-center justify-between border-t border-line bg-surface-1 px-4 py-2 text-sm text-ink-muted">
         <span>Stacja jest wolna.</span>
         {lastFailed !== undefined && (
-          <span className="text-danger">{messageForCode(lastFailed.errorCode)}</span>
+          <span className="text-danger-text">{messageForCode(lastFailed.errorCode)}</span>
         )}
       </div>
     )

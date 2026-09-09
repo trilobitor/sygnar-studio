@@ -19,6 +19,19 @@
   --color-danger: #d9534f;
 
   /*
+   * Czerwień do **tekstu**, rozjaśniona.
+   *
+   * `--color-danger` zostaje bez zmian, bo tak podaje tabela kolorów
+   * w SPEC §10 i tak wygląda obramowanie. Do napisów się jednak nie nadaje:
+   * zmierzone 4,30:1 na `surface-1` i 3,82:1 na `surface-2`, przy wymaganych
+   * przez SPEC 4,5:1. Ten odcień daje 5,77:1 i 5,13:1.
+   *
+   * Rozdział jest zgodny z WCAG: obramowania i elementy sterujące mają próg
+   * 3:1, tekst 4,5:1 — jeden token nie musi spełniać obu.
+   */
+  --color-danger-text: #e8736f;
+
+  /*
    * Wrzos — kolor słowa „Studio" w znaku.
    *
    * Dobrany tak, żeby nie kolidował z żadnym akcentem marki: 274° odcienia,

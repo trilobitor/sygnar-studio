@@ -605,3 +605,35 @@ i tak się nie mieści — sprawdzone, zanim padła propozycja.
 Zapisujemy też, że zdanie z `workflows/flux2-klein-t2i.json` o tym, że
 podnoszenie kroków „szkodzi", jest nieścisłe: przy 8 krokach kadr był lepszy,
 nie gorszy. Kroki zostają na 4 ze względu na czas, nie na jakość.
+
+---
+
+## D33 — Osobny token czerwieni do tekstu
+
+**Decyzja.** `--color-danger` zostaje `#d9534f` zgodnie z tabelą kolorów
+w SPEC §10 i służy obramowaniom oraz tłom. Do napisów dochodzi
+`--color-danger-text: #e8736f`.
+
+**Powód.** Zmierzone: `#d9534f` daje 4,30:1 na `surface-1` i 3,82:1 na
+`surface-2`, przy wymaganych przez SPEC 4,5:1. Nowy odcień daje 5,77:1
+i 5,13:1. Podmiana samego tokenu byłaby odstępstwem od palety zapisanej
+w specyfikacji, a rozdział jest zgodny z WCAG: obramowania mają próg 3:1,
+tekst 4,5:1 — jeden token nie musi spełniać obu.
+
+**Konsekwencja.** Liczby z audytu dla proponowanego odcienia (6,1 i 5,4) były
+zawyżone; policzone na nowo wychodzi 6,24 i 5,13.
+
+---
+
+## D34 — Okno modalne zatrzymuje focus i blokuje przewijanie tła
+
+**Decyzja.** `Dialog` przechwytuje `Tab` i `Shift+Tab`, zapętlając focus po
+elementach panelu, oraz ustawia `overflow: hidden` na `body` na czas otwarcia.
+
+**Powód.** Focus wychodził z okna na stronę pod spodem, której **nie widać** —
+okno ją przykrywa. Grafik pracujący z klawiatury tracił kursor i nie miał jak
+się zorientować, gdzie jest.
+
+**Konsekwencja.** Zmierzone w przeglądarce: 40 naciśnięć Tab i 20 Shift+Tab —
+**ani razu** poza oknem, przy 15 różnych odwiedzonych elementach, czyli focus
+faktycznie krąży, a nie stoi w miejscu. Przewijanie tła wraca po zamknięciu.

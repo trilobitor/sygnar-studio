@@ -28,7 +28,11 @@ export const ERROR_MESSAGES: Record<string, string> = {
     'Baza zleceń nie odpowiada. Napisz do Kamila — plik bazy może być uszkodzony albo dysk pełny.',
   PROMPT_SERVICE_FAILED:
     'Nie udało się przygotować opisu po angielsku. Możesz wpisać go ręcznie poniżej.',
-  VALIDATION_FAILED: 'Coś w formularzu się nie zgadza. Sprawdź zaznaczone pola.',
+  // Komunikat obiecywał zaznaczone pola, a `aria-invalid` nie występuje
+  // w kodzie ani razu — grafik szukał podświetlenia, którego nigdy nie było.
+  // Zamiast obietnicy: konkretne granice, które łatwo sprawdzić wzrokiem.
+  VALIDATION_FAILED:
+    'Coś w formularzu się nie zgadza. Opis sceny musi mieć co najmniej trzy znaki, a liczba podejść od 1 do 8.',
   NOT_FOUND: 'Nie znaleźliśmy tego elementu. Odśwież stronę.',
   PATH_INVALID: 'Nie udało się otworzyć pliku — to po naszej stronie, nie po Twojej.',
   HEALTH_CHECK_FAILED: 'Nie udało się sprawdzić stanu stacji. Odśwież stronę za chwilę.',

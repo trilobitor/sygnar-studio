@@ -20,7 +20,7 @@ type ButtonVariant = 'primary' | 'ghost' | 'danger'
 const BUTTON_STYLES: Record<ButtonVariant, string> = {
   primary: 'bg-accent text-surface-0 hover:brightness-110 font-medium',
   ghost: 'bg-surface-2 text-ink hover:bg-line',
-  danger: 'bg-transparent text-danger border border-danger hover:bg-danger/10',
+  danger: 'bg-transparent text-danger-text border border-danger hover:bg-danger/10',
 }
 
 export function Button({
@@ -77,7 +77,7 @@ export function Hint({ text }: { text: string }) {
       {open && (
         <span
           role="tooltip"
-          className="absolute left-0 top-full z-50 mt-1 block w-72 rounded border border-line bg-surface-2 px-3 py-2 text-xs leading-relaxed font-normal text-ink shadow-lg"
+          className="absolute left-0 top-full z-50 mt-1 block w-[min(18rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] rounded border border-line bg-surface-2 px-3 py-2 text-xs leading-relaxed font-normal text-ink shadow-lg"
         >
           {text}
         </span>
@@ -226,12 +226,54 @@ export function Dialog({
     if (!open) return
 
     function onKey(event: KeyboardEvent): void {
-      if (event.key === 'Escape') onClose()
+      if (event.key === 'Escape') {
+        onClose()
+        return
+      }
+
+      if (event.key !== 'Tab') return
+
+      // Pułapka focusu. Bez niej Tab wychodził z okna na stronę pod spodem
+      // i grafik pracujący z klawiatury tracił kontakt z formularzem, nie
+      // widząc gdzie jest kursor — okno przykrywa resztę ekranu.
+      const panel = panelRef.current
+      if (panel === null) return
+
+      const focusowalne = Array.from(
+        panel.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((el) => el.offsetParent !== null)
+
+      if (focusowalne.length === 0) return
+
+      const pierwszy = focusowalne[0]
+      const ostatni = focusowalne[focusowalne.length - 1]
+      if (pierwszy === undefined || ostatni === undefined) return
+
+      const aktywny = document.activeElement
+
+      if (event.shiftKey && (aktywny === pierwszy || aktywny === panel)) {
+        event.preventDefault()
+        ostatni.focus()
+        return
+      }
+
+      if (!event.shiftKey && aktywny === ostatni) {
+        event.preventDefault()
+        pierwszy.focus()
+      }
     }
 
     document.addEventListener('keydown', onKey)
+
+    // Tło nie ma się przewijać pod otwartym oknem.
+    const zastaneOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
     return () => {
       document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = zastaneOverflow
     }
   }, [open, onClose])
 
@@ -341,7 +383,7 @@ export function RowMenu({
                 item.onSelect()
               }}
               className={`block w-full px-3 py-2 text-left text-sm transition hover:bg-line ${
-                item.danger === true ? 'text-danger' : 'text-ink'
+                item.danger === true ? 'text-danger-text' : 'text-ink'
               }`}
             >
               {item.label}

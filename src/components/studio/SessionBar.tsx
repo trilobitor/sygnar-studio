@@ -110,7 +110,7 @@ export function SessionBar({
 
       {showCountdown && (
         <span
-          className="tabular-nums text-danger"
+          className="tabular-nums text-danger-text"
           // Czytnik ekranu ma ogłaszać dopiero końcówkę, nie każdą sekundę.
           aria-live={urgent ? 'polite' : 'off'}
         >
