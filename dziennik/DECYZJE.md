@@ -1295,3 +1295,25 @@ tylko na poziomie sceny.
 polecenia, nie sam napis. Podpowiedź przy polu mówi „Napis, który ma się
 pojawić w kadrze", ale najwyraźniej nie dość dobitnie — ostrzeżenie mówi teraz
 wprost, żeby wpisać sam tekst, bez zdania opisującego.
+
+---
+
+## D68 — Stan panelu cache'owany na pięć sekund, pobieranie dowolnego pliku
+
+**Decyzja.** `collectHealth` trzyma wynik przez 5 sekund.
+`/api/files/[assetId]?pobierz` włącza nagłówek pobierania dla dowolnego pliku,
+nie tylko eksportów; podgląd dostał przycisk „Pobierz".
+
+**Powód pierwszego.** Sprawdzenie urosło z czterech pozycji do siedmiu —
+doszły baza, dysk z `du -sk` i backend opisu. Przy 138 MB katalogu kosztuje
+34 ms i nie odpala procesów przy każdym wywołaniu, ale `du` skaluje się
+z zawartością, a każda otwarta karta panelu odpytuje osobno co pół minuty.
+Pięć sekund to mniej niż odstęp odpytywania, więc baner nadal pokazuje stan
+bieżący.
+
+**Powód drugiego.** Kadru ani wgranego pliku nie dało się pobrać wcale —
+służyły wyłącznie do oglądania w galerii. Grafik, który chciał wysłać
+klientowi surowy kadr do akceptacji, robił zrzut ekranu albo szukał pliku
+na dysku.
+
+**Zmierzone:** pierwsze wywołanie zdrowia 181 ms, trzy kolejne poniżej 4 ms.

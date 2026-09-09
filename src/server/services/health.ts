@@ -155,7 +155,38 @@ async function sprawdzDysk(): Promise<HealthStatus> {
   }
 }
 
+/**
+ * Wynik trzymany przez kilka sekund.
+ *
+ * Sprawdzenie kosztuje dziś 34 ms i nie odpala procesów przy każdym wywołaniu
+ * (lista enkoderów jest cache'owana), ale `du -sk` na katalogu danych rośnie
+ * razem z nim — przy 138 MB jest niezauważalne, przy pięćdziesięciu
+ * gigabajtach nie będzie. Do tego każda otwarta karta panelu odpytuje osobno,
+ * co pół minuty.
+ *
+ * Pięć sekund to mniej niż odstęp odpytywania, więc baner nadal pokazuje stan
+ * bieżący, a wiele kart dzieli jedno sprawdzenie.
+ */
+const CACHE_MS = 5_000
+
+const globalForHealth = globalThis as unknown as {
+  studioHealth?: { at: number; report: HealthReport }
+}
+
 export async function collectHealth(): Promise<HealthReport> {
+  const zastany = globalForHealth.studioHealth
+
+  if (zastany !== undefined && Date.now() - zastany.at < CACHE_MS) {
+    return zastany.report
+  }
+
+  const raport = await zbierzStanNaSwiezo()
+  globalForHealth.studioHealth = { at: Date.now(), report: raport }
+
+  return raport
+}
+
+async function zbierzStanNaSwiezo(): Promise<HealthReport> {
   const [generator, video, exporter, photos, opis, baza, dysk] = await Promise.all([
     checkMflux(),
     checkFfmpeg(),

@@ -61,7 +61,16 @@ export async function GET(
     // Eksporty i plansze mają się pobierać pod właściwą nazwą, a nie
     // otwierać w karcie pod identyfikatorem. Kadry i wgrane pliki zostają
     // wyświetlane w miejscu, bo służą do oglądania w galerii.
-    const doPobrania = asset.kind === 'export' || asset.kind === 'poster'
+    /*
+     * Pobieranie: eksporty i plansze zawsze, reszta na żądanie.
+     *
+     * Kadru ani wgranego pliku nie dało się pobrać wcale — służyły tylko do
+     * oglądania w galerii. Grafik, który chciał wysłać klientowi surowy kadr
+     * do akceptacji, musiał go zrzucać zrzutem ekranu albo szukać na dysku.
+     * `?pobierz` włącza nagłówek dla dowolnego pliku.
+     */
+    const zadanoPobrania = new URL(request.url).searchParams.get('pobierz') !== null
+    const doPobrania = zadanoPobrania || asset.kind === 'export' || asset.kind === 'poster'
     const nazwa = asset.path.split('/').pop() ?? 'plik'
 
     const wspolne: Record<string, string> = {

@@ -205,7 +205,22 @@ export function Preview({ asset }: { asset: Asset | null }) {
   const isVideo = asset.mime.startsWith("video/");
 
   return (
-    <div className="flex flex-1 items-center justify-center overflow-hidden rounded border border-line bg-surface-0">
+    <div className="relative flex flex-1 items-center justify-center overflow-hidden rounded border border-line bg-surface-0">
+      {/*
+        Pobranie oglądanego pliku.
+        Kadru ani wgranego pliku nie dało się pobrać wcale — służyły wyłącznie
+        do oglądania. Grafik, który chciał wysłać klientowi surowy kadr do
+        akceptacji, robił zrzut ekranu albo szukał pliku na dysku.
+      */}
+      <a
+        href={`/api/files/${asset.id}?pobierz`}
+        download
+        title="Pobierz ten plik"
+        className="absolute right-2 top-2 z-10 rounded bg-surface-0/80 px-2 py-1 text-xs text-ink-muted transition hover:text-ink"
+      >
+        Pobierz
+      </a>
+
       {isVideo ? (
         <video
           src={`/api/files/${asset.id}`}
