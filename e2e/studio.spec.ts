@@ -1,3 +1,6 @@
+import { readFile } from 'node:fs/promises'
+import { basename } from 'node:path'
+
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
 
 /**
@@ -117,8 +120,18 @@ test.describe('Sygnar Studio', () => {
     const orderId = await createOrder(request, 'E2E — wideo')
     const fixture = process.env.E2E_VIDEO_FIXTURE ?? ''
 
+    // Playwright traktuje goły string jako **pole tekstowe**, nie plik —
+    // dlatego ten scenariusz zwracał 400 i nigdy nie mógł przejść. Plik
+    // trzeba podać jako `{ name, mimeType, buffer }`.
     const upload = await request.post('/api/uploads', {
-      multipart: { orderId, file: fixture },
+      multipart: {
+        orderId,
+        file: {
+          name: basename(fixture),
+          mimeType: 'video/mp4',
+          buffer: await readFile(fixture),
+        },
+      },
     })
     expect(upload.status()).toBe(201)
 

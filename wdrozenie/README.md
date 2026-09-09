@@ -191,6 +191,17 @@ launchctl load -w ~/Library/LaunchAgents/pl.sygnar.studio.plist
 więc powrót do wersji sprzed zmiany schematu wymaga odtworzenia bazy z kopii
 (§5). Dlatego kopia przed aktualizacją nie jest opcjonalna.
 
+## 7. Testy
+
+```
+npm run typecheck && npm run lint && npx vitest run
+E2E_VIDEO_FIXTURE="$(pwd)/e2e/materialy/klip.mp4" npx playwright test
+```
+
+E2E biegnie na osobnym katalogu `.e2e-dane` i porcie 3100 — nigdy nie dotyka
+danych grafika. Bez zmiennej `E2E_VIDEO_FIXTURE` scenariusz montażu jest
+pomijany.
+
 ## Czego tu nie ma
 
 **Usługi `launchd` dla ComfyUI nie ma i nie będzie w tej wersji.** Backendem
