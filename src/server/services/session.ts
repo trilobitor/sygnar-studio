@@ -52,6 +52,22 @@ export function verifySession(token: string | undefined, secret: string, now = D
   return Number.isFinite(deadline) && deadline > now
 }
 
+/**
+ * Czy przeglądarka rozmawiała po HTTPS.
+ *
+ * Za `tailscale serve` Next widzi zwykłe HTTP z pętli zwrotnej, bo proxy
+ * rozwiązuje TLS u siebie. Bez tego ciasteczko sesji nie dostawało flagi
+ * `Secure` mimo szyfrowanego połączenia z przeglądarką.
+ *
+ * Nagłówkowi ufamy, bo panel nasłuchuje wyłącznie na 127.0.0.1 — z zewnątrz
+ * nie da się do niego dojść inaczej niż przez proxy, które ten nagłówek
+ * ustawia samo.
+ */
+export function polaczenieSzyfrowane(request: Request): boolean {
+  if (new URL(request.url).protocol === 'https:') return true
+  return request.headers.get('x-forwarded-proto') === 'https'
+}
+
 /** Atrybuty ciasteczka. `secure` tylko po HTTPS — na localhost go nie ma. */
 export function cookieOptions(secure: boolean) {
   return {

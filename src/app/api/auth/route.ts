@@ -6,7 +6,12 @@ import { logger } from '@/lib/logger'
 import { fail, handleError } from '@/server/api/respond'
 import { verifyPassword } from '@/server/services/password'
 import { clientKey, consume, LOGIN_LIMIT, reset } from '@/server/services/rate-limit'
-import { cookieOptions, createSession, SESSION_COOKIE } from '@/server/services/session'
+import {
+  cookieOptions,
+  createSession,
+  polaczenieSzyfrowane,
+  SESSION_COOKIE,
+} from '@/server/services/session'
 
 export const dynamic = 'force-dynamic'
 
@@ -58,7 +63,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       createSession(env.STUDIO_SESSION_SECRET),
       // `secure` tylko po HTTPS — na localhost ciasteczko z tą flagą
       // nie zostałoby w ogóle zapisane.
-      cookieOptions(new URL(request.url).protocol === 'https:'),
+      cookieOptions(polaczenieSzyfrowane(request)),
     )
 
     return response
@@ -71,7 +76,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 export async function DELETE(request: Request): Promise<NextResponse> {
   const response = NextResponse.json({ ok: true })
   response.cookies.set(SESSION_COOKIE, '', {
-    ...cookieOptions(new URL(request.url).protocol === 'https:'),
+    ...cookieOptions(polaczenieSzyfrowane(request)),
     maxAge: 0,
   })
   logger.info('wylogowano z panelu')

@@ -37,20 +37,28 @@ curl http://127.0.0.1:3000/api/health
 
 ## 3. Dostęp przez Tailscale
 
+Najpierw **raz na tailnet**: w panelu admina `login.tailscale.com/admin/dns`
+włącz MagicDNS i *HTTPS Certificates*. Bez tego `tailscale cert` odpowiada
+`your Tailscale account does not support getting TLS certs`, a `serve` nie
+wystawi HTTPS.
+
 ```
 tailscale serve --bg 3000
 tailscale serve status
 ```
 
-**[NIEZWERYFIKOWANE]** Czy `tailscale serve` daje HTTPS z zaufanym
-certyfikatem, bez którego PWA się nie zainstaluje, nie zostało sprawdzone
-na tej maszynie — Tailscale nie jest tu zainstalowany. To pozycja z listy
-„Otwarte i niezweryfikowane" w `CLAUDE.md` i wymaga potwierdzenia przed
-oddaniem panelu grafikowi.
+Panel jest wtedy pod `https://<nazwa-maszyny>.<tailnet>.ts.net` — tylko dla
+urządzeń w tailnecie, nie dla całego internetu. Publiczne wystawienie to
+osobne polecenie (`tailscale funnel`) i osobna decyzja.
 
-Jeśli okaże się, że certyfikatu nie ma, alternatywą jest `tailscale cert`
-i podanie certyfikatu wprost do serwera — ale to zmiana w konfiguracji,
-nie w kodzie.
+**Zweryfikowane 09.09.2026** na `macbook-pro-kamil.tailbd8aac.ts.net`:
+certyfikat od Let's Encrypt (CN=YE2), HTTP/2, `window.isSecureContext`
+prawdziwy, service worker aktywny. Komplet warunków instalacji PWA spełniony
+— pozycja z listy „Otwarte i niezweryfikowane" w `CLAUDE.md` jest zamknięta.
+
+Serwer nasłuchuje wyłącznie na `127.0.0.1` (decyzja D20), więc `serve` jest
+jedynym wejściem z zewnątrz. Adres sieci lokalnej i sam adres IP tailnetu
+z portem 3000 odmawiają połączenia — to zamierzone.
 
 ## 4. Instalacja PWA na laptopie grafika
 

@@ -141,8 +141,11 @@ Wpisy do potwierdzenia przed implementacją odpowiednich fragmentów:
 
 - czy API ComfyUI daje odtwarzalny seed *(bramka E0)*
 - czy `darktable-cli` znosi równoległe uruchomienia *(E6)*
-- czy `tailscale serve` daje HTTPS, bez którego PWA się nie zainstaluje *(E7)*
 - jakość obrazów z FLUX.2 klein 4B — **nikt jej dotąd nie ocenił**
+
+Zamknięte: `tailscale serve` daje certyfikat Let's Encrypt i bezpieczny
+kontekst — sprawdzone 09.09.2026, komplet warunków instalacji PWA spełniony
+(szczegóły w `wdrozenie/README.md` §3).
 
 <!-- BEGIN:nextjs-agent-rules -->
 

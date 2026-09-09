@@ -11,7 +11,13 @@ import {
   resetAll,
   type Bucket,
 } from './rate-limit'
-import { cookieOptions, createSession, SESSION_TTL_MS, verifySession } from './session'
+import {
+  cookieOptions,
+  createSession,
+  polaczenieSzyfrowane,
+  SESSION_TTL_MS,
+  verifySession,
+} from './session'
 
 /**
  * Dostęp do panelu jest jedyną warstwą autoryzacji po wystawieniu poza
@@ -168,5 +174,33 @@ describe('limit żądań', () => {
     expect(GLOBAL_LOGIN_LIMIT.capacity).toBeGreaterThan(0)
     expect(GLOBAL_LOGIN_LIMIT.windowMs).toBeGreaterThanOrEqual(60 * 60_000)
     expect(consumeGlobalLogin(0).allowed).toBe(true)
+  })
+})
+
+describe('polaczenieSzyfrowane', () => {
+  it('rozpoznaje HTTPS po adresie', () => {
+    expect(polaczenieSzyfrowane(new Request('https://przyklad/api/auth'))).toBe(true)
+  })
+
+  it('rozpoznaje HTTPS po nagłówku od proxy', () => {
+    // Tak wygląda żądanie za `tailscale serve`: TLS kończy się na proxy,
+    // do Nexta wchodzi zwykłe HTTP z pętli zwrotnej.
+    const request = new Request('http://127.0.0.1:3000/api/auth', {
+      headers: { 'x-forwarded-proto': 'https' },
+    })
+
+    expect(polaczenieSzyfrowane(request)).toBe(true)
+  })
+
+  it('zwykłe HTTP bez nagłówka zostaje nieszyfrowane', () => {
+    expect(polaczenieSzyfrowane(new Request('http://localhost:3000/api/auth'))).toBe(false)
+  })
+
+  it('nie daje się nabrać na inną wartość nagłówka', () => {
+    const request = new Request('http://localhost:3000/api/auth', {
+      headers: { 'x-forwarded-proto': 'http' },
+    })
+
+    expect(polaczenieSzyfrowane(request)).toBe(false)
   })
 })

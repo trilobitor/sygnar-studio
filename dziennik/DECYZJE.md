@@ -338,3 +338,39 @@ materiału i nie miał z czego zbudować zakresu. Rekordy wgranych filmów miał
 **Konsekwencja.** Filmy wgrane wcześniej nie mają długości i dla nich suwaki
 się nie pokazują — zamiast zgadywać zakres, panel montuje wtedy całość.
 Ponowne wgranie pliku uzupełnia metrykę.
+
+---
+
+## D20 — Panel nasłuchuje tylko na pętli zwrotnej, wejściem jest `tailscale serve`
+
+**Decyzja.** `npm start` uruchamia Nexta z `-H 127.0.0.1`. Jedyne wejście z
+zewnątrz to `tailscale serve` pod `https://macbook-pro-kamil.tailbd8aac.ts.net`,
+z certyfikatem Let's Encrypt wystawionym przez Tailscale.
+
+**Powód.** Serwer nasłuchiwał na `*:3000`, więc odpowiadał także pod adresem
+sieci lokalnej — sprawdzone, `http://192.168.33.9:3000/logowanie` zwracało 200
+— a zapora macOS jest wyłączona. Chroniło go tylko hasło. Po związaniu z pętlą
+zwrotną oba adresy poza tailnetem odmawiają połączenia.
+
+**Konsekwencja.** Panel nie działa już pod adresem sieci lokalnej ani pod samym
+adresem IP tailnetu z portem 3000 — wyłącznie pod nazwą MagicDNS po HTTPS.
+Uruchomienie bez Tailscale'a nadal działa na `http://localhost:3000`.
+
+---
+
+## D21 — Szyfrowanie połączenia poznajemy po nagłówku od proxy
+
+**Decyzja.** `polaczenieSzyfrowane` uznaje połączenie za bezpieczne, gdy adres
+żądania jest `https:` **albo** gdy przyszedł nagłówek `x-forwarded-proto: https`.
+Stąd bierze się flaga `Secure` ciasteczka sesji.
+
+**Powód.** `tailscale serve` kończy TLS u siebie i wchodzi do Nexta zwykłym
+HTTP z pętli zwrotnej. Warunek patrzył wyłącznie na adres, więc ciasteczko
+sesji **nie dostawało flagi `Secure` mimo szyfrowanego połączenia
+z przeglądarką**.
+
+**Konsekwencja.** Nagłówkowi ufamy bez dodatkowej listy adresów, bo po D20
+panel nasłuchuje wyłącznie na 127.0.0.1 — z zewnątrz nie da się do niego dojść
+inaczej niż przez proxy, które ten nagłówek ustawia samo. Zmierzone: przez
+proxy `Secure; HttpOnly; SameSite=lax`, po zwykłym localhoście bez `Secure`,
+więc logowanie lokalne nadal działa.
