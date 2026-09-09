@@ -158,6 +158,39 @@ Kopia na tym samym dysku nie chroni przed awarią dysku. Wskaż katalog na
 nośniku zewnętrznym albo włącz Time Machine — dziś `tmutil destinationinfo`
 odpowiada „No destinations configured".
 
+## 6. Aktualizacja i wycofanie
+
+```
+launchctl unload ~/Library/LaunchAgents/pl.sygnar.studio.plist
+npm run kopia                     # zawsze przed aktualizacją
+git pull
+npm ci
+npm run db:migrate
+npm run typecheck && npm run lint && npx vitest run
+mv .next .next.poprzedni          # zapasowa kopia builda
+npm run build
+launchctl load -w ~/Library/LaunchAgents/pl.sygnar.studio.plist
+curl -s http://localhost:3000/api/zyje
+```
+
+Każdy krok ma przejść, zanim ruszysz dalej. Testy **przed** buildem, bo
+nieudany test przy zatrzymanej usłudze to kilka minut przestoju, a nieudany
+build po podmianie `.next` — panel, który się nie podnosi.
+
+### Wycofanie
+
+```
+launchctl unload ~/Library/LaunchAgents/pl.sygnar.studio.plist
+git checkout <poprzedni-commit>
+npm ci
+rm -rf .next && mv .next.poprzedni .next
+launchctl load -w ~/Library/LaunchAgents/pl.sygnar.studio.plist
+```
+
+**Migracje bazy nie cofają się same.** Drizzle nie generuje migracji wstecznych,
+więc powrót do wersji sprzed zmiany schematu wymaga odtworzenia bazy z kopii
+(§5). Dlatego kopia przed aktualizacją nie jest opcjonalna.
+
 ## Czego tu nie ma
 
 **Usługi `launchd` dla ComfyUI nie ma i nie będzie w tej wersji.** Backendem

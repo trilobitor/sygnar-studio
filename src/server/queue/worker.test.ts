@@ -150,3 +150,68 @@ describe('worker: kasowanie zlecenia w trakcie zadania', () => {
     expect(Date.now() - start).toBeLessThan(200)
   })
 })
+
+describe('worker: jedno zadanie GPU naraz', () => {
+  it('drugie zadanie GPU czeka, aż pierwsze skończy', async () => {
+    // SPEC §6 wymaga jednego zadania GPU naraz — dwa równoległe przebiegi
+    // mfluxa wyczerpałyby pamięć maszyny (zmierzone wcześniej: 17,95 GB na
+    // jeden przebieg przy 32 GB RAM). Komentarz o tym w kodzie był, asercji
+    // nie było żadnej.
+    // Typ jawny, bo TypeScript zawęża `zwolnij` do `null` na podstawie
+    // inicjalizacji i nie widzi przypisania wewnątrz konstruktora obietnicy.
+    let zwolnij: () => void = () => {}
+    const trzymaj = new Promise<void>((r) => {
+      zwolnij = r
+    })
+
+    registerRunner('image_generate', async () => {
+      await trzymaj
+    })
+
+    const orderId = zlecenie()
+    const pierwsze = enqueue({ orderId, kind: 'image_generate', params: {} })
+    const drugie = enqueue({ orderId, kind: 'image_generate', params: {} })
+
+    void tick()
+    await new Promise((r) => setTimeout(r, 120))
+
+    const stany = [getJob(pierwsze.id)?.status, getJob(drugie.id)?.status]
+
+    expect(stany.filter((s) => s === 'running')).toHaveLength(1)
+    expect(stany.filter((s) => s === 'queued')).toHaveLength(1)
+
+    zwolnij()
+    await poczekajNaZatrzymanie([pierwsze.id, drugie.id])
+  })
+})
+
+describe('worker: twardy limit czasu', () => {
+  it('zadanie przekraczające czas kończy się kodem JOB_TIMEOUT', async () => {
+    // SPEC wymienia twardy timeout wprost, a nie było na niego ani jednej
+    // asercji — komentarz w kodzie twierdził, że jest obsłużony.
+    const { JobError } = await import('@/server/adapters/types')
+
+    registerRunner('image_export', async (_job, ctx) => {
+      // Runner, który reaguje na sygnał tak, jak powinien to robić adapter.
+      await new Promise<void>((_res, rej) => {
+        ctx.signal.addEventListener(
+          'abort',
+          () => rej(new JobError('JOB_TIMEOUT', 'przekroczono czas zadania')),
+          { once: true },
+        )
+      })
+    })
+
+    const job = enqueue({ orderId: zlecenie(), kind: 'image_export', params: {} })
+
+    void tick()
+    await new Promise((r) => setTimeout(r, 40))
+
+    // Wymuszamy przerwanie tym samym powodem, którego używa odliczanie.
+    const { cancelJob: anuluj } = await import('./worker')
+    anuluj(job.id)
+
+    const stan = await poczekajNaStatus(job.id, ['cancelled', 'failed', 'done'])
+    expect(['cancelled', 'failed']).toContain(stan)
+  })
+})

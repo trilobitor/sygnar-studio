@@ -1,4 +1,5 @@
-import { access, constants, statfs } from 'node:fs/promises'
+import { statfs, unlink, writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
 
 import { sql } from 'drizzle-orm'
 
@@ -69,8 +70,15 @@ const MIN_WOLNE_BAJTY = 2 * 1024 * 1024 * 1024
 
 /** Czy katalog danych da się zapisywać i czy jest na czym. */
 async function sprawdzDysk(): Promise<HealthStatus> {
+  // Prawdziwa próba zapisu, nie samo `access(W_OK)`. Bit uprawnień potrafi
+  // być ustawiony tam, gdzie zapis i tak padnie: nośnik zamontowany tylko do
+  // odczytu, pełny dysk, reguła ACL. Zdrowie ma mówić, czy da się pracować,
+  // a nie czy teoretycznie wolno.
+  const probka = join(env.STUDIO_DATA_DIR, '.probka-zapisu')
+
   try {
-    await access(env.STUDIO_DATA_DIR, constants.W_OK)
+    await writeFile(probka, 'x')
+    await unlink(probka)
   } catch {
     return { ok: false, reason: 'misconfigured' }
   }

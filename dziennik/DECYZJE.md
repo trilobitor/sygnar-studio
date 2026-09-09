@@ -840,3 +840,34 @@ miniatury.
 **generowania**". Grafik, który właśnie eksportował gotowy kadr, szukałby błędu
 zupełnie gdzie indziej. `EXPORT_WEIGHT_UNREACHABLE` też nie pasował — jest
 o wadze pliku, a przyczyną bywa co innego.
+
+---
+
+## D45 — Sufit VBV tylko dla H.264
+
+**Decyzja.** `-maxrate` i `-bufsize` dokładamy wyłącznie przy `libx264`.
+AV1 dostaje sam cel średni `-b:v`.
+
+**Powód.** `-b:v` jest celem średnim: koder przekracza go na trudnych
+fragmentach i nadrabia na łatwych. Przy krótkiej pętli z ruchem nie ma czym
+nadrobić, więc plik wychodził ponad zadaną wagę.
+
+**Konsekwencja.** Pierwsza wersja dokładała te argumenty obu kodekom
+i **wywróciła AV1**: `Could not open encoder before EOF`, kod -22. Sprawdzone
+na żywym montażu — SVT-AV1 ma własny tryb sterowania przepływnością i nie
+przyjmuje tej pary obok `-b:v`. Po ograniczeniu do H.264 montaż z limitem
+2 MB dał 0,82 MB w MP4 i 0,43 MB w WebM.
+
+Gdyby nie uruchomienie prawdziwego montażu, ta zmiana trafiłaby na produkcję
+jako „poprawka wagi pliku", która całkowicie psuje drugi format.
+
+---
+
+## D46 — Zdrowie katalogu danych sprawdzamy zapisem, nie bitem uprawnień
+
+**Decyzja.** `sprawdzDysk` zapisuje i kasuje plik `.probka-zapisu` zamiast
+pytać `access(W_OK)`.
+
+**Powód.** Bit uprawnień bywa ustawiony tam, gdzie zapis i tak padnie: nośnik
+zamontowany tylko do odczytu, pełny dysk, reguła ACL. Zdrowie ma mówić, czy da
+się pracować, a nie czy teoretycznie wolno.

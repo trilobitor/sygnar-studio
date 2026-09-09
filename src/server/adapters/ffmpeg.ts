@@ -394,7 +394,37 @@ export async function render(
     args.push('-c:v', kodek.nazwa, ...kodek.opcje, '-pix_fmt', 'yuv420p')
   }
 
-  args.push('-b:v', String(bitrate), '-an', request.outputPath)
+  /*
+   * Sufit VBV, nie samo `-b:v`.
+   *
+   * `-b:v` jest **celem średnim**: koder wolno przekracza go na trudnych
+   * fragmentach i nadrabia na łatwych. Przy krótkiej pętli z ruchem nie ma
+   * czym nadrobić, więc plik wychodził ponad zadaną wagę. `-maxrate` z
+   * `-bufsize` zamieniają cel w twardą granicę chwilową.
+   *
+   * `bufsize` równy dwukrotności bitrate'u to standardowy kompromis: mniejszy
+   * dławi jakość na cięciach, większy przestaje być sufitem.
+   */
+  args.push('-b:v', String(bitrate))
+
+  /*
+   * Sufit VBV — **wyłącznie dla H.264**.
+   *
+   * `-b:v` jest celem średnim: koder wolno przekracza go na trudnych
+   * fragmentach i nadrabia na łatwych. Przy krótkiej pętli z ruchem nie ma
+   * czym nadrobić, więc plik wychodził ponad zadaną wagę. `-maxrate`
+   * z `-bufsize` zamieniają cel w twardą granicę chwilową.
+   *
+   * Przy `libsvtav1` te same argumenty **wywracają kodowanie**: sprawdzone na
+   * żywym montażu, `Could not open encoder before EOF` i kod -22. SVT-AV1 ma
+   * własny tryb sterowania przepływnością i nie przyjmuje tej pary obok
+   * `-b:v`. Zostawiamy mu sam cel średni.
+   */
+  if (request.codec === 'h264') {
+    args.push('-maxrate', String(bitrate), '-bufsize', String(bitrate * 2))
+  }
+
+  args.push('-an', request.outputPath)
 
   await runFfmpeg(args, ctx, {
     durationMs: effectiveDuration,
