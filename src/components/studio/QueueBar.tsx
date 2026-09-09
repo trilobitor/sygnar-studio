@@ -35,9 +35,32 @@ export function QueueBar({
   const [cancelling, setCancelling] = useState<string | null>(null)
   /** Identyfikator awarii schowanej przyciskiem „Rozumiem". */
   const [odrzucone, setOdrzucone] = useState<string | null>(null)
+  const [powtarzam, setPowtarzam] = useState<string | null>(null)
+
+  /**
+   * Powtórzenie nieudanego zadania z zapisanymi parametrami.
+   *
+   * Bez tego grafik musiał otworzyć brief od nowa i wpisać wszystko ręcznie,
+   * choć parametry leżały w bazie. Przy awarii przejściowej — pełny dysk,
+   * zwolniona stacja — była to praca odtwarzana od zera bez powodu.
+   */
+  async function powtorz(id: string): Promise<void> {
+    setPowtarzam(id)
+
+    try {
+      await fetch(`/api/jobs/${id}/ponow`, { method: 'POST' })
+      setOdrzucone(id)
+      onChanged()
+    } finally {
+      setPowtarzam(null)
+    }
+  }
 
   const active = activeJobs(jobs)
-  const running = active.find((job) => job.status === 'running')
+  // Wszystkie biegnące, nie pierwsze z brzegu. Pula nie-GPU przepuszcza dwa
+  // zadania naraz, więc drugiego nie dało się ani zobaczyć, ani anulować.
+  const biegnace = active.filter((job) => job.status === 'running')
+  const running = biegnace[0]
   const waiting = active.filter((job) => job.status === 'queued')
 
   useEffect(() => {
@@ -114,6 +137,14 @@ export function QueueBar({
         </span>
         <button
           type="button"
+          onClick={() => void powtorz(lastFailed.id)}
+          disabled={powtarzam === lastFailed.id}
+          className="rounded border border-accent px-2 py-0.5 text-xs text-accent hover:bg-accent/10 disabled:opacity-40"
+        >
+          {powtarzam === lastFailed.id ? 'Wysyłam…' : 'Spróbuj jeszcze raz'}
+        </button>
+        <button
+          type="button"
           onClick={() => setOdrzucone(lastFailed.id)}
           className="rounded border border-line px-2 py-0.5 text-xs text-ink-muted hover:text-ink"
         >
@@ -136,46 +167,47 @@ export function QueueBar({
     <div className="flex items-center gap-4 border-t border-line bg-surface-1 px-4 py-2 text-sm">
       {ogloszenie}
       {awaria}
-      {running !== undefined ? (
-        <>
-          <span className="text-ink">{running.phase ?? 'Pracuję'}</span>
-          <div
-            className="h-1.5 w-48 overflow-hidden rounded bg-surface-2"
-            role="progressbar"
-            aria-valuenow={Math.round(running.progress * 100)}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-label="Postęp zadania"
-          >
+      {biegnace.length > 0 ? (
+        biegnace.map((zadanie) => (
+          <span key={zadanie.id} className="flex items-center gap-2">
+            <span className="text-ink">
+              {RODZAJE[zadanie.kind] ?? 'Zadanie'}: {zadanie.phase ?? 'Pracuję'}
+            </span>
             <div
-              className="h-full bg-accent transition-all"
-              style={{ width: `${Math.round(running.progress * 100)}%` }}
-            />
-          </div>
-          <span className="tabular-nums text-ink-muted" key={tick}>
-            {formatElapsed(running.startedAt)}
+              className="h-1.5 w-32 overflow-hidden rounded bg-surface-2"
+              role="progressbar"
+              aria-valuenow={Math.round(zadanie.progress * 100)}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={`Postęp: ${RODZAJE[zadanie.kind] ?? 'zadanie'}`}
+            >
+              <div
+                className="h-full bg-accent transition-all"
+                style={{ width: `${Math.round(zadanie.progress * 100)}%` }}
+              />
+            </div>
+            <span className="tabular-nums text-ink-muted" key={tick}>
+              {formatElapsed(zadanie.startedAt)}
+            </span>
+            <Button
+              variant="danger"
+              onClick={() => void cancel(zadanie.id)}
+              disabled={cancelling === zadanie.id}
+            >
+              Anuluj
+            </Button>
           </span>
-          <Button
-            variant="danger"
-            onClick={() => void cancel(running.id)}
-            disabled={cancelling === running.id}
-          >
-            Anuluj
-          </Button>
-        </>
+        ))
       ) : (
         <span className="text-ink">Zaraz zaczynam…</span>
       )}
 
       {waiting.length > 0 && (
         <span className="text-ink-muted">
-          {waiting.length === 1
-            ? 'W kolejce, 1 zadanie przed Tobą'
-            : `W kolejce, ${waiting.length} ${odmiana(waiting.length, [
-                'zadanie',
-                'zadania',
-                'zadań',
-              ])} przed Tobą`}
+          {/* „Przed Tobą" znaczyło tu wszystko, co czeka — także zadania
+              wysłane przez kogoś innego. Teraz mówimy po prostu, ile czeka. */}
+          W kolejce {waiting.length}{' '}
+          {odmiana(waiting.length, ['zadanie', 'zadania', 'zadań'])}
         </span>
       )}
     </div>

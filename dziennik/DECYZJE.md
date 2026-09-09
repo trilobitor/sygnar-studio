@@ -1195,3 +1195,31 @@ zwolnienie pamięci GPU.
 **Zmierzone na żywym generowaniu:** dwa procesy potomne serwera przed
 anulowaniem (`caffeinate` i `python3.12`), **zero po** — przy statusie
 `cancelled`, nie `done`.
+
+---
+
+## D65 — Powtórzenie zadania, wszystkie biegnące widoczne, prawdziwy komunikat kolejki
+
+**Decyzja.** `POST /api/jobs/[id]/ponow` odtwarza zadanie z `params_json`
+i wstawia je do kolejki; przy generowaniu losuje **świeże** numery. Pasek
+kolejki renderuje wszystkie biegnące zadania, każde z własnym paskiem
+i przyciskiem anulowania.
+
+**Powód.** Nieudanego zadania nie dało się powtórzyć — grafik musiał otworzyć
+brief od nowa i wpisać wszystko ręcznie, choć parametry leżały w bazie. Przy
+awarii przejściowej była to praca odtwarzana od zera bez powodu.
+
+Pasek pokazywał tylko pierwsze biegnące zadanie, a pula nie-GPU przepuszcza
+dwa naraz — drugiego nie dało się ani zobaczyć, ani anulować.
+
+Komunikat „W kolejce, N zadań **przed Tobą**" liczył wszystko, co czeka,
+także zadania wysłane przez kogoś innego. Odkąd panel ma więcej niż jedną
+osobę, było to po prostu nieprawdą.
+
+**Konsekwencja.** Przy powtórzeniu generowania numery są nowe: powtórzenie
+z tymi samymi dałoby dokładnie ten sam kadr, a powtarza się zwykle dlatego, że
+poprzedni nie wyszedł. Parametry przechodzą przez schemat mimo tego, że kiedyś
+już przez niego przeszły — wiersz mógł powstać w starszej wersji aplikacji.
+
+**Zmierzone:** powtórzenie montażu, który padł na `FFMPEG_FAILED`, zakończyło
+się statusem `done` — bo przyczyna została w międzyczasie naprawiona (D45).
