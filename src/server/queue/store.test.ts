@@ -12,6 +12,7 @@ import {
   getJob,
   GPU_JOB_KINDS,
   isGpuJob,
+  isVideoJob,
   listQueued,
   markCancelled,
   markDone,
@@ -44,10 +45,21 @@ beforeEach(() => {
 })
 
 describe('podział na pule', () => {
-  it('generowanie i wideo idą przez GPU', () => {
+  it('tylko generowanie zajmuje GPU', () => {
+    // Montaż wypadł z tej puli: ffmpeg liczy na procesorze. Sprawdzone —
+    // `h264_videotoolbox` jest na tej maszynie wolniejszy niż `libx264`
+    // i nie trzyma zadanej przepływności, więc nie ma powodu sięgać po GPU.
     expect(isGpuJob('image_generate')).toBe(true)
-    expect(isGpuJob('video_render')).toBe(true)
-    expect(GPU_JOB_KINDS).toHaveLength(2)
+    expect(isGpuJob('video_render')).toBe(false)
+    expect(GPU_JOB_KINDS).toHaveLength(1)
+  })
+
+  it('montaż ma własną pulę, nie dzieli jej z generowaniem', () => {
+    // Nie przez GPU, tylko przez pamięć: filtr `reverse` trzyma cały
+    // odwracany materiał w RAM.
+    expect(isVideoJob('video_render')).toBe(true)
+    expect(isVideoJob('image_generate')).toBe(false)
+    expect(isVideoJob('image_export')).toBe(false)
   })
 
   it('eksport i wsad zdjęć nie zajmują GPU', () => {

@@ -138,10 +138,11 @@ describe('/api/orders/[id]', () => {
 
   it('nie ujawnia ścieżki na dysku przy błędzie', async () => {
     const response = await orderGet(new Request('http://localhost'), params({ id: 'nie-ma' }))
-    const raw = JSON.stringify(await readJson(response))
+    const cialo = await readJson(response)
 
-    expect(raw).not.toContain('/')
-    expect(raw).not.toContain('Users')
+    // Odpowiedź niesie sam kod błędu — bez ścieżki, bez komunikatu wyjątku.
+    expect(Object.keys(cialo)).toEqual(['errorCode'])
+    expect(JSON.stringify(cialo)).not.toContain('/')
   })
 })
 
@@ -202,8 +203,7 @@ describe('DELETE /api/orders/[id]', () => {
 
   it('nie ujawnia ścieżki na dysku przy błędzie', async () => {
     const response = await orderDelete(new Request('http://localhost'), params({ id: 'nie-ma' }))
-    const raw = JSON.stringify(await readJson(response))
-    expect(raw).not.toContain('/')
+    expect(Object.keys(await readJson(response))).toEqual(['errorCode'])
   })
 })
 
@@ -475,5 +475,41 @@ describe('/api/uploads — sufit wagi', () => {
     )
 
     expect(response.status).toBe(400)
+  })
+})
+
+describe('odpowiedzi błędów nie wynoszą szczegółów', () => {
+  it('komunikat wyjątku nie trafia do ciała odpowiedzi', async () => {
+    /*
+     * Poprzednia wersja tego sprawdzenia asertowała, że ciało nie zawiera
+     * ukośnika — a `fail()` buduje ciało wyłącznie z kodu błędu, więc taka
+     * asercja nie mogła upaść niezależnie od implementacji.
+     *
+     * Prawdziwe kryterium: wyjątek niosący ścieżkę na dysku ma nie przeciec
+     * do odpowiedzi.
+     */
+    const { handleError } = await import('@/server/api/respond')
+    const odpowiedz = handleError(
+      new Error('ENOENT: no such file or directory, open /Users/kamilkmiec/tajne/plik.png'),
+      'test',
+    )
+
+    const cialo = (await odpowiedz.json()) as Record<string, unknown>
+
+    expect(Object.keys(cialo)).toEqual(['errorCode'])
+    expect(JSON.stringify(cialo)).not.toContain('kamilkmiec')
+    expect(JSON.stringify(cialo)).not.toContain('ENOENT')
+    expect(odpowiedz.status).toBe(500)
+  })
+
+  it('to samo dla błędu z kodem systemu plików', async () => {
+    const { handleError } = await import('@/server/api/respond')
+    const blad = Object.assign(new Error('EACCES: permission denied, /Users/kamilkmiec/Sygnar'), {
+      code: 'EACCES',
+    })
+
+    const cialo = (await handleError(blad, 'test').json()) as Record<string, unknown>
+
+    expect(JSON.stringify(cialo)).not.toContain('/Users')
   })
 })

@@ -1317,3 +1317,39 @@ klientowi surowy kadr do akceptacji, robił zrzut ekranu albo szukał pliku
 na dysku.
 
 **Zmierzone:** pierwsze wywołanie zdrowia 181 ms, trzy kolejne poniżej 4 ms.
+
+---
+
+## D69 — Trzy pule zadań zamiast dwóch, i porządki w kolejce
+
+**Decyzja.** `video_render` wypada z puli GPU i dostaje własną, o rozmiarze
+jeden. Do tego: `countRunning` liczy w bazie zamiast pobierać wiersze,
+`QUEUE_BUSY` jest wreszcie rzucany przy dwudziestu czekających zadaniach,
+a `upscaleFactor` liczy skalę z obu wymiarów.
+
+**Powód rozdziału pul.** Montaż blokował generowanie i odwrotnie, bez powodu
+technicznego — ffmpeg liczy na procesorze. Sprawdziłem, czy nie warto pójść
+w drugą stronę i użyć sprzętowego kodera: `h264_videotoolbox` okazał się na
+tej maszynie **wolniejszy** (1,71 s wobec 1,18 s na klipie 10 s) i nie trzymał
+zadanej przepływności — plik wyszedł trzykrotnie lżejszy od zamówionego.
+Odrzucone pomiarem.
+
+Własna pula o rozmiarze jeden, nie wspólna z eksportem, bo filtr `reverse`
+trzyma cały odwracany materiał w pamięci: 1,99 GB na 20 s w 1080p. Dwa montaże
+obok generowania (17,95 GB) byłyby zbyt blisko 32 GB maszyny.
+
+**Zmierzone:** generowanie i montaż wystartowały w tej samej sekundzie
+(17:56:35), montaż skończył po dwóch. Wcześniej czekałby dwie minuty.
+
+**Pozostałe porządki.** `countRunning` pobierał **wszystkie** pasujące wiersze
+i mierzył długość tablicy — a jest wołany przy każdym `tick()`, przy czym
+wiersze niosą kilobajtowy `params_json`. Kod `QUEUE_BUSY` i gotowy komunikat
+istniały od początku i nikt ich nie rzucał: kolejka przyjmowała dowolnie wiele
+zadań. `upscaleFactor` liczył skalę z samej szerokości, więc przy slocie
+o innych proporcjach mówił „1,0×" tam, gdzie wysokość rosła dwukrotnie.
+
+**Testy, które nie mogły upaść.** Dwie asercje sprawdzały, że ciało odpowiedzi
+błędu nie zawiera ukośnika — a `fail()` buduje ciało wyłącznie z kodu błędu,
+więc przechodziły niezależnie od implementacji. Zastąpione sprawdzeniem, że
+wyjątek niosący ścieżkę na dysku nie przecieka do odpowiedzi; kontrola
+negatywna potwierdza, że nowe testy upadają, gdy implementacja przecieka.

@@ -12,6 +12,8 @@ import {
   failInterruptedJobs,
   GPU_JOB_KINDS,
   isGpuJob,
+  isVideoJob,
+  VIDEO_JOB_KINDS,
   listJobs,
   listQueued,
   markCancelled,
@@ -121,10 +123,20 @@ export function cancelJob(id: string): boolean {
   return zmienione
 }
 
+/** Ile montaży naraz. Jeden — patrz komentarz przy `VIDEO_JOB_KINDS`. */
+const VIDEO_CONCURRENCY = 1
+
 function hasFreeSlot(kind: JobKind): boolean {
   if (isGpuJob(kind)) {
     return countRunning(GPU_JOB_KINDS) < env.MAX_CONCURRENT_GPU_JOBS
   }
+
+  // Montaż ma własną pulę: nie blokuje generowania, ale i nie zwielokrotnia
+  // się sam, bo filtr `reverse` trzyma cały materiał w pamięci.
+  if (isVideoJob(kind)) {
+    return countRunning(VIDEO_JOB_KINDS) < VIDEO_CONCURRENCY
+  }
+
   return countRunning(NON_GPU_JOB_KINDS) < NON_GPU_CONCURRENCY
 }
 
@@ -254,6 +266,15 @@ async function runJob(job: Job): Promise<void> {
 
 /** Bierze z kolejki, co się da, i puszcza w tło. Nie czeka na zakończenie. */
 export async function tick(): Promise<void> {
+  /*
+   * Wartownik był bezużyteczny: pętla poniżej puszcza zadania **bez `await`**,
+   * więc `tick()` kończy się natychmiast i flaga wraca do `false`, zanim
+   * którekolwiek zadanie zdąży ruszyć. Dwa wywołania w tej samej chwili
+   * przechodziły więc oba.
+   *
+   * Teraz flaga chroni to, co faktycznie jest krytyczne — odczyt kolejki
+   * i decyzję o przydziale slotu. Same zadania nadal biegną w tle.
+   */
   if (globalForWorker.studioTicking === true) return
   globalForWorker.studioTicking = true
 

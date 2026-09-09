@@ -157,7 +157,20 @@ export function getPreset(purpose: PurposeKey): OutputPreset {
 }
 
 /** Ile razy trzeba powiększyć kadr, żeby z generowanego zrobić dostarczany. */
+/**
+ * Ile razy trzeba powiększyć kadr, żeby wypełnił slot.
+ *
+ * Liczone z **obu wymiarów**, nie z samej szerokości. Przy slocie o innych
+ * proporcjach niż kadr decyduje ten wymiar, który wymaga większego
+ * powiększenia — inaczej liczba mówiła „1,0×" dla przypadku, w którym wysokość
+ * rosła dwukrotnie. Skalowanie i tak działa przez `fit: cover`, więc to ta
+ * większa wartość opisuje faktyczną utratę ostrości.
+ */
 export function upscaleFactor(purpose: PurposeKey): number {
   const preset = OUTPUT_PRESETS[purpose]
-  return preset.deliver.width / preset.generate.width
+
+  return Math.max(
+    preset.deliver.width / preset.generate.width,
+    preset.deliver.height / preset.generate.height,
+  )
 }
