@@ -19,6 +19,7 @@ import { Gallery, Preview } from './Gallery'
 import { HealthBanner } from './HealthBanner'
 import { Wordmark } from './Wordmark'
 import { QueueBar } from './QueueBar'
+import { SessionBar } from './SessionBar'
 import { useQueue } from './use-queue'
 
 /**
@@ -34,7 +35,14 @@ const INDUSTRY_OPTIONS = Object.entries(INDUSTRY_LABELS).map(([value, label]) =>
   label,
 }))
 
-export function StudioScreen({ initialOrderId }: { initialOrderId: string | null }) {
+export function StudioScreen({
+  initialOrderId,
+  autoLogoutSeconds,
+}: {
+  initialOrderId: string | null
+  /** Zero wyłącza pasek sesji — panel bez logowania nie ma czego odliczać. */
+  autoLogoutSeconds: number
+}) {
   const [orders, setOrders] = useState<Order[]>([])
   const [orderId, setOrderId] = useState<string | null>(initialOrderId)
   const [detail, setDetail] = useState<OrderDetail | null>(null)
@@ -197,6 +205,7 @@ export function StudioScreen({ initialOrderId }: { initialOrderId: string | null
 
   return (
     <div className="flex h-screen flex-col bg-surface-0">
+      {autoLogoutSeconds > 0 && <SessionBar timeoutSeconds={autoLogoutSeconds} />}
       <HealthBanner onReadyChange={setReady} />
 
       <div className="flex min-h-0 flex-1">

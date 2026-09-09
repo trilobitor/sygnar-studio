@@ -66,6 +66,13 @@ const envSchema = z.object({
   STUDIO_SESSION_SECRET: z.string().default(''),
 
   /**
+   * Po ilu sekundach bezczynności panel sam się wylogowuje.
+   * Liczy się brak ruchu myszą i klawiaturą, nie czas od zalogowania —
+   * odliczacz gaszący sesję w połowie pisania briefu byłby bezużyteczny.
+   */
+  AUTO_LOGOUT_SECONDS: z.coerce.number().int().min(10).max(86_400).default(1800),
+
+  /**
    * Zostaje na przyszłość. Backendem wersji 1 jest mflux (decyzja D5),
    * ComfyUI dołoży się jako druga implementacja tego samego kontraktu.
    */
