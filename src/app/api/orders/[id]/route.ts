@@ -49,7 +49,7 @@ export async function PATCH(
     const body: unknown = await request.json()
     const input = renameOrderSchema.parse(body)
 
-    return NextResponse.json({ order: renameOrder(id, input.name, input.industry) })
+    return NextResponse.json({ order: renameOrder(id, input.name, input.industry, input.status) })
   } catch (error) {
     return handleError(error, 'PATCH /api/orders/[id]')
   }

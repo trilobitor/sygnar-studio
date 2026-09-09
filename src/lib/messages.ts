@@ -85,6 +85,14 @@ export const FIELD_HINTS = {
 /** Etykiety etapów paska postępu (SPEC §10). */
 export const STAGES = ['Brief', 'Generowanie', 'Wybór', 'Obróbka', 'Eksport'] as const
 
+/** Nazwy rodzajów zadań dla grafika. Bez „render", „job" i innego żargonu. */
+export const JOB_LABELS: Record<string, string> = {
+  image_generate: 'Generowanie',
+  image_export: 'Eksport',
+  video_render: 'Montaż',
+  photo_batch: 'Obróbka zdjęć',
+}
+
 export const SHOT_LABELS: Record<string, string> = {
   closeup: 'Zbliżenie',
   medium: 'Plan średni',

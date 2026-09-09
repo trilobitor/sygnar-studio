@@ -111,7 +111,7 @@ describe('/api/orders', () => {
 
   it('wypisuje zlecenia', async () => {
     await createOrder()
-    const body = await readJson(await ordersGet())
+    const body = await readJson(await ordersGet(new Request('http://localhost/api/orders')))
     expect(Array.isArray(body.orders)).toBe(true)
     expect((body.orders as unknown[]).length).toBeGreaterThan(0)
   })

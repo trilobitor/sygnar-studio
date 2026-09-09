@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { mkdir, rm } from 'node:fs/promises'
 
-import { and, count, desc, eq, inArray, isNotNull, sql, sum } from 'drizzle-orm'
+import { and, count, desc, eq, inArray, isNotNull, ne, sql, sum } from 'drizzle-orm'
 
 import { env } from '@/lib/env'
 import { briefSchema, type Brief, type CreateOrderInput } from '@/lib/schemas'
@@ -45,8 +45,20 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
   return row
 }
 
-export function listOrders(limit = 50): Order[] {
-  return db.select().from(orders).orderBy(desc(orders.updatedAt)).limit(limit).all()
+/**
+ * Lista zleceń.
+ *
+ * Domyślnie bez archiwalnych. Kasowanie zlecenia było dotąd jedynym sposobem
+ * uprzątnięcia listy, a kasuje razem z kadrami, montażami i plikami oddanymi
+ * klientowi — czyli z całą pracą, do której czasem trzeba wrócić po miesiącach.
+ */
+export function listOrders(limit = 50, zArchiwalnymi = false): Order[] {
+  const zapytanie = db.select().from(orders)
+
+  return (zArchiwalnymi ? zapytanie : zapytanie.where(ne(orders.status, 'archived')))
+    .orderBy(desc(orders.updatedAt))
+    .limit(limit)
+    .all()
 }
 
 export function getOrder(id: string): Order {
@@ -75,13 +87,19 @@ export function listAssets(orderId: string): Asset[] {
  * przy zakładaniu zlecenia, więc pomyłka oznaczała konieczność założenia go
  * od nowa. Pliki już oddane zachowują swoje nazwy; zmiana dotyczy kolejnych.
  */
-export function renameOrder(id: string, name: string, industry?: Order['industry']): Order {
+export function renameOrder(
+  id: string,
+  name: string,
+  industry?: Order['industry'],
+  status?: Order['status'],
+): Order {
   getOrder(id)
 
   db.update(orders)
     .set({
       name,
       ...(industry === undefined ? {} : { industry }),
+      ...(status === undefined ? {} : { status }),
       updatedAt: Date.now(),
     })
     .where(eq(orders.id, id))

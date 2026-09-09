@@ -63,6 +63,7 @@ export function Gallery({
   onChanged,
   laduje,
   wTrakcie,
+  siatka,
 }: {
   assets: Asset[];
   selectedId: string | null;
@@ -73,6 +74,12 @@ export function Gallery({
   laduje: boolean;
   /** Generowanie w biegu dla tego zlecenia — `null`, gdy stacja jest wolna. */
   wTrakcie: { ile: number; postep: number; faza: string | null } | null;
+  /**
+   * `true` — pełna siatka pod klawiszem G, gęsta, do przeglądania setek kadrów.
+   * `false` — pasek czterech miniatur ze szkicu w SPEC §10, z większymi
+   * kafelkami, bo to jest widok roboczy przy wyborze wariantu.
+   */
+  siatka: boolean;
 }) {
   const [visible, setVisible] = useState(PAGE_SIZE);
   /**
@@ -228,8 +235,10 @@ export function Gallery({
         zapisane w dzienniku jako D71.
       */}
       <div
-        className="grid items-start gap-3"
-        style={{ gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))" }}
+        className={`grid items-start gap-3 ${siatka ? "" : "grid-cols-4"}`}
+        style={{
+          gridTemplateColumns: siatka ? "repeat(auto-fill, minmax(180px, 1fr))" : undefined,
+        }}
       >
         {/*
           Kafelki-widma: tyle, ile kadrów powstaje, z paskiem postępu w środku.

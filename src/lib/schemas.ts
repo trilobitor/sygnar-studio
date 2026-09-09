@@ -31,6 +31,11 @@ export type CreateOrderInput = z.infer<typeof createOrderSchema>
 export const renameOrderSchema = z.object({
   name: z.string().min(2).max(120),
   industry: orderIndustrySchema.optional(),
+  /**
+   * Status zlecenia. Zmieniany osobno od nazwy, ale tym samym żądaniem —
+   * archiwizowanie to jedna wartość, nie osobny czasownik w API.
+   */
+  status: orderStatusSchema.optional(),
 })
 
 export type RenameOrderInput = z.infer<typeof renameOrderSchema>

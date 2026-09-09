@@ -2,18 +2,13 @@
 
 import { useEffect, useState } from 'react'
 
-import { messageForCode, odmiana } from '@/lib/messages'
+import { JOB_LABELS, messageForCode, odmiana } from '@/lib/messages'
 import { Button } from '@/components/ui/primitives'
 import { activeJobs, formatElapsed } from './use-queue'
 import type { Job } from '@/types/api'
 
 /** Rodzaj zadania po polsku — bez tego komunikat nie mówił, czego dotyczy. */
-const RODZAJE: Record<string, string> = {
-  image_generate: 'Generowanie',
-  image_export: 'Eksport',
-  video_render: 'Montaż',
-  photo_batch: 'Obróbka zdjęć',
-}
+const RODZAJE = JOB_LABELS
 
 /**
  * Pasek kolejki na dole ekranu (SPEC §10).

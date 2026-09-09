@@ -18,6 +18,7 @@ import { BriefDialog } from './BriefDialog'
 import { ContextPanel } from './ContextPanel'
 import { Deliverables } from './Deliverables'
 import { Gallery, Preview } from './Gallery'
+import { JobHistory } from './JobHistory'
 import { Lightbox } from './Lightbox'
 import { HealthBanner } from './HealthBanner'
 import { Wordmark } from './Wordmark'
@@ -692,6 +693,27 @@ export function StudioScreen({
                           },
                         },
                         {
+                          label: 'Odłóż do archiwum',
+                          onSelect: () => {
+                            void fetch(`/api/orders/${order.id}`, {
+                              method: 'PATCH',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                name: order.name,
+                                industry: order.industry ?? undefined,
+                                status: 'archived',
+                              }),
+                            })
+                              .then(() => {
+                                if (orderId === order.id) setOrderId(null)
+                                reload()
+                              })
+                              .catch(() => {
+                                setProblem('Nie udało się odłożyć zlecenia do archiwum.')
+                              })
+                          },
+                        },
+                        {
                           label: 'Usuń zlecenie',
                           danger: true,
                           onSelect: () => setToDelete(order),
@@ -790,6 +812,11 @@ export function StudioScreen({
           {/* Liczby do wyceny — zwinięte, liczone dopiero po rozwinięciu. */}
           {orderId !== null && <OrderSummary key={orderId} orderId={orderId} />}
 
+          {/* Historia zadań — zwinięta, bo to rzecz, do której się zagląda. */}
+          {detail !== null && detail.order.id === orderId && (
+            <JobHistory jobs={detail.jobs} onChanged={reload} />
+          )}
+
           {problem !== null && (
             <p role="alert" className="rounded border border-danger bg-danger/10 px-3 py-2 text-sm">
               {problem}
@@ -839,11 +866,12 @@ export function StudioScreen({
               {/* Pasek miniatur albo pełna siatka — przełącznik pod klawiszem G.
                   Blok zablokowany na 256 px zabierał podgładowi wysokość, której
                   ten i tak miał najmniej. */}
-              <div className={galeriaSiatka ? "max-h-[45vh] overflow-y-auto" : "overflow-y-auto"}>
+              <div className={galeriaSiatka ? 'max-h-[55vh] overflow-y-auto' : 'max-h-64 overflow-y-auto'}>
                 <Gallery
                   assets={detail?.assets ?? []}
                   laduje={detail === null || detail.order.id !== orderId}
                   wTrakcie={wTrakcie}
+                  siatka={galeriaSiatka}
                   selectedId={selected?.id ?? null}
                   onSelect={setSelected}
                   onChanged={reload}

@@ -8,10 +8,15 @@ import { createOrder, listOrders } from '@/server/services/orders'
 export const dynamic = 'force-dynamic'
 
 /** Lista zleceń, limit 50 (SPEC §8). */
-export async function GET(): Promise<NextResponse> {
+export async function GET(request: Request): Promise<NextResponse> {
   try {
     ensureStarted()
-    return NextResponse.json({ orders: listOrders(50) })
+
+    // `?archiwalne` dokłada zlecenia odłożone do archiwum. Bez tego parametru
+    // lista pokazuje wyłącznie te, nad którymi się pracuje.
+    const zArchiwalnymi = new URL(request.url).searchParams.has('archiwalne')
+
+    return NextResponse.json({ orders: listOrders(50, zArchiwalnymi) })
   } catch (error) {
     return handleError(error, 'GET /api/orders')
   }
