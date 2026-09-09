@@ -270,6 +270,9 @@ async function runFfmpeg(
     let stderrTail = ''
     let settled = false
 
+    /** Ustawiany przez `onAbort`, odczytywany w handlerze `close`. */
+    let powodPrzerwania: JobError | null = null
+
     const finish = (fn: () => void): void => {
       if (settled) return
       settled = true
@@ -277,14 +280,30 @@ async function runFfmpeg(
       fn()
     }
 
+    /**
+     * Powód przerwania zapamiętany, rozstrzygnięcie **po zamknięciu procesu**.
+     *
+     * Wcześniej obietnica była odrzucana od razu w tym miejscu, a proces
+     * dopiero zaczynał umierać. Wywołujący ruszał dalej — na przykład kasował
+     * katalog — podczas gdy dziecko jeszcze do niego pisało. Ten sam wyścig
+     * trzeba było potem łatać czekaniem w handlerze kasowania zlecenia.
+     *
+     * `SIGTERM` przed `SIGKILL`: ffmpeg domyka wtedy plik, a mflux zwalnia
+     * pamięć GPU. Sekunda na uprzejmość wystarcza obu.
+     */
     function onAbort(): void {
-      child.kill('SIGKILL')
-      finish(() => rejectPromise(new JobError('JOB_CANCELLED', 'zadanie anulowane')))
+      powodPrzerwania = new JobError('JOB_CANCELLED', 'zadanie anulowane')
+
+      child.kill('SIGTERM')
+      setTimeout(() => {
+        if (!settled) child.kill('SIGKILL')
+      }, 1000).unref()
     }
 
+    // Sygnał mógł nadejść, zanim tu doszliśmy. Nie wracamy od razu —
+    // rozstrzygnięcie i tak przyjdzie z handlera `close`, po śmierci procesu.
     if (ctx.signal.aborted) {
       onAbort()
-      return
     }
     ctx.signal.addEventListener('abort', onAbort, { once: true })
 
@@ -315,6 +334,13 @@ async function runFfmpeg(
 
     child.on('close', (code) => {
       finish(() => {
+        // Przerwanie rozstrzyga się dopiero tutaj — proces już nie żyje,
+        // więc wywołujący może bezpiecznie sprzątnąć katalog.
+        if (powodPrzerwania !== null) {
+          rejectPromise(powodPrzerwania)
+          return
+        }
+
         if (code === 0) {
           resolvePromise()
           return

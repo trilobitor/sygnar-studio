@@ -1175,3 +1175,23 @@ Zmiany, których nie warto opisywać osobno, ale które warto mieć zapisane:
 - **SPEC.md dostał rozdział „Naniesione decyzje"** z tabelą odstępstw
   i listą rzeczy istniejących w kodzie, których specyfikacja nie opisuje.
   Lista przeznaczeń poprawiona z pięciu roboczych na dziesięć rzeczywistych.
+
+---
+
+## D64 — Przerwanie rozstrzyga się po śmierci procesu, nie przy sygnale
+
+**Decyzja.** `onAbort` zapamiętuje powód i wysyła `SIGTERM`, a obietnica jest
+odrzucana dopiero w handlerze `close`. `SIGKILL` dochodzi po sekundzie, gdy
+proces nie zniknął sam.
+
+**Powód.** Obietnica była odrzucana natychmiast, gdy proces dopiero zaczynał
+umierać. Wywołujący ruszał dalej — na przykład kasował katalog — podczas gdy
+dziecko jeszcze do niego pisało. Ten sam wyścig trzeba było wcześniej łatać
+czekaniem w handlerze kasowania zlecenia (D54); teraz jest zamknięty u źródła.
+
+`SIGTERM` przed `SIGKILL` daje ffmpegowi domknięcie pliku, a mfluxowi
+zwolnienie pamięci GPU.
+
+**Zmierzone na żywym generowaniu:** dwa procesy potomne serwera przed
+anulowaniem (`caffeinate` i `python3.12`), **zero po** — przy statusie
+`cancelled`, nie `done`.
