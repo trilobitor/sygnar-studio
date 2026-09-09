@@ -414,17 +414,37 @@ export function StudioScreen({
           {/* Etapy po lewej, sesja po prawej — jeden wiersz, żeby nie zabierać
               pionowego miejsca podglądowi kadru. */}
           <div className="flex items-center justify-between gap-4">
-            <ol className="flex gap-2 text-xs text-ink-muted" aria-label="Etapy pracy">
+            <ol className="flex items-center gap-2 text-sm text-ink-muted" aria-label="Etapy pracy">
               {STAGES.map((stage, index) => (
                 <li
                   key={stage}
-                  /* Skala szarości, nie akcent: pasek stoi bezpośrednio nad
-                     kadrem, a nasycony kolor w tym miejscu psuje ocenę barw. */
-                  className={index <= stageIndex ? 'font-medium text-ink' : undefined}
-                  aria-current={index === stageIndex}
+                  /*
+                    Trzy stany, nie dwa. Wcześniej etap przebyty i bieżący
+                    dostawały dokładnie ten sam kolor, a jedyną różnicą był
+                    `aria-current` — niewidoczny okiem. Rozróżniamy je w skali
+                    szarości, bez akcentu: pasek stoi bezpośrednio nad kadrem,
+                    a nasycony kolor w tym miejscu psuje ocenę barw (SPEC §10).
+                  */
+                  className={`flex h-8 items-center ${
+                    index === stageIndex
+                      ? 'font-medium text-ink underline decoration-ink-muted underline-offset-4'
+                      : index < stageIndex
+                        ? 'text-ink'
+                        : 'text-ink-muted'
+                  }`}
+                  aria-current={index === stageIndex ? 'step' : undefined}
                 >
+                  {index < stageIndex && (
+                    <span aria-hidden="true" className="mr-1 text-ink-muted">
+                      ✓
+                    </span>
+                  )}
                   {stage}
-                  {index < STAGES.length - 1 && <span className="ml-2 text-line">→</span>}
+                  {index < STAGES.length - 1 && (
+                    <span aria-hidden="true" className="ml-2 text-ink-muted">
+                      →
+                    </span>
+                  )}
                 </li>
               ))}
             </ol>

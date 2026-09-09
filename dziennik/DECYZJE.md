@@ -1444,3 +1444,33 @@ by nie poprawiło, a dodałoby parametr do utrzymania.
 **Czego to nie rozstrzyga.** Pomiar dotyczy tej jednej maszyny i tej wersji
 mfluxa (0.19.1). Po aktualizacji generatora warto go powtórzyć — komenda
 i wariant są opisane wyżej, więc powtórzenie zajmuje pięć minut.
+
+---
+
+## D71 — Galeria: filtry nad siatką i kolumny dobierane do szerokości
+
+**Data:** 2026-09-09 · **Status:** obowiązuje
+
+**Decyzja.** Siatka galerii przechodzi ze sztywnych czterech kolumn na
+`repeat(auto-fill, minmax(180px, 1fr))`, a nad nią staje rząd filtrów:
+rodzaj pliku (wszystko / kadry / wgrane / do oddania), miejsce docelowe
+i przełącznik „tylko odłożone".
+
+**Odstępstwo od SPEC.** Szkic układu w §10 pokazuje pod podglądem dokładnie
+pasek czterech miniatur — `grid-cols-4` było realizacją tego szkicu, a nie
+przeoczeniem. Odchodzimy od niego świadomie.
+
+**Powód.** Cztery kolumny to dobra liczba dla jednej szerokości okna i zła
+dla wszystkich pozostałych: przy 1366 px laptopa grafika kafelek ma ~150 px,
+a po zwinięciu kolumn bocznych zostaje puste pole. Minimalna szerokość
+180 px daje cztery kolumny dokładnie tam, gdzie szkic je zakłada, i więcej
+tam, gdzie jest miejsce.
+
+**Filtry.** Galeria była jedną płaską listą doładowywaną po dwadzieścia
+cztery pozycje; jedyną drogą do kadru sprzed trzech dni było klikanie
+„Pokaż kolejne". Dane do filtrowania istniały od początku — rodzaj w kolumnie
+`kind`, miejsce docelowe w metadanych. Wszystko liczy się w przeglądarce na
+już pobranej liście, więc nie doszedł ani jeden endpoint.
+
+**Czego to nie zmienia.** Kolejność kadrów, doładowywanie po 24 i zachowanie
+podglądu zostają bez zmian.

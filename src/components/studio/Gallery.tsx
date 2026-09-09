@@ -41,6 +41,21 @@ function maPrzezroczystosc(asset: Asset): boolean {
   }
 }
 
+/** Klucz miejsca docelowego z metadanych kadru. `null`, gdy kadr go nie niesie. */
+function odczytajPurpose(asset: Asset): string | null {
+  if (asset.metadataJson === null) return null;
+
+  try {
+    const parsed: unknown = JSON.parse(asset.metadataJson);
+    if (typeof parsed !== "object" || parsed === null) return null;
+
+    const purpose = Reflect.get(parsed, "purpose");
+    return typeof purpose === "string" ? purpose : null;
+  } catch {
+    return null;
+  }
+}
+
 export function Gallery({
   assets,
   selectedId,
@@ -66,6 +81,20 @@ export function Gallery({
    */
   const [tylkoOdlozone, setTylkoOdlozone] = useState(false);
 
+  /**
+   * Filtr po rodzaju pliku i po miejscu docelowym.
+   *
+   * Galeria była jedną płaską siatką wszystkich kadrów, doładowywaną po
+   * dwadzieścia cztery — jedyną drogą do kadru sprzed trzech dni było klikanie
+   * „Pokaż kolejne". Dane były pod ręką od początku: rodzaj siedzi w kolumnie
+   * `kind`, a miejsce docelowe w metadanych. Wszystko liczy się po stronie
+   * przeglądarki, na już pobranej liście — bez nowego endpointu.
+   */
+  const [rodzaj, setRodzaj] = useState<"wszystkie" | "generated" | "uploaded" | "oddanie">(
+    "wszystkie",
+  );
+  const [gdzie, setGdzie] = useState<string>("wszystkie");
+
   async function przelaczOdlozenie(asset: Asset): Promise<void> {
     await fetch(`/api/assets/${asset.id}`, {
       method: "PATCH",
@@ -76,9 +105,25 @@ export function Gallery({
     onChanged();
   }
 
+  const doOddania = (asset: Asset): boolean =>
+    asset.kind === "export" || asset.kind === "poster";
+
   const images = assets
-    .filter((asset) => asset.kind === "generated" || asset.kind === "uploaded")
+    .filter((asset) =>
+      rodzaj === "wszystkie"
+        ? asset.kind === "generated" || asset.kind === "uploaded"
+        : rodzaj === "oddanie"
+          ? doOddania(asset)
+          : asset.kind === rodzaj,
+    )
+    .filter((asset) => gdzie === "wszystkie" || odczytajPurpose(asset) === gdzie)
     .filter((asset) => !tylkoOdlozone || asset.starred === 1);
+
+  // Miejsca docelowe, które w tym zleceniu faktycznie występują — filtr nie
+  // proponuje wartości, po której nic się nie znajdzie.
+  const dostepneMiejsca = [
+    ...new Set(assets.map(odczytajPurpose).filter((klucz): klucz is string => klucz !== null)),
+  ];
 
   if (laduje) {
     /*
@@ -87,7 +132,7 @@ export function Gallery({
       potwierdził, wyświetlany zanim zapytanie w ogóle wystartowało.
     */
     return (
-      <div aria-hidden="true" className="grid grid-cols-4 items-start gap-3">
+      <div className="grid grid-cols-4 items-start gap-3">
         {[0, 1, 2, 3].map((nr) => (
           <span key={nr} className="aspect-4/3 animate-pulse rounded bg-surface-2" />
         ))}
@@ -110,23 +155,79 @@ export function Gallery({
     <div className="flex flex-col gap-3">
       {/* Objaśnienie numeru losowania stoi raz nad siatką, nie przy każdym
           kadrze — kafelek jest przyciskiem, a przycisk w przycisku nie działa. */}
-      <div className="flex items-baseline justify-between">
-        <p className="flex items-baseline text-xs text-ink-muted">
-          Pod każdym kadrem jest numer losowania
-          <Hint text={FIELD_HINTS.seed} />
-        </p>
-
-        <label className="flex items-center gap-1.5 text-xs text-ink-muted">
-          <input
-            type="checkbox"
-            checked={tylkoOdlozone}
-            onChange={(event) => setTylkoOdlozone(event.target.checked)}
-          />
-          Tylko odłożone
-        </label>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        {/* Rodzaj pliku jako rząd przycisków — najczęstszy podział, więc stoi
+            pierwszy i nie wymaga rozwijania listy. */}
+        <div className="flex gap-1" role="group" aria-label="Rodzaj plików">
+          {(
+            [
+              ["wszystkie", "Wszystko"],
+              ["generated", "Kadry"],
+              ["uploaded", "Wgrane"],
+              ["oddanie", "Do oddania"],
+            ] as const
+          ).map(([klucz, etykieta]) => (
+            <button
+              key={klucz}
+              type="button"
+              aria-pressed={rodzaj === klucz}
+              onClick={() => setRodzaj(klucz)}
+              className={`rounded border px-2 py-0.5 text-xs transition ${
+                rodzaj === klucz
+                  ? "border-field bg-surface-2 text-ink"
+                  : "border-line text-ink-muted hover:text-ink"
+              }`}
+            >
+              {etykieta}
+            </button>
+          ))}
+        </div>
+      
+        <div className="flex items-center gap-3">
+          {dostepneMiejsca.length > 1 && (
+            <label className="flex items-center gap-1.5 text-xs text-ink-muted">
+              Miejsce
+              <select
+                value={gdzie}
+                onChange={(event) => setGdzie(event.target.value)}
+                className="rounded border border-line bg-surface-2 px-1.5 py-0.5 text-xs text-ink"
+              >
+                <option value="wszystkie">wszystkie</option>
+                {dostepneMiejsca.map((klucz) => (
+                  <option key={klucz} value={klucz}>
+                    {OUTPUT_PRESETS[klucz as keyof typeof OUTPUT_PRESETS]?.label ?? klucz}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+      
+          <label className="flex items-center gap-1.5 text-xs text-ink-muted">
+            <input
+              type="checkbox"
+              checked={tylkoOdlozone}
+              onChange={(event) => setTylkoOdlozone(event.target.checked)}
+            />
+            Tylko odłożone
+          </label>
+        </div>
       </div>
+      
+      <p className="flex items-baseline text-xs text-ink-muted">
+        Pod każdym kadrem jest numer losowania
+        <Hint text={FIELD_HINTS.seed} />
+      </p>
 
-      <div className="grid grid-cols-4 items-start gap-3">
+      {/*
+        Kolumny dobierają się do szerokości zamiast sztywnych czterech. Szkic
+        w SPEC §10 pokazuje pasek czterech miniatur; przy zwiniętych kolumnach
+        bocznych mieści się ich więcej, przy wąskim oknie mniej. Odstępstwo
+        zapisane w dzienniku jako D71.
+      */}
+      <div
+        className="grid items-start gap-3"
+        style={{ gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))" }}
+      >
         {shown.map((asset) => (
           // Gwiazdka stoi **obok** kafelka, nie w nim: kafelek jest przyciskiem,
           // a przycisk w przycisku nie działa.
