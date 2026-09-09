@@ -382,14 +382,14 @@ function PoprawKadr({
         disabled={disabled || zajety || opis.trim().length < 10 || asset.seed === null}
         onClick={() => void wyslij(zadanie(opis, { seeds: [asset.seed ?? 0] }))}
       >
-        Ten sam numer, poprawiony opis
+        Ten sam numer, nowy opis
       </Button>
 
       <Button
         disabled={disabled || zajety || opis.trim().length < 10}
         onClick={() => void wyslij(zadanie(opis, { ile: 4 }))}
       >
-        Ten sam opis, nowe numery
+        Nowe numery, ten sam opis
       </Button>
 
       {/*
@@ -404,7 +404,7 @@ function PoprawKadr({
             void wyslij(zadanie(metadane.promptEn ?? '', { seeds: [asset.seed ?? 0] }))
           }
         >
-          Powtórz dokładnie ten kadr
+          Powtórz bez zmian
         </Button>
       )}
     </section>

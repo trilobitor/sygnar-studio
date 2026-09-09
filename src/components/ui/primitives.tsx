@@ -49,7 +49,7 @@ export function Button({
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className={`inline-flex min-h-10 items-center justify-center rounded-md px-4 py-2 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 disabled:cursor-not-allowed disabled:opacity-40 ${BUTTON_STYLES[variant]}`}
+      className={`inline-flex min-h-10 items-center justify-center rounded-md px-4 py-2 text-sm leading-snug text-balance transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 disabled:cursor-not-allowed disabled:opacity-40 ${BUTTON_STYLES[variant]}`}
     >
       {children}
     </button>
