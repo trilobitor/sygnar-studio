@@ -108,16 +108,31 @@ export function looksLikeOutOfMemory(text: string): boolean {
  * Zmierzone w E0 na tej maszynie: ~30 s i 17,95 GB przy 1,11 Mpx,
  * ~93 s i 27,81 GB przy 2,08 Mpx. Stąd jedno zadanie GPU naraz.
  */
+/**
+ * Wzorzec nazwy pliku podawany mfluxowi.
+ *
+ * mflux sam dokleja `_seed_{seed}` do rdzenia nazwy, ale **wyłącznie gdy
+ * numerów jest więcej niż jeden** — patrz `cli/parser/parsers.py`:
+ * `if ... len(namespace.seed) > 1: output.with_stem(stem + "_seed_{seed}")`.
+ *
+ * Wcześniej podawaliśmy `kadr_seed_{seed}.png` zawsze. Przy jednym numerze
+ * wychodziło poprawnie i tak to sprawdziłem — ale przy czterech wariantach,
+ * czyli w normalnej pracy, mflux doklejał przyrostek **na wierzch** i pliki
+ * nazywały się `kadr_seed_123_seed_123.png`. Adapter szukał nazwy bez
+ * powtórzenia, nie znajdował i przerywał zadanie kodem COMFY_WORKFLOW_INVALID.
+ *
+ * Obie gałęzie dają ten sam wynik końcowy: `kadr_seed_<numer>.png`.
+ */
+export function nazwaWyjscia(ileSeedow: number): string {
+  return ileSeedow > 1 ? 'kadr.png' : 'kadr_seed_{seed}.png'
+}
+
 export async function generate(
   params: GenerateParams,
   ctx: JobContext,
 ): Promise<GeneratedImage[]> {
   const workflow = loadWorkflow(TEXT_TO_IMAGE_WORKFLOW)
-  // `{seed}` podstawia sam mflux — sprawdzone empirycznie, także przy jednym
-  // seedzie. Bez tego nazwa wyjściowa nie niosłaby numeru losowania, a przy
-  // istniejącym pliku mflux dokłada `_1` zamiast nadpisać, więc adapter
-  // rejestrowałby stary kadr pod nowym numerem.
-  const outputBase = join(ctx.workDir, 'kadr_seed_{seed}.png')
+  const outputBase = join(ctx.workDir, nazwaWyjscia(params.seeds.length))
 
   const args = [
     '--model',
@@ -254,7 +269,12 @@ async function collectOutputs(
   const images: GeneratedImage[] = []
 
   for (const seed of params.seeds) {
-    const fileName = wzor.replace('{seed}', String(seed))
+    // Przy wielu numerach wzorcem jest gołe `kadr.png`, bo przyrostek dokleja
+    // mflux; przy jednym numerze wzorzec sam niesie `{seed}`. Obie ścieżki
+    // prowadzą do tej samej nazwy.
+    const fileName = wzor.includes('{seed}')
+      ? wzor.replace('{seed}', String(seed))
+      : wzor.replace(/\.png$/, `_seed_${seed}.png`)
 
     if (!present.has(fileName)) {
       throw new JobError(
