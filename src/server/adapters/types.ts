@@ -71,6 +71,8 @@ export const JOB_ERROR_CODES = [
   'DATABASE_UNAVAILABLE',
   /** Eksport nie doszedł do skutku z powodu innego niż waga pliku. */
   'EXPORT_FAILED',
+  /** Błąd, którego nie przewidzieliśmy. Zawsze 500 i zawsze w logu. */
+  'INTERNAL_ERROR',
 ] as const
 
 export type JobErrorCode = (typeof JOB_ERROR_CODES)[number]

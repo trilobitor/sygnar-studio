@@ -92,14 +92,42 @@ export async function findUserByPassword(password: string): Promise<User | null>
   return trafiony
 }
 
-export function getUser(id: string): User | null {
+/**
+ * Osoba, jeśli nadal ma dostęp **i** jeśli sesja nie została unieważniona.
+ *
+ * `wydanaO` przychodzi z ciasteczka. Sesje wydane przed `sessionsValidFrom`
+ * odpadają, choćby podpis był poprawny i termin jeszcze nie minął — to jedyny
+ * sposób, żeby wylogować kogoś ze wszystkich urządzeń bez odbierania dostępu.
+ */
+export function getUser(id: string, wydanaO?: number): User | null {
   const row = db
     .select()
     .from(users)
     .where(and(eq(users.id, id), isNull(users.disabledAt)))
     .get()
 
-  return row === undefined ? null : { id: row.id, name: row.name }
+  if (row === undefined) return null
+
+  if (
+    wydanaO !== undefined &&
+    row.sessionsValidFrom !== null &&
+    wydanaO < row.sessionsValidFrom
+  ) {
+    return null
+  }
+
+  return { id: row.id, name: row.name }
+}
+
+/** Unieważnia wszystkie sesje osoby. Zwraca `true`, gdy taka osoba istnieje. */
+export function invalidateSessions(name: string): boolean {
+  const wynik = db
+    .update(users)
+    .set({ sessionsValidFrom: Date.now() })
+    .where(eq(users.name, name))
+    .run()
+
+  return wynik.changes > 0
 }
 
 export function recordLogin(input: {

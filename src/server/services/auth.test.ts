@@ -5,6 +5,7 @@ import {
   clientKey,
   consume,
   consumeGlobalLogin,
+  liczbaKluczy,
   GLOBAL_LOGIN_LIMIT,
   LOGIN_LIMIT,
   reset,
@@ -69,8 +70,14 @@ describe('sesja', () => {
     expect(verifySession(createSession(KTO, SECRET), SECRET)).toBe(true)
   })
 
-  it('mówi, kto się zalogował', () => {
-    expect(readSession(createSession(KTO, SECRET), SECRET)).toEqual({ userId: KTO })
+  it('mówi, kto się zalogował i kiedy sesja powstała', () => {
+    // Chwila wydania jest potrzebna do unieważniania sesji: wpis
+    // `sessionsValidFrom` przy osobie odcina wszystko starsze.
+    const teraz = Date.now()
+    const odczyt = readSession(createSession(KTO, SECRET, teraz), SECRET)
+
+    expect(odczyt?.userId).toBe(KTO)
+    expect(odczyt?.wydanaO).toBe(teraz)
   })
 
   it('odrzuca token podpisany innym sekretem', () => {
@@ -277,5 +284,26 @@ describe('klucz licznika za tailscale funnel', () => {
     )
 
     expect(a).toBe(b)
+  })
+})
+
+describe('sprzątanie licznika żądań', () => {
+  it('nie trzyma wpisów w nieskończoność', () => {
+    // Mapa rosła bez końca: każdy nowy adres zostawiał wpis na zawsze,
+    // a przy panelu w internecie skanery dokładają ich tysiące dziennie.
+    resetAll()
+
+    const teraz = Date.now()
+    for (let i = 0; i < 200; i += 1) {
+      consume(`test:${i}`, { capacity: 5, windowMs: 60_000 }, teraz)
+    }
+
+    const przed = liczbaKluczy()
+    expect(przed).toBeGreaterThan(100)
+
+    // Godzina później wpisy z pełnym kubełkiem nie niosą już informacji.
+    consume('test:nowy', { capacity: 5, windowMs: 60_000 }, teraz + 2 * 60 * 60_000)
+
+    expect(liczbaKluczy()).toBeLessThan(przed)
   })
 })

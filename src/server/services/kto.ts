@@ -16,5 +16,5 @@ export async function ktoZalogowany(): Promise<string | null> {
 
   if (sesja === null) return null
 
-  return getUser(sesja.userId)?.name ?? null
+  return getUser(sesja.userId, sesja.wydanaO)?.name ?? null
 }

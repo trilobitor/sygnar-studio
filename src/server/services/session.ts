@@ -12,8 +12,18 @@ import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
 
 export const SESSION_COOKIE = 'sygnar_sesja'
 
-/** Ile trwa sesja. Tydzień — grafik nie ma logować się codziennie rano. */
-export const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000
+/**
+ * Ile trwa sesja.
+ *
+ * Dwanaście godzin, nie tydzień. Panel wylogowuje po 30 minutach bezczynności
+ * (`AUTO_LOGOUT_SECONDS`), ale to dzieje się **w przeglądarce** — samo
+ * ciasteczko było ważne 336 razy dłużej. Kto je przechwycił, mógł go używać
+ * przez tydzień, niezależnie od tego, co widział grafik.
+ *
+ * Dwanaście godzin mieści dzień pracy i nie zmusza do logowania po przerwie
+ * na obiad.
+ */
+export const SESSION_TTL_MS = 12 * 60 * 60 * 1000
 
 function sign(payload: string, secret: string): string {
   return createHmac('sha256', secret).update(payload).digest('hex')
@@ -32,7 +42,7 @@ export function readSession(
   token: string | undefined,
   secret: string,
   now = Date.now(),
-): { userId: string } | null {
+): { userId: string; wydanaO: number } | null {
   if (token === undefined || token.length === 0) return null
 
   const parts = token.split('.')
@@ -62,7 +72,9 @@ export function readSession(
   const deadline = Number(expiresAt)
   if (!Number.isFinite(deadline) || deadline <= now) return null
 
-  return { userId }
+  // Chwila wydania wynika z terminu: `createSession` zapisuje `teraz + TTL`.
+  // Dzięki temu unieważnianie sesji nie wymaga zmiany formatu ciasteczka.
+  return { userId, wydanaO: deadline - SESSION_TTL_MS }
 }
 
 /** Sam fakt ważnej sesji, bez pytania kto. Używa tego bramka w `proxy.ts`. */

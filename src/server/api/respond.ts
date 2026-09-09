@@ -59,5 +59,8 @@ export function handleError(error: unknown, where: string): NextResponse {
     cause: error instanceof Error ? error.message : String(error),
   })
 
-  return fail('VALIDATION_FAILED', 500)
+  // Nie `VALIDATION_FAILED`: ten kod mówi grafikowi „sprawdź formularz",
+  // a awaria serwera nie ma z formularzem nic wspólnego. Sprawdzałby coś,
+  // czego nie da się poprawić.
+  return fail('INTERNAL_ERROR', 500)
 }

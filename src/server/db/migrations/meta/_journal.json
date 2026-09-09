@@ -15,6 +15,13 @@
       "when": 1788951405076,
       "tag": "0001_previous_fabian_cortez",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1788961809286,
+      "tag": "0002_tranquil_earthquake",
+      "breakpoints": true
     }
   ]
 }

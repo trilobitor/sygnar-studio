@@ -27,7 +27,7 @@ export function wymagajSesji(request: Request): User | null {
     ?.slice(SESSION_COOKIE.length + 1)
 
   const sesja = readSession(ciasteczko, env.STUDIO_SESSION_SECRET)
-  const user = sesja === null ? null : getUser(sesja.userId)
+  const user = sesja === null ? null : getUser(sesja.userId, sesja.wydanaO)
 
   if (user === null) {
     throw new ApiError('NOT_AUTHENTICATED', 'brak ważnej sesji', 401)

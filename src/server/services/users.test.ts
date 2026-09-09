@@ -8,6 +8,7 @@ import {
   disableUser,
   findUserByPassword,
   getUser,
+  invalidateSessions,
   listUsers,
   recentLogins,
   recordLogin,
@@ -117,5 +118,37 @@ describe('skrót adresu klienta', () => {
 
   it('nie zapisuje samego adresu', () => {
     expect(clientHash('logowanie:1.2.3.4', 'sekret')).not.toContain('1.2.3.4')
+  })
+})
+
+describe('unieważnianie sesji', () => {
+  it('sesja wydana przed unieważnieniem przestaje działać', async () => {
+    // Do tej pory jedynym sposobem na wylogowanie kogoś z cudzego urządzenia
+    // było odebranie mu dostępu w całości.
+    const user = await addUser('Oliwia', HASLO_B)
+    const wydanaO = Date.now() - 1000
+
+    expect(getUser(user.id, wydanaO)).not.toBeNull()
+
+    expect(invalidateSessions('Oliwia')).toBe(true)
+    expect(getUser(user.id, wydanaO)).toBeNull()
+  })
+
+  it('sesja wydana po unieważnieniu działa dalej', async () => {
+    const user = await addUser('Oliwia', HASLO_B)
+    invalidateSessions('Oliwia')
+
+    expect(getUser(user.id, Date.now() + 1000)).not.toBeNull()
+  })
+
+  it('osoba zachowuje dostęp — to nie to samo co odebranie', async () => {
+    await addUser('Oliwia', HASLO_B)
+    invalidateSessions('Oliwia')
+
+    expect(await findUserByPassword(HASLO_B)).not.toBeNull()
+  })
+
+  it('unieważnienie nieznanej osoby nie wywraca się', () => {
+    expect(invalidateSessions('Nikt')).toBe(false)
   })
 })

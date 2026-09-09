@@ -127,6 +127,14 @@ export const users = sqliteTable('users', {
   createdAt: integer('created_at').notNull(),
   /** Odebranie dostępu bez kasowania historii wejść. */
   disabledAt: integer('disabled_at'),
+  /**
+   * Sesje wydane **przed** tym znacznikiem przestają być ważne.
+   *
+   * Bez tego jedynym sposobem na wylogowanie kogoś ze wszystkich urządzeń
+   * było odebranie mu dostępu w całości. Ciasteczko z ważnym podpisem
+   * działało do końca swojego terminu, choćby hasło zostało zmienione.
+   */
+  sessionsValidFrom: integer('sessions_valid_from'),
 })
 
 /**

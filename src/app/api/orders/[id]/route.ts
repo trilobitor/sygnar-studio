@@ -20,8 +20,16 @@ export async function GET(
 
     return NextResponse.json({
       order: getOrder(id),
-      assets: listAssets(id),
-      jobs: listJobsForOrder(id, 20),
+      // `path` skracamy do samej nazwy pliku, a `paramsJson` odcinamy —
+      // klient nie potrzebuje ani układu katalogów na dysku, ani parametrów
+      // wywołania generatora. Odpowiedź API nie musi ich nieść tylko dlatego,
+      // że wiersz w bazie je ma.
+      assets: listAssets(id).map((a) => ({ ...a, path: a.path.split('/').pop() ?? a.path })),
+      jobs: listJobsForOrder(id, 20).map((job) => {
+        const { paramsJson, ...reszta } = job
+        void paramsJson
+        return reszta
+      }),
       brief: latestBrief(id),
     })
   } catch (error) {

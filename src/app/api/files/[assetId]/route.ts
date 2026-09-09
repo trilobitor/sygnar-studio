@@ -66,6 +66,11 @@ export async function GET(
 
     const wspolne: Record<string, string> = {
       'Content-Type': asset.mime,
+      // Typ bierze się z bazy, a tam trafił z wykrywania po sygnaturze pliku.
+      // `nosniff` domyka to od strony przeglądarki: gdyby kiedyś do bazy
+      // trafiła wartość nie z tego źródła, przeglądarka i tak nie zgadnie
+      // typu po zawartości i nie wykona pliku jako skryptu.
+      'X-Content-Type-Options': 'nosniff',
       // Bez tego przeglądarka nie wie, że wolno prosić o fragment, i wyłącza
       // pasek przewijania w podglądzie wideo.
       'Accept-Ranges': 'bytes',

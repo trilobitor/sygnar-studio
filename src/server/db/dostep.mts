@@ -5,6 +5,7 @@
  *   npm run dostep -- dodaj Oliwia
  *   npm run dostep -- odbierz Oliwia
  *   npm run dostep -- przywroc Oliwia
+ *   npm run dostep -- wyloguj Oliwia    # unieważnia jej sesje na wszystkich urządzeniach
  *   npm run dostep -- wejscia [ile]
  *
  * Hasło podaje się na wejściu, nie w argumencie — argumenty widać w `ps`
@@ -133,6 +134,21 @@ switch (polecenie) {
     break
   }
 
+  case 'wyloguj': {
+    const imie = reszta[0]
+    if (imie === undefined) throw new Error('podaj imię: npm run dostep -- wyloguj Oliwia')
+
+    // Unieważnia sesje wydane przed tą chwilą. Osoba zachowuje dostęp —
+    // musi się tylko zalogować ponownie. Do tej pory jedynym sposobem na
+    // wyrzucenie kogoś z cudzego urządzenia było odebranie dostępu w całości.
+    const wynik = baza
+      .prepare('UPDATE users SET sessions_valid_from = ? WHERE name = ?')
+      .run(Date.now(), imie)
+
+    console.log(wynik.changes > 0 ? `Wylogowano wszędzie: ${imie}` : `Nie ma takiej osoby: ${imie}`)
+    break
+  }
+
   case 'wejscia': {
     const ile = Number(reszta[0] ?? '30')
     const wiersze = baza
@@ -163,7 +179,7 @@ switch (polecenie) {
 
   default:
     console.log(
-      'Użycie: npm run dostep -- lista | dodaj <imię> | odbierz <imię> | przywroc <imię> | wejscia [ile]',
+      'Użycie: npm run dostep -- lista | dodaj <imię> | odbierz <imię> | przywroc <imię> | wyloguj <imię> | wejscia [ile]',
     )
     process.exitCode = 1
 }

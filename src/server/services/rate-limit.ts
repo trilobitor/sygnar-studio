@@ -52,6 +52,32 @@ const globalForLimiter = globalThis as unknown as { studioRateLimiter?: Map<stri
 const entries: Map<string, Entry> = globalForLimiter.studioRateLimiter ?? new Map()
 globalForLimiter.studioRateLimiter = entries
 
+/**
+ * Twardy sufit liczby kluczy i sprzątanie wpisów z pełnym kubełkiem.
+ *
+ * Mapa rosła bez końca: każdy nowy adres zostawiał wpis na zawsze. Przy
+ * panelu wystawionym publicznie skanery dokładają ich tysiące dziennie,
+ * a proces panelu chodzi tygodniami.
+ *
+ * Wpis z **pełnym** kubełkiem starszy niż jego okno nie niesie żadnej
+ * informacji — odtworzenie go od zera daje ten sam wynik.
+ */
+const MAX_KLUCZY = 10_000
+
+function sprzatnij(now: number): void {
+  for (const [klucz, wpis] of entries) {
+    if (now - wpis.updatedAt > 60 * 60_000) entries.delete(klucz)
+  }
+
+  // Gdyby sprzątanie po czasie nie wystarczyło — wyrzucamy najstarsze.
+  if (entries.size <= MAX_KLUCZY) return
+
+  const posortowane = [...entries.entries()].sort((a, b) => a[1].updatedAt - b[1].updatedAt)
+  for (const [klucz] of posortowane.slice(0, entries.size - MAX_KLUCZY)) {
+    entries.delete(klucz)
+  }
+}
+
 export interface Decision {
   allowed: boolean
   /** Ile żądań jeszcze zostało w oknie. */
@@ -65,6 +91,10 @@ export interface Decision {
  * nie musi czekać na koniec całego okna, żeby wykonać kolejne żądanie.
  */
 export function consume(key: string, bucket: Bucket, now = Date.now()): Decision {
+  // Sprzątamy przy zapisie, nie w odliczaniu — jeden mechanizm mniej i żadnego
+  // budzenia procesu, gdy nikt nie puka.
+  if (entries.size > 64) sprzatnij(now)
+
   const entry = entries.get(key)
   const refillPerMs = bucket.capacity / bucket.windowMs
 
@@ -89,6 +119,11 @@ export function consume(key: string, bucket: Bucket, now = Date.now()): Decision
 /** Kasuje licznik — po udanym logowaniu nie ma po co karać za pomyłki. */
 export function reset(key: string): void {
   entries.delete(key)
+}
+
+/** Tylko do testów: ile kluczy trzyma licznik. */
+export function liczbaKluczy(): number {
+  return entries.size
 }
 
 /** Tylko do testów: czyste liczniki między przypadkami. */

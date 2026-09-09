@@ -42,8 +42,7 @@ export function LoginForm() {
       }
 
       // Wracamy tam, gdzie użytkownik chciał wejść przed przekierowaniem.
-      const next = params.get('dalej')
-      router.replace(next !== null && next.startsWith('/') ? next : '/')
+      router.replace(bezpieczneWejscie(params.get('dalej')))
       router.refresh()
     } catch {
       setProblem('Nie udało się połączyć ze stacją. Sprawdź sieć i spróbuj ponownie.')
@@ -85,4 +84,23 @@ export function LoginForm() {
       </Button>
     </form>
   )
+}
+
+/**
+ * Adres powrotu po zalogowaniu, przycięty do własnej aplikacji.
+ *
+ * Samo `startsWith('/')` nie wystarczało: `//zly-adres.pl` też zaczyna się od
+ * ukośnika, a przeglądarka czyta to jako adres bezwzględny z bieżącym
+ * protokołem. Przy panelu wystawionym publicznie dawało to otwarte
+ * przekierowanie — link „zaloguj się i wróć" prowadzący gdzie indziej.
+ *
+ * Odrzucamy też `/\`, bo część przeglądarek normalizuje odwrotny ukośnik
+ * na zwykły.
+ */
+export function bezpieczneWejscie(dalej: string | null): string {
+  if (dalej === null || dalej.length === 0) return '/'
+  if (!dalej.startsWith('/')) return '/'
+  if (dalej.startsWith('//') || dalej.startsWith('/\\')) return '/'
+
+  return dalej
 }

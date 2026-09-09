@@ -51,7 +51,7 @@ export function proxy(request: NextRequest): NextResponse {
   // żądanie kończyło się gołym „Internal Server Error" — bez kodu błędu, bez
   // komunikatu, bez wskazówki, co jest nie tak.
   try {
-    if (sesja !== null && getUser(sesja.userId) !== null) {
+    if (sesja !== null && getUser(sesja.userId, sesja.wydanaO) !== null) {
       return NextResponse.next()
     }
   } catch {

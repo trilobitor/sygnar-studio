@@ -891,3 +891,45 @@ Warto zapamiętać sam przebieg: dwie poprawki, każda z osobna słuszna
 i zmierzona, złożyły się na regresję gorszą niż stan wyjściowy. Wyszło to
 wyłącznie dlatego, że po zamknięciu kategorii zmierzyłem galerię jeszcze raz,
 zamiast uznać temat za zamknięty.
+
+---
+
+## D48 — Nagłówki ochronne i wyciszony `X-Powered-By`
+
+**Decyzja.** `next.config.ts` dokłada `nosniff`, `X-Frame-Options: DENY`,
+`Referrer-Policy`, `Permissions-Policy` i wąskie CSP; `poweredByHeader`
+wyłączone. Trasa plików dostaje `nosniff` osobno.
+
+**Powód.** Panel stoi w internecie za Funnelem, więc odpowiedzi trafiają też
+do skanerów, a `X-Powered-By: Next.js` mówi im, czego szukać. CSP może być
+wąskie, bo aplikacja nie ładuje niczego z zewnątrz.
+
+**Konsekwencja.** `'unsafe-inline'` dla stylów jest wymuszone przez Tailwind
+i Next. Sprawdzone w przeglądarce po wdrożeniu: lista zleceń, galeria
+i okno briefu działają, **zero naruszeń CSP w konsoli**.
+
+---
+
+## D49 — Sesje da się unieważnić, a ciasteczko żyje 12 godzin, nie tydzień
+
+**Decyzja.** `users.sessions_valid_from` odcina sesje wydane wcześniej;
+`npm run dostep -- wyloguj <imię>` ustawia ten znacznik. `SESSION_TTL_MS`
+schodzi z 7 dni na 12 godzin. Chwilę wydania wyliczamy z terminu ważności,
+więc format ciasteczka się nie zmienia.
+
+**Powód.** Panel wylogowuje po 30 minutach bezczynności, ale **w przeglądarce**
+— samo ciasteczko było ważne 336 razy dłużej. Kto je przechwycił, mógł go
+używać przez tydzień. Do tego jedynym sposobem na wyrzucenie kogoś z cudzego
+urządzenia było odebranie mu dostępu w całości.
+
+---
+
+## D50 — Otwarte przekierowanie po zalogowaniu
+
+**Decyzja.** `bezpieczneWejscie` odrzuca `//`, `/\` i wszystko, co nie zaczyna
+się od pojedynczego ukośnika.
+
+**Powód.** Warunek `startsWith('/')` przepuszczał `//zly-adres.pl` — to też
+zaczyna się od ukośnika, a przeglądarka czyta taki zapis jako adres
+bezwzględny z bieżącym protokołem. Przy panelu wystawionym publicznie dawało
+to link „zaloguj się i wróć" prowadzący gdzie indziej.
