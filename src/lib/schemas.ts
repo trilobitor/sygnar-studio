@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { JOB_KINDS, ORDER_INDUSTRIES, ORDER_STATUSES } from './enums'
 import { MAX_GENERATION_PIXELS, PURPOSE_KEYS } from './output-presets'
 
 /**
@@ -7,8 +8,8 @@ import { MAX_GENERATION_PIXELS, PURPOSE_KEYS } from './output-presets'
  * typy przez `z.infer`, nigdy ręcznie dublowane interfejsy.
  */
 
-export const orderIndustrySchema = z.enum(['legal', 'medical', 'estate', 'build', 'other'])
-export const orderStatusSchema = z.enum(['draft', 'active', 'done', 'archived'])
+export const orderIndustrySchema = z.enum(ORDER_INDUSTRIES)
+export const orderStatusSchema = z.enum(ORDER_STATUSES)
 
 export const createOrderSchema = z.object({
   name: z.string().min(2).max(120),
@@ -60,22 +61,29 @@ export type Brief = z.infer<typeof briefSchema>
  * Wymiary generowania. Ograniczenie powierzchni jest walidowane po stronie
  * serwera, nie tylko w interfejsie — zmierzone w E0 zużycie pamięci przy
  * 2,08 Mpx to 27,81 GB przy 32 GB w maszynie.
+ *
+ * Pola i reguła stoją osobno, bo `.refine` zwraca `ZodEffects`, którego nie
+ * da się rozszerzyć. Wcześniej ta sama reguła była wpisana dwa razy —
+ * przy zmianie limitu jedna kopia zostałaby ze starą wartością.
  */
-export const dimensionsSchema = z
-  .object({
-    width: z.number().int().min(256).max(2048).multipleOf(16),
-    height: z.number().int().min(256).max(2048).multipleOf(16),
-  })
-  .refine((value) => value.width * value.height <= MAX_GENERATION_PIXELS, {
-    message: 'Ten kadr jest za duży dla stacji. Wybierz mniejszy format.',
-    path: ['width'],
-  })
+const dimensionFields = {
+  width: z.number().int().min(256).max(2048).multipleOf(16),
+  height: z.number().int().min(256).max(2048).multipleOf(16),
+}
+
+function mieściSięWLimicie(value: { width: number; height: number }): boolean {
+  return value.width * value.height <= MAX_GENERATION_PIXELS
+}
+
+const LIMIT_POWIERZCHNI = {
+  message: 'Ten kadr jest za duży dla stacji. Wybierz mniejszy format.',
+  path: ['width'],
+}
 
 export const generateJobSchema = z.object({
   orderId: z.string().uuid(),
   promptEn: z.string().min(10).max(2000),
-  width: z.number().int().min(256).max(2048).multipleOf(16),
-  height: z.number().int().min(256).max(2048).multipleOf(16),
+  ...dimensionFields,
   /*
    * Numery losowania podane wprost albo — gdy ich nie ma — wylosowane przez
    * serwer na podstawie `variants`.
@@ -90,11 +98,7 @@ export const generateJobSchema = z.object({
   variants: z.number().int().min(1).max(8).default(4),
   /** Klucz presetu — decyduje o skalowaniu i nazwie pliku przy eksporcie. */
   purpose: z.enum(PURPOSE_KEYS),
-})
-  .refine((value) => value.width * value.height <= MAX_GENERATION_PIXELS, {
-    message: 'Ten kadr jest za duży dla stacji. Wybierz mniejszy format.',
-    path: ['width'],
-  })
+}).refine(mieściSięWLimicie, LIMIT_POWIERZCHNI)
 
 export type GenerateJobInput = z.infer<typeof generateJobSchema>
 
@@ -118,12 +122,7 @@ export const promptResultSchema = z.object({
 
 export type PromptResult = z.infer<typeof promptResultSchema>
 
-export const jobKindSchema = z.enum([
-  'image_generate',
-  'video_render',
-  'image_export',
-  'photo_batch',
-])
+export const jobKindSchema = z.enum(JOB_KINDS)
 
 export const exportJobSchema = z.object({
   orderId: z.string().uuid(),

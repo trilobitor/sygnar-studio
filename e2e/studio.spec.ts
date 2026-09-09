@@ -46,7 +46,10 @@ async function waitForJob(
 }
 
 test.describe('Sygnar Studio', () => {
-  test('1. nowe zlecenie → brief → generowanie → warianty w galerii', async ({ request }) => {
+  test('1. nowe zlecenie → brief → generowanie → warianty w galerii', async ({
+    page,
+    request,
+  }) => {
     const orderId = await createOrder(request, 'E2E — cztery warianty')
 
     const enqueued = await request.post('/api/jobs', {
@@ -73,6 +76,22 @@ test.describe('Sygnar Studio', () => {
     // Numer losowania jest przy każdym kadrze — bez niego nie da się
     // poprosić o poprawkę tego samego ujęcia.
     expect(generated.every((asset) => asset.seed !== null)).toBe(true)
+
+    /*
+     * Zakaz żargonu (SPEC §7a) sprawdzany dopiero tutaj, na ekranie
+     * z wypełnioną galerią. Wcześniej stał w scenariuszu 5, na stronie
+     * głównej bez wybranego zlecenia — czyli bez galerii, briefu i paska
+     * montażu, a więc bez wszystkich miejsc, w których te słowa mogłyby
+     * wyciec. Tamten test przechodził niezależnie od implementacji.
+     */
+    await page.goto(`/zlecenia/${orderId}`)
+    await expect(page.getByRole('img').first()).toBeVisible()
+
+    const widoczny = (await page.locator('body').innerText()).toLowerCase()
+
+    for (const zakazane of ['comfyui', 'mflux', 'guidance', 'workflow', 'vae', 'seed']) {
+      expect(widoczny, `żargon „${zakazane}" wyciekł do interfejsu`).not.toContain(zakazane)
+    }
   })
 
   test('2. wybór wariantu → eksport → plik poniżej limitu wagi', async ({ request }) => {
@@ -216,11 +235,8 @@ test.describe('Sygnar Studio', () => {
     const banner = page.getByRole('alert').filter({ hasText: 'Stacja' })
     await expect(banner).toContainText('Stacja jest offline. Napisz do Kamila')
 
-    // Żargon nie wychodzi do interfejsu ani razu.
-    const text = (await page.locator('body').innerText()).toLowerCase()
-    for (const forbidden of ['comfyui', 'mflux', 'guidance', 'workflow', 'vae', 'seed']) {
-      expect(text).not.toContain(forbidden)
-    }
+    // Formularz nowego zlecenia jest zablokowany, dopóki stacja nie wróci.
+    await expect(page.getByRole('button', { name: /nowe zlecenie/i })).toBeDisabled()
 
     // Strona żyje — nie zawiesiła się na nieudanym sprawdzeniu.
     await expect(page.getByRole('heading', { name: 'Zlecenia' })).toBeVisible()

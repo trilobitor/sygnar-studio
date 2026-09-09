@@ -323,6 +323,11 @@ export function StudioScreen({
                   <input
                     key={order.id}
                     type="text"
+                    /*
+                     * Focus idzie tu w odpowiedzi na świadomą akcję albo na stronie, która ma
+                     * dokładnie jedno pole. Niczego nie przesłania i nikomu nie odbiera kontekstu.
+                     */
+                    // eslint-disable-next-line jsx-a11y/no-autofocus
                     autoFocus
                     value={renameValue}
                     maxLength={120}

@@ -222,6 +222,12 @@ export function Preview({ asset }: { asset: Asset | null }) {
       </a>
 
       {isVideo ? (
+        /*
+         * Napisów tu nie będzie i nie da się ich mieć: to podgląd klipu, który grafik
+         * przed chwilą sam wgrał na swoją maszynę, a nie materiał publikowany. Pusty
+         * <track> byłby gorszy niż brak — obiecywałby czytnikowi treść, której nie ma.
+         */
+        // eslint-disable-next-line jsx-a11y/media-has-caption
         <video
           src={`/api/files/${asset.id}`}
           controls

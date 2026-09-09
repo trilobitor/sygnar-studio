@@ -64,7 +64,7 @@ konfigurację z sidecara — to jest wprost mechanika „powtórz kadr" z SPEC �
 
 ## D6 — upscale jako brakujący etap między generowaniem a eksportem
 
-**Data:** 2026-09-08 · **Status:** obowiązuje, wariant techniczny do pomiaru w E0
+**Data:** 2026-09-08 · **Status:** zamknięta 2026-09-09, wariant wybrany pomiarem
 
 **Decyzja.** Między generowaniem a eksportem wchodzi krok skalowania w górę.
 `SPEC.md` go nie opisuje w żadnym z etapów E0–E7.
@@ -79,6 +79,33 @@ Do rozstrzygnięcia pomiarem w E0: czy generować blisko limitu 2,08 Mpx
 i skalować minimalnie, czy generować ~1,1 Mpx i skalować 1,64× liniowo.
 Kandydaci na skalowanie: Lanczos w sharpie (bez nowej zależności) albo
 `mflux-upscale-seedvr2` (już w środowisku, ale to kolejne zadanie GPU).
+
+**Zamknięcie (2026-09-09).** Wybrany wariant pierwszy: **generujemy blisko
+limitu i skalujemy minimalnie**. `services-wide` powstaje w 1664 × 1248, czyli
+2 077 632 px — tuż pod granicą 2 100 000 px — i idzie do 2000 × 1500 przez
+Lanczosa w sharpie. SeedVR2 odrzucony: byłoby to drugie zadanie GPU obok
+generowania, a pomiar niżej pokazuje, jak mało zostaje pamięci.
+
+**Pomiar z E0 na tej maszynie:**
+
+| powierzchnia | szczyt pamięci | czas |
+|---|---|---|
+| 1,11 Mpx | 17,95 GB | ~30 s |
+| 2,08 Mpx | 27,81 GB | ~93 s |
+
+Przy 32 GB w maszynie drugi wariant zostawia niecałe 4 GB zapasu — stąd
+jedno zadanie generowania naraz (pula GPU o rozmiarze jeden, patrz D69).
+Liczby siedzą w komentarzach przy `MAX_GENERATION_PIXELS`
+(`src/lib/output-presets.ts:18`) i przy adapterze (`src/server/adapters/mflux.ts:143`).
+
+**Czego już nie ma.** Pliki dowodowe pomiaru — `up_A_1.11Mpx.png`
+i `up_B_2.08Mpx.png` — nie leżą już w katalogu roboczym; sprawdzone przy
+zamykaniu wpisu. Zostaje sam zapis liczb. Gdyby wynik trzeba było
+kwestionować, pomiar należy powtórzyć, a nie odtwarzać z plików.
+
+**Skalowanie w sharpie biegnie równolegle** zgodnie ze SPEC §9: eksporty
+mieszczą się w setkach megabajtów, nie w dziesiątkach gigabajtów, więc nie
+konkurują z generowaniem o pamięć i mają własną pulę zadań.
 
 ## D7 — `purpose` to klucz presetu wyjściowego, nie enum kształtów
 

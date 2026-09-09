@@ -445,7 +445,14 @@ export function BriefDialog({
             counter={`${promptEn.length}/2000`}
           >
             {(id) => (
-              <TextArea id={id} value={promptEn} onChange={setPromptEn} rows={8} maxLength={2000} />
+              <TextArea
+                id={id}
+                value={promptEn}
+                onChange={setPromptEn}
+                rows={8}
+                maxLength={2000}
+                lang="en"
+              />
             )}
           </Field>
 

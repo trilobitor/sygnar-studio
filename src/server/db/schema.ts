@@ -1,16 +1,29 @@
 import { index, integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 
+import {
+  ASSET_KINDS,
+  JOB_KINDS,
+  JOB_STATUSES,
+  ORDER_INDUSTRIES,
+  ORDER_STATUSES,
+} from '@/lib/enums'
+
 /**
  * Schemat bazy (SPEC §5). Tabele `snake_case` w liczbie mnogiej,
  * klucze obce `<tabela_pojedyncza>_id`, znaczniki czasu jako `INTEGER`
  * (milisekundy epoki), bo SQLite nie ma typu daty.
  */
 
-export const orderStatuses = ['draft', 'active', 'done', 'archived'] as const
-export const orderIndustries = ['legal', 'medical', 'estate', 'build', 'other'] as const
-export const jobKinds = ['image_generate', 'video_render', 'image_export', 'photo_batch'] as const
-export const jobStatuses = ['queued', 'running', 'done', 'failed', 'cancelled'] as const
-export const assetKinds = ['generated', 'uploaded', 'export', 'poster'] as const
+/*
+ * Listy wartości pochodzą ze schematów granicznych, a nie stoją tu drugi raz.
+ * Wcześniej te same cztery statusy i pięć branż były wypisane w dwóch plikach;
+ * dopisanie wartości w jednym z nich nie dawało żadnego sygnału o drugim.
+ */
+export const orderStatuses = ORDER_STATUSES
+export const orderIndustries = ORDER_INDUSTRIES
+export const jobKinds = JOB_KINDS
+export const jobStatuses = JOB_STATUSES
+export const assetKinds = ASSET_KINDS
 
 /** Zlecenie — byt spinający całą pracę. */
 export const orders = sqliteTable('orders', {

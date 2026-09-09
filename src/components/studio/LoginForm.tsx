@@ -64,6 +64,11 @@ export function LoginForm() {
           <input
             id={id}
             type="password"
+            /*
+             * Focus idzie tu w odpowiedzi na świadomą akcję albo na stronie, która ma
+             * dokładnie jedno pole. Niczego nie przesłania i nikomu nie odbiera kontekstu.
+             */
+            // eslint-disable-next-line jsx-a11y/no-autofocus
             autoFocus
             autoComplete="current-password"
             value={password}

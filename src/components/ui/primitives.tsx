@@ -164,6 +164,7 @@ export function TextArea({
   rows = 4,
   placeholder,
   maxLength,
+  lang,
 }: {
   id: string
   value: string
@@ -171,12 +172,19 @@ export function TextArea({
   rows?: number
   placeholder?: string
   maxLength?: number
+  /**
+   * Język treści pola, gdy różni się od języka dokumentu. Bez tego czytnik
+   * ekranu czyta angielski opis polską fonetyką — dokument jest oznaczony
+   * jako `pl`, a opis dla modelu jest po angielsku.
+   */
+  lang?: string
 }) {
   return (
     <textarea
       id={id}
       value={value}
       rows={rows}
+      lang={lang}
       maxLength={maxLength}
       placeholder={placeholder}
       onChange={(event) => onChange(event.target.value)}

@@ -2,7 +2,15 @@ import { describe, expect, it } from 'vitest'
 
 import { MAX_GENERATION_PIXELS, OUTPUT_PRESETS } from './output-presets'
 import {
+  jobKinds,
+  orderIndustries,
+  orderStatuses,
+} from '@/server/db/schema'
+import {
   briefSchema,
+  jobKindSchema,
+  orderIndustrySchema,
+  orderStatusSchema,
   generateJobSchema,
   exportJobSchema,
   photoBatchSchema,
@@ -259,5 +267,26 @@ describe('schematy pozostałych zadań', () => {
     expect(
       photoBatchSchema.safeParse({ orderId, assetIds: new Array(201).fill(plik) }).success,
     ).toBe(false)
+  })
+  describe('słowniki są jednym źródłem prawdy', () => {
+    it('rodzaj zadania odrzuca wartość spoza listy', () => {
+      expect(jobKindSchema.safeParse('image_generate').success).toBe(true)
+      expect(jobKindSchema.safeParse('image_upscale').success).toBe(false)
+      expect(jobKindSchema.safeParse(null).success).toBe(false)
+    })
+
+    it('status zlecenia zna dokładnie te wartości, które przyjmuje baza', () => {
+      expect([...orderStatusSchema.options]).toEqual([...orderStatuses])
+      expect(orderStatusSchema.safeParse('archived').success).toBe(true)
+      expect(orderStatusSchema.safeParse('paused').success).toBe(false)
+    })
+
+    it('branża zlecenia zna dokładnie te wartości, które przyjmuje baza', () => {
+      expect([...orderIndustrySchema.options]).toEqual([...orderIndustries])
+    })
+
+    it('rodzaje zadań w schemacie i w bazie się nie rozjeżdżają', () => {
+      expect([...jobKindSchema.options]).toEqual([...jobKinds])
+    })
   })
 })

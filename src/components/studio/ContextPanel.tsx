@@ -356,7 +356,14 @@ function PoprawKadr({
 
       <Field label="Opis sceny" hint="Zmień to, co ma wyjść inaczej. Reszta zostaje.">
         {(id) => (
-          <TextArea id={id} value={opis} onChange={ustawWartosc} rows={5} maxLength={2000} />
+          <TextArea
+            id={id}
+            value={opis}
+            onChange={ustawWartosc}
+            rows={5}
+            maxLength={2000}
+            lang="en"
+          />
         )}
       </Field>
 

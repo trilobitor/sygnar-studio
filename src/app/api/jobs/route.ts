@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server'
 
-import { exportJobSchema, generateJobSchema, photoBatchSchema, videoJobSchema } from '@/lib/schemas'
+import {
+  exportJobSchema,
+  generateJobSchema,
+  jobKindSchema,
+  photoBatchSchema,
+  videoJobSchema,
+} from '@/lib/schemas'
 import { handleError, fail, tooMany } from '@/server/api/respond'
 import { clientKey, consume, JOB_LIMIT } from '@/server/services/rate-limit'
 import { ensureStarted } from '@/server/bootstrap'
@@ -37,9 +43,14 @@ export async function POST(request: Request): Promise<NextResponse> {
       return fail('VALIDATION_FAILED', 400)
     }
 
-    const kind: unknown = Reflect.get(body, 'kind')
+    // Rodzaj zadania przechodzi przez schemat, a nie przez ręczne porównania
+    // z nieznanym typem: dzięki temu kompilator pilnuje, że switch obsługuje
+    // każdy rodzaj z listy, a nowy rodzaj nie przejdzie niezauważony.
+    const kind = jobKindSchema.safeParse(Reflect.get(body, 'kind'))
 
-    switch (kind) {
+    if (!kind.success) return fail('VALIDATION_FAILED', 400)
+
+    switch (kind.data) {
       case 'image_generate': {
         const job = enqueueGeneration(generateJobSchema.parse(body))
         return NextResponse.json({ jobId: job.id, position: positionInQueue(job) }, { status: 202 })
