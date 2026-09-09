@@ -7,7 +7,8 @@ import { NextResponse } from 'next/server'
 import { env } from '@/lib/env'
 import { logger } from '@/lib/logger'
 import { readDimensions } from '@/server/adapters/sharp'
-import { fail, handleError } from '@/server/api/respond'
+import { fail, handleError, tooMany } from '@/server/api/respond'
+import { clientKey, consume, UPLOAD_LIMIT } from '@/server/services/rate-limit'
 import { ensureStarted } from '@/server/bootstrap'
 import { registerAsset } from '@/server/services/assets'
 import { detectType, isVideo, MAX_UPLOAD_BYTES } from '@/server/services/file-type'
@@ -26,6 +27,9 @@ export const dynamic = 'force-dynamic'
 export async function POST(request: Request): Promise<NextResponse> {
   try {
     ensureStarted()
+
+    const decision = consume(clientKey(request, 'wgrywanie'), UPLOAD_LIMIT)
+    if (!decision.allowed) return tooMany(decision.retryAfterSeconds)
 
     const form = await request.formData()
     const orderId = form.get('orderId')

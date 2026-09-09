@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 
 import { exportJobSchema, generateJobSchema, photoBatchSchema, videoJobSchema } from '@/lib/schemas'
-import { handleError, fail } from '@/server/api/respond'
+import { handleError, fail, tooMany } from '@/server/api/respond'
+import { clientKey, consume, JOB_LIMIT } from '@/server/services/rate-limit'
 import { ensureStarted } from '@/server/bootstrap'
 import { listJobs, positionInQueue } from '@/server/queue/store'
 import { enqueueExport } from '@/server/services/export'
@@ -24,6 +25,11 @@ export async function GET(): Promise<NextResponse> {
 export async function POST(request: Request): Promise<NextResponse> {
   try {
     ensureStarted()
+
+    // Endpoint uruchamiający minuty pracy GPU jest celem do wyczerpania
+    // zasobów (SPEC §13), więc limit stoi przed walidacją, nie za nią.
+    const decision = consume(clientKey(request, 'zadania'), JOB_LIMIT)
+    if (!decision.allowed) return tooMany(decision.retryAfterSeconds)
 
     const body: unknown = await request.json()
 

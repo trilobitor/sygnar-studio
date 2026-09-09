@@ -40,9 +40,10 @@
     "**/*.mts"
   ],
   "exclude": [
+    "e2e",
     "node_modules",
-    "vitest.config.mts",
     "playwright.config.ts",
-    "e2e"
+    "scripts",
+    "vitest.config.mts"
   ]
 }

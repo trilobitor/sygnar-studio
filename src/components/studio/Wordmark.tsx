@@ -14,9 +14,12 @@
  * „Studio" idzie wrzosem — kolorem spoza palety marki, żeby narzędzie
  * wewnętrzne nie udawało szóstej branży.
  */
-export function Wordmark() {
+export function Wordmark({ size = 'default' }: { size?: 'default' | 'large' }) {
+  const scale = size === 'large' ? 'text-3xl' : 'text-lg'
+  const padding = size === 'large' ? '' : 'px-2 pt-1 pb-3'
+
   return (
-    <div className="flex items-baseline px-2 pt-1 pb-3 font-serif text-lg font-semibold">
+    <div className={`flex items-baseline font-serif font-semibold ${scale} ${padding}`}>
       <span className="tracking-[0.16em] text-ink">SYGNAR</span>
       {/* Kropka bez rozstrzelenia. W tracked spanie ciągnęłaby za sobą
           2,88 px odstępu, przez co „Studio" odjeżdżało od znaku. */}

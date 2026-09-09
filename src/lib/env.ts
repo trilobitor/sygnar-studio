@@ -53,6 +53,19 @@ const envSchema = z.object({
   PROMPT_BACKEND: z.enum(['auto', 'cli', 'api', 'builder']).default('auto'),
 
   /**
+   * Skrót hasła dostępu w formacie `scrypt$<N>$<sól>$<skrót>`.
+   * Hasła jawnym tekstem nie ma nigdzie — ani tu, ani w repozytorium.
+   * Wygenerujesz nowy komendą `npm run haslo`.
+   */
+  STUDIO_PASSWORD_HASH: z.string().default(''),
+
+  /**
+   * Sekret podpisujący ciasteczko sesji. Zmiana unieważnia wszystkie
+   * zalogowane sesje. Minimum 32 znaki — krótszy nie daje sensownego HMAC-a.
+   */
+  STUDIO_SESSION_SECRET: z.string().default(''),
+
+  /**
    * Zostaje na przyszłość. Backendem wersji 1 jest mflux (decyzja D5),
    * ComfyUI dołoży się jako druga implementacja tego samego kontraktu.
    */
@@ -83,6 +96,17 @@ function loadEnv(): Env {
 }
 
 export const env: Env = loadEnv()
+
+/**
+ * Czy panel wymaga logowania.
+ *
+ * Bez skrótu hasła albo bez sekretu sesji zabezpieczenie jest wyłączone —
+ * i tak ma być na `localhost`, gdzie sieć jest jedyną warstwą dostępu.
+ * **Przed wystawieniem panelu poza sieć prywatną obie wartości muszą być
+ * ustawione** (SPEC §13).
+ */
+export const requiresLogin =
+  env.STUDIO_PASSWORD_HASH.length > 0 && env.STUDIO_SESSION_SECRET.length >= 32
 
 /** Czy warstwa promptowa ma czym działać. Sprawdzane przez adapter `prompt`. */
 export const hasAnthropicKey = env.ANTHROPIC_API_KEY.length > 0

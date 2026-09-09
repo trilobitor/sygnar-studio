@@ -86,6 +86,12 @@ export const API_ERROR_CODES = [
   /** Ścieżka złożona z danych z bazy wyszła poza katalog danych. */
   'PATH_INVALID',
   'QUEUE_BUSY',
+  /** Brak ważnej sesji — trzeba się zalogować. */
+  'NOT_AUTHENTICATED',
+  /** Złe hasło. Jeden komunikat na wszystkie przypadki. */
+  'BAD_PASSWORD',
+  /** Wyczerpany limit żądań w oknie czasowym. */
+  'TOO_MANY_ATTEMPTS',
 ] as const
 
 export type ApiErrorCode = (typeof API_ERROR_CODES)[number]

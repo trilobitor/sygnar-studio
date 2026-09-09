@@ -15,6 +15,18 @@ export function fail(code: string, status: number): NextResponse {
   return NextResponse.json({ errorCode: code }, { status })
 }
 
+/**
+ * Odpowiedź przy wyczerpanym limicie. Nagłówek `Retry-After` mówi klientowi,
+ * kiedy ma sens spróbować ponownie — bez niego zaczyna dobijać się w pętli.
+ */
+export function tooMany(retryAfterSeconds: number): NextResponse {
+  logger.warn('przekroczono limit żądań', { retryAfter: retryAfterSeconds })
+  return NextResponse.json(
+    { errorCode: 'TOO_MANY_ATTEMPTS' },
+    { status: 429, headers: { 'Retry-After': String(retryAfterSeconds) } },
+  )
+}
+
 /** Zamienia dowolny wyjątek na odpowiedź z kodem. Nic nie połyka po cichu. */
 export function handleError(error: unknown, where: string): NextResponse {
   if (error instanceof ZodError) {
@@ -22,6 +34,13 @@ export function handleError(error: unknown, where: string): NextResponse {
       where,
       issues: error.issues.map((issue) => issue.path.join('.')).join(','),
     })
+    return fail('VALIDATION_FAILED', 400)
+  }
+
+  // Uszkodzone body to błąd klienta, nie awaria serwera. `request.json()`
+  // rzuca wtedy `SyntaxError`, który bez tego wpadał do gałęzi z kodem 500.
+  if (error instanceof SyntaxError) {
+    logger.warn('żądanie z niepoprawnym JSON-em', { where })
     return fail('VALIDATION_FAILED', 400)
   }
 

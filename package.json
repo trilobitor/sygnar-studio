@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "node src/server/db/migrate.mts"
+    "db:migrate": "node src/server/db/migrate.mts",
+    "haslo": "node scripts/haslo.mts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",

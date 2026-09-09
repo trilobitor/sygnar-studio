@@ -1,0 +1,64 @@
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
+
+/**
+ * Sesja podpisana skrótem HMAC (SPEC §13).
+ *
+ * Nie trzymamy sesji w bazie: ciasteczko niesie termin ważności i losowy
+ * identyfikator, a podpis pilnuje, żeby nikt nie podmienił terminu. Panel
+ * jest jednoosobowy, więc lista aktywnych sesji nie ma tu czego wnosić.
+ *
+ * Format: `<termin ms>.<losowe hex>.<podpis hex>`
+ */
+
+export const SESSION_COOKIE = 'sygnar_sesja'
+
+/** Ile trwa sesja. Tydzień — grafik nie ma logować się codziennie rano. */
+export const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000
+
+function sign(payload: string, secret: string): string {
+  return createHmac('sha256', secret).update(payload).digest('hex')
+}
+
+export function createSession(secret: string, now = Date.now()): string {
+  const payload = `${now + SESSION_TTL_MS}.${randomBytes(16).toString('hex')}`
+  return `${payload}.${sign(payload, secret)}`
+}
+
+/**
+ * Sprawdza podpis i termin ważności. Porównanie podpisów w czasie stałym —
+ * inaczej dałoby się go odgadywać bajt po bajcie.
+ */
+export function verifySession(token: string | undefined, secret: string, now = Date.now()): boolean {
+  if (token === undefined || token.length === 0) return false
+
+  const parts = token.split('.')
+  if (parts.length !== 3) return false
+
+  const [expiresAt, nonce, signature] = parts
+  if (expiresAt === undefined || nonce === undefined || signature === undefined) return false
+
+  const expected = sign(`${expiresAt}.${nonce}`, secret)
+
+  try {
+    const a = Buffer.from(signature, 'hex')
+    const b = Buffer.from(expected, 'hex')
+    if (a.length !== b.length || !timingSafeEqual(a, b)) return false
+  } catch {
+    // Podpis nie jest poprawnym hexem — traktujemy jak zły podpis.
+    return false
+  }
+
+  const deadline = Number(expiresAt)
+  return Number.isFinite(deadline) && deadline > now
+}
+
+/** Atrybuty ciasteczka. `secure` tylko po HTTPS — na localhost go nie ma. */
+export function cookieOptions(secure: boolean) {
+  return {
+    httpOnly: true,
+    sameSite: 'lax' as const,
+    secure,
+    path: '/',
+    maxAge: Math.floor(SESSION_TTL_MS / 1000),
+  }
+}

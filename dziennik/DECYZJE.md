@@ -230,3 +230,39 @@ na subskrypcji wywołanie liczy się do limitów planu.
 jest twardy (SPEC §6), więc wpisy wymagające reakcji grafika idą przed
 informacjami o wartościach domyślnych. Bez tego „przyjąłem fotografię"
 wypychało z listy ostrzeżenie o zniekształconym napisie — wykryte testem.
+
+## D15 — logowanie hasłem i limity żądań przed wystawieniem panelu
+
+**Data:** 2026-09-09 · **Status:** obowiązuje
+
+**Decyzja.** Panel dostaje bramkę logowania (`src/proxy.ts`) i limity żądań
+na endpointach, które uruchamiają pracę.
+
+**Powód.** `SPEC.md` §13 mówi wprost: w dniu wystawienia poza sieć Tailscale
+obowiązkowe stają się autoryzacja i rate limiting. Właściciel chce linku
+publicznego, więc ten dzień właśnie nadszedł.
+
+**Jak.** Bez nowych zależności — `node:crypto` wystarcza:
+- hasło jako skrót `scrypt` przy koszcie 2^17, porównanie w czasie stałym,
+- sesja w ciasteczku `httpOnly` podpisanym HMAC-SHA256, ważna tydzień,
+- limity jako kubełek żetonów w pamięci procesu: 12 zadań/min, 30 wgrań/min,
+  20 wywołań warstwy promptowej/min, 15 prób logowania na kwadrans.
+
+**Trzy rzeczy, które wyszły dopiero na maszynie:**
+
+1. **Skrót nie może zawierać `$`.** Next rozwija `$nazwa` w plikach `.env`
+   jak zmienną powłoki, więc skrót w formacie `scrypt$N$sól$hash` docierał
+   do aplikacji obcięty do słowa `scrypt`. Sprawdzone loaderem `@next/env`:
+   175 znaków w pliku, 6 w `process.env`. Separatorem jest dwukropek.
+
+2. **`proxy.ts` musi leżeć w `src/`, nie w korzeniu** — na tym samym poziomie
+   co `app`. W korzeniu Next go nie widzi i bramka po prostu nie działa.
+   W Next 16 `middleware.ts` jest przestarzałe i nazywa się `proxy.ts`.
+
+3. **Wzorzec musi wykluczać całe `_next`, nie tylko `_next/static`.**
+   Pod `_next/hmr` siedzi WebSocket hot-reloadu; bramka odpowiadała na jego
+   uścisk dłoni przekierowaniem.
+
+**Czego to nie załatwia.** Hasło przeszło przez czat, więc jest spalone dla
+czegokolwiek innego. Przed wystawieniem publicznym trzeba je zmienić —
+`npm run haslo` generuje nowy skrót.

@@ -31,6 +31,9 @@ export const ERROR_MESSAGES: Record<string, string> = {
   PATH_INVALID: 'Nie udało się otworzyć pliku — to po naszej stronie, nie po Twojej.',
   HEALTH_CHECK_FAILED: 'Nie udało się sprawdzić stanu stacji. Odśwież stronę za chwilę.',
   QUEUE_BUSY: 'Stacja liczy inne zadanie. Twoje ruszy, gdy tamto się skończy.',
+  NOT_AUTHENTICATED: 'Sesja wygasła. Zaloguj się jeszcze raz.',
+  BAD_PASSWORD: 'Hasło się nie zgadza.',
+  TOO_MANY_ATTEMPTS: 'Za dużo prób pod rząd. Odczekaj kwadrans i spróbuj ponownie.',
 }
 
 /** Zdanie dla grafika. Nieznany kod też nie pokazuje kodu. */
