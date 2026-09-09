@@ -569,7 +569,7 @@ export function StudioScreen({
             aria-expanded={!lewaZwinieta}
             aria-label={`${lewaZwinieta ? 'Rozwiń' : 'Zwiń'} listę zleceń`}
             title={`${lewaZwinieta ? 'Rozwiń' : 'Zwiń'} — klawisz [`}
-            className="self-end flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-line bg-surface-2 text-base text-ink-muted transition hover:border-field hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+            className="self-end flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-xl leading-none text-ink-muted transition hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
           >
             {lewaZwinieta ? '»' : '«'}
           </button>
@@ -898,7 +898,7 @@ export function StudioScreen({
             aria-expanded={!prawaZwinieta}
             aria-label={`${prawaZwinieta ? 'Rozwiń' : 'Zwiń'} panel eksportu`}
             title={`${prawaZwinieta ? 'Rozwiń' : 'Zwiń'} — klawisz ]`}
-            className="self-start flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-line bg-surface-2 text-base text-ink-muted transition hover:border-field hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+            className="self-start flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-xl leading-none text-ink-muted transition hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
           >
             {prawaZwinieta ? '«' : '»'}
           </button>
