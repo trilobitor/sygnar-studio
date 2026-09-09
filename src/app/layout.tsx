@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from 'next'
 import { Fraunces, Geist, Geist_Mono } from 'next/font/google'
 
+import { RejestrujSW } from '@/components/studio/RejestrujSW'
+
 import './globals.css'
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin', 'latin-ext'] })
@@ -33,7 +35,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     // z bloku `@theme` rozwiązuje się na `:root`, więc na `body` byłyby
     // dla niego niewidoczne i znak wychodziłby krojem zastępczym.
     <html lang="pl" className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable}`}>
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        <RejestrujSW />
+        {children}
+      </body>
     </html>
   )
 }

@@ -59,6 +59,8 @@ export const config = {
    * uścisk dłoni przekierowaniem, przez co strona w trybie deweloperskim
    * w ogóle się nie hydratowała — formularz logowania był martwy.
    * Ikony i manifest też przepuszczamy: nie ma czego chronić w pliku PNG.
+   * `sw.js` musi dać się pobrać z ekranu logowania — inaczej przeglądarka
+   * nigdy nie uzna panelu za instalowalny.
    */
-  matcher: ['/((?!_next/|ikona-|favicon.ico|manifest.webmanifest).*)'],
+  matcher: ['/((?!_next/|ikona-|favicon.ico|manifest.webmanifest|sw.js).*)'],
 }
