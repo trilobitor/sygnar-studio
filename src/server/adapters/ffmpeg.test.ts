@@ -82,3 +82,16 @@ describe('buildFilterChain', () => {
     expect(buildFilterChain([{ kind: 'trim', startMs: 0, endMs: 1000 }])).toBeNull()
   })
 })
+
+describe('nagłówek Range', () => {
+  it('sufit pętli jest ustawiony poniżej tego, co znosi pamięć', async () => {
+    // Filtr `reverse` trzyma cały odwracany materiał w RAM — zmierzone
+    // 1,99 GB dla 20 s w 1080p, czyli około 100 MB na sekundę. Przy limicie
+    // wgrania 100 MB da się przysłać klip na kilka minut.
+    const { MAX_PETLA_MS } = await import('@/server/services/video')
+
+    expect(MAX_PETLA_MS).toBeLessThanOrEqual(20_000)
+    // SPEC §679 mówi o pętli 10-sekundowej, więc sufit nie może być niższy.
+    expect(MAX_PETLA_MS).toBeGreaterThanOrEqual(10_000)
+  })
+})

@@ -637,3 +637,36 @@ się zorientować, gdzie jest.
 **Konsekwencja.** Zmierzone w przeglądarce: 40 naciśnięć Tab i 20 Shift+Tab —
 **ani razu** poza oknem, przy 15 różnych odwiedzonych elementach, czyli focus
 faktycznie krąży, a nie stoi w miejscu. Przewijanie tła wraca po zamknięciu.
+
+---
+
+## D35 — Sufit na długość zapętlanego odcinka
+
+**Decyzja.** Montaż z pętlą odrzuca odcinek dłuższy niż 15 s. Liczymy długość
+**po przycięciu**, bo to ona trafia do filtra — zapętlenie 8 s wyciętych
+z materiału dziesięciominutowego jest w porządku.
+
+**Powód.** Filtr `reverse` trzyma cały odwracany materiał w pamięci. Zmierzone
+na tej maszynie: **1,99 GB dla 20 s w 1080p**, czyli około 100 MB na sekundę.
+Nic tego nie ograniczało — przy limicie wgrania 100 MB da się przysłać klip na
+kilka minut, a jego zapętlenie sięgnęłoby dziesiątek gigabajtów przy 32 GB
+pamięci maszyny.
+
+**Konsekwencja.** Piętnaście sekund to zapas nad pętlą 10-sekundową, o której
+mówi SPEC §679.
+
+---
+
+## D36 — Endpoint plików obsługuje zakresy bajtów
+
+**Decyzja.** `/api/files/[assetId]` zawsze wysyła `Accept-Ranges: bytes`,
+a przy nagłówku `Range` oddaje 206 z `Content-Range`. Błędny zakres to 416,
+brak nagłówka to 200.
+
+**Powód.** Bez tego przeglądarka ściągała cały plik, zanim pokazała cokolwiek,
+i nie dawała przewijać podglądu wideo — pasek postępu był martwy.
+
+**Konsekwencja.** Zmierzone: `bytes=0-1023` → 206 i `content-range:
+bytes 0-1023/2846179`; `bytes=-500` → ostatnie 500 bajtów; `bytes=99999999-`
+→ 416. Fragment `bytes=1000-2023` porównany bajt po bajcie z wycinkiem pliku
+z dysku — sumy kontrolne identyczne.

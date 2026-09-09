@@ -66,15 +66,32 @@ export function Gallery({
             }`}
           >
             <div className="checkerboard aspect-4/3">
-              {/* Zwykły `img`, bo pliki serwuje nasz własny endpoint po ID
-                  i nie chcemy ich przepuszczać przez optymalizator. */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={`/api/files/${asset.id}`}
-                alt={`Wygenerowany kadr, numer losowania ${asset.seed ?? 'nieznany'}`}
-                loading="lazy"
-                className="h-full w-full object-cover"
-              />
+              {asset.mime.startsWith('video/') ? (
+                // Film wstawiony w `<img>` daje pustą ramkę — przeglądarka nie
+                // ma z czego zbudować obrazka. Pokazujemy pierwszą klatkę
+                // przez `<video>` z `preload="metadata"`, czyli bez ściągania
+                // całego pliku do siatki.
+                <video
+                  src={`/api/files/${asset.id}`}
+                  preload="metadata"
+                  muted
+                  playsInline
+                  aria-label="Wgrany klip wideo"
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <>
+                  {/* Zwykły `img`, bo pliki serwuje nasz własny endpoint po ID
+                      i nie chcemy ich przepuszczać przez optymalizator. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`/api/files/${asset.id}`}
+                    alt={`Wygenerowany kadr, numer losowania ${asset.seed ?? 'nieznany'}`}
+                    loading="lazy"
+                    className="h-full w-full object-cover"
+                  />
+                </>
+              )}
             </div>
             <div className="px-2 py-1.5 text-xs text-ink-muted">
               {asset.seed === null ? (

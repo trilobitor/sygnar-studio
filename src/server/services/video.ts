@@ -3,7 +3,12 @@ import { join } from 'node:path'
 
 import { env } from '@/lib/env'
 import { videoJobSchema, type VideoJobInput } from '@/lib/schemas'
-import { extractPoster, probeDurationMs, render } from '@/server/adapters/ffmpeg'
+import {
+  extractPoster,
+  probeDurationMs,
+  render,
+  type VideoOperation,
+} from '@/server/adapters/ffmpeg'
 import { JobError, type JobContext } from '@/server/adapters/types'
 import type { Job } from '@/server/db/schema'
 import { enqueue } from '@/server/queue/store'
@@ -56,6 +61,8 @@ async function runVideo(job: Job, ctx: JobContext): Promise<void> {
 
   try {
     ctx.onProgress({ percent: 0, phase: 'Czytam klip' })
+
+    await pilnujDlugosciPetli(sourcePath, params.operations)
 
     const targetBytes = params.targetMb * 1024 * 1024
 
@@ -134,6 +141,56 @@ async function runVideo(job: Job, ctx: JobContext): Promise<void> {
       count: partial.length,
     })
     throw error
+  }
+}
+
+/**
+ * Maksymalny odcinek, jaki wolno zapętlić.
+ *
+ * Filtr `reverse` trzyma **cały** odwracany materiał w pamięci — zmierzone
+ * na tej maszynie: 1,99 GB dla 20 s w 1080p, czyli około 100 MB na sekundę.
+ * Nic tego wcześniej nie ograniczało: przy limicie wgrania 100 MB da się
+ * przysłać klip na kilka minut, a jego zapętlenie sięgnęłoby dziesiątek
+ * gigabajtów i położyło maszynę.
+ *
+ * Piętnaście sekund to zapas nad pętlą 10-sekundową, o której mówi SPEC §679.
+ */
+export const MAX_PETLA_MS = 15_000
+
+/**
+ * Odrzuca montaż, którego pętla nie zmieści się w pamięci.
+ *
+ * Liczymy odcinek **po przycięciu**, bo to on trafia do `reverse` — grafik
+ * może zapętlić 8 sekund wyciętych z dziesięciominutowego materiału i to jest
+ * w porządku.
+ */
+async function pilnujDlugosciPetli(
+  sourcePath: string,
+  operations: readonly VideoOperation[],
+): Promise<void> {
+  const petla = operations.some((o) => o.kind === 'loop' && o.pingPong)
+  if (!petla) return
+
+  const trim = operations.find((o) => o.kind === 'trim')
+
+  if (trim !== undefined && trim.kind === 'trim') {
+    if (trim.endMs - trim.startMs > MAX_PETLA_MS) {
+      throw new JobError(
+        'FFMPEG_FAILED',
+        `pętla dłuższa niż ${MAX_PETLA_MS / 1000} s nie zmieści się w pamięci`,
+      )
+    }
+    return
+  }
+
+  // Bez przycięcia zapętlamy całość, więc decyduje długość materiału.
+  const dlugosc = await probeDurationMs(sourcePath)
+
+  if (dlugosc !== null && dlugosc > MAX_PETLA_MS) {
+    throw new JobError(
+      'FFMPEG_FAILED',
+      `klip ma ${Math.round(dlugosc / 1000)} s, a pętla bez przycięcia mieści ${MAX_PETLA_MS / 1000} s`,
+    )
   }
 }
 

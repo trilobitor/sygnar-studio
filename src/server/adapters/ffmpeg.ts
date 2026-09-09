@@ -112,11 +112,32 @@ export async function checkFfmpeg(): Promise<HealthStatus> {
     return { ok: false, reason: 'missing_binary' }
   }
 
+  // Montaż woła ffprobe równie często jak ffmpeg — bez niego nie ma ani
+  // długości klipu, ani postępu, ani wymiarów przy wgrywaniu. Sprawdzenie
+  // samego ffmpeg meldowało „Montaż wideo: ok" przy nieobecnym ffprobe.
+  if (!(await isExecutable(ffprobePath()))) {
+    return { ok: false, reason: 'missing_binary' }
+  }
+
   try {
     const result = await runBinary(env.FFMPEG_PATH, ['-version'], { timeoutMs: 5_000 })
     if (result.code !== 0) {
       return { ok: false, reason: 'misconfigured' }
     }
+
+    // `-version` mówi wyłącznie, że binarka się uruchamia. Montaż potrzebuje
+    // konkretnych enkoderów, a ffmpeg z Homebrew bywa budowany bez nich —
+    // wtedy zadanie padało dopiero po minutach pracy, z pustym plikiem.
+    const dostepne = await dostepneEnkodery()
+
+    if (!dostepne.has('libx264')) {
+      return { ok: false, reason: 'misconfigured' }
+    }
+
+    if (![...KODEKI_DRUGIEGO_PLIKU].some((k) => dostepne.has(k.nazwa))) {
+      return { ok: false, reason: 'misconfigured' }
+    }
+
     const version = parseVersion(result.stdout)
     return version === undefined ? { ok: true } : { ok: true, version }
   } catch {
