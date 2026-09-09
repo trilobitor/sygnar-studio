@@ -171,9 +171,13 @@ export function BriefDialog({
           purpose,
           width: preset.generate.width,
           height: preset.generate.height,
-          seeds: Array.from({ length: variants }, () =>
-            Math.floor(Math.random() * 2_147_483_647),
-          ),
+          /*
+           * Ile wariantów, a nie które numery. Losowanie robi serwer —
+           * dwie kopie tej reguły w przeglądarce rozjeżdżały się przy
+           * pierwszej zmianie, a numer jest jedyną drogą do odtworzenia
+           * kadru i nie może zależeć od tego, który przycisk kliknięto.
+           */
+          variants,
         }),
       })
 

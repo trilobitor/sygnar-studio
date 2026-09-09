@@ -333,15 +333,25 @@ function PoprawKadr({
   const purpose = metadane.purpose ?? 'square'
   const preset = OUTPUT_PRESETS[purpose as keyof typeof OUTPUT_PRESETS] ?? OUTPUT_PRESETS.square
 
-  function zadanie(seeds: number[]): Record<string, unknown> {
+  /**
+   * Zadanie generowania z parametrami tego kadru.
+   *
+   * `ile` bez `seeds` znaczy „wylosuj tyle numerów na serwerze". Losowania nie
+   * robimy w przeglądarce: numer jest jedyną rzeczą pozwalającą odtworzyć kadr
+   * i nie może zależeć od tego, który przycisk kliknięto.
+   */
+  function zadanie(
+    tekst: string,
+    wybor: { seeds: number[] } | { ile: number },
+  ): Record<string, unknown> {
     return {
       kind: 'image_generate',
       orderId,
-      promptEn: opis,
+      promptEn: tekst,
       purpose,
       width: preset.generate.width,
       height: preset.generate.height,
-      seeds,
+      ...('seeds' in wybor ? { seeds: wybor.seeds } : { variants: wybor.ile }),
     }
   }
 
@@ -370,21 +380,33 @@ function PoprawKadr({
       <Button
         variant="primary"
         disabled={disabled || zajety || opis.trim().length < 10 || asset.seed === null}
-        onClick={() => void wyslij(zadanie([asset.seed ?? 0]))}
+        onClick={() => void wyslij(zadanie(opis, { seeds: [asset.seed ?? 0] }))}
       >
         Ten sam numer, poprawiony opis
       </Button>
 
       <Button
         disabled={disabled || zajety || opis.trim().length < 10}
-        onClick={() =>
-          void wyslij(
-            zadanie(Array.from({ length: 4 }, () => Math.floor(Math.random() * 2_147_483_647))),
-          )
-        }
+        onClick={() => void wyslij(zadanie(opis, { ile: 4 }))}
       >
         Ten sam opis, nowe numery
       </Button>
+
+      {/*
+        Powtórzenie bez żadnej zmiany: ten sam numer i opis zapisany przy kadrze,
+        nie ten z pola wyżej. Służy do sprawdzenia, czy stacja daje ten sam wynik
+        — na przykład po aktualizacji generatora.
+      */}
+      {metadane.promptEn !== undefined && asset.seed !== null && (
+        <Button
+          disabled={disabled || zajety}
+          onClick={() =>
+            void wyslij(zadanie(metadane.promptEn ?? '', { seeds: [asset.seed ?? 0] }))
+          }
+        >
+          Powtórz dokładnie ten kadr
+        </Button>
+      )}
     </section>
   )
 }
