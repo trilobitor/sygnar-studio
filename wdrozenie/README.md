@@ -60,6 +60,24 @@ Serwer nasłuchuje wyłącznie na `127.0.0.1` (decyzja D20), więc `serve` jest
 jedynym wejściem z zewnątrz. Adres sieci lokalnej i sam adres IP tailnetu
 z portem 3000 odmawiają połączenia — to zamierzone.
 
+## 3b. Wystawienie publiczne (Funnel)
+
+`tailscale serve` udostępnia panel wyłącznie urządzeniom w tailnecie. Żeby
+wpuścić kogoś bez Tailscale'a, trzeba Funnela — to jest **otwarty internet**,
+adres pod tą samą nazwą.
+
+Raz na tailnet trzeba go włączyć linkiem, który poda samo polecenie:
+
+```
+tailscale funnel --bg 3000
+tailscale funnel status
+tailscale funnel --https=443 off     # wycofanie
+```
+
+Zanim to zrobisz, pamiętaj: nazwa hosta jest w publicznych logach
+przejrzystości certyfikatów, więc adresu nie da się utrzymać w tajemnicy.
+Jedyną ochroną zostaje hasło — patrz §3a.
+
 ## 3a. Kto ma dostęp
 
 ```

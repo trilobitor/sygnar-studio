@@ -102,10 +102,28 @@ export function resetAll(): void {
  * `X-Forwarded-For` i `X-Real-IP` ustawia **klient**, więc same z siebie nie są
  * żadnym identyfikatorem — zmierzone: dwadzieścia prób logowania z rotowanym
  * nagłówkiem przechodziło w komplecie, bo każda dostawała świeży kubełek.
- * Ufamy im wyłącznie wtedy, gdy adres gniazda jest na liście zaufanych
- * pośredników; w przeciwnym razie liczy się adres gniazda.
+ *
+ * Wyjątkiem jest ruch z `tailscale funnel`. Tailscale **nadpisuje** ten nagłówek
+ * prawdziwym adresem klienta i sam oznacza żądanie `Tailscale-Funnel-Request:
+ * ?1` — sprawdzone próbą podszycia się: nagłówek podany przez klienta nie
+ * przeszedł, do aplikacji dotarł adres rzeczywisty.
+ *
+ * Bez tego wyjątku limit per adres degenerował się do globalnego, bo przez
+ * proxy wszystko przychodzi z pętli zwrotnej i każdy dostawał ten sam kubełek.
+ * Zmierzone przed poprawką: żądania z zewnątrz miały ten sam skrót adresu co
+ * wywołania z localhosta. Skutkiem było to, że jedna osoba zgadująca hasło
+ * zamykała logowanie wszystkim pozostałym.
  */
 export function clientKey(request: Request, prefix: string, socketAddress?: string): string {
+  // `?1` to wartość nagłówka strukturalnego. Tailscale ustawia ją sam,
+  // nadpisując cokolwiek przysłał klient.
+  if (request.headers.get('tailscale-funnel-request') === '?1') {
+    const odFunnela = request.headers.get('x-forwarded-for')?.trim()
+    if (odFunnela !== undefined && odFunnela.length > 0) {
+      return `${prefix}:${odFunnela}`
+    }
+  }
+
   const zaufane = env.TRUSTED_PROXY_IPS.split(',')
     .map((s) => s.trim())
     .filter((s) => s.length > 0)

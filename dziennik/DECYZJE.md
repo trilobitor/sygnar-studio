@@ -405,3 +405,26 @@ Limity logowania zacieśnione: **8 prób na pół godziny** z adresu (było 15 n
 kwadrans) i **30 na godzinę** globalnie (było 60). Powód: nazwa hosta jest
 w publicznych logach przejrzystości certyfikatów, więc po wystawieniu trafiają
 tu też skanery.
+
+---
+
+## D23 — Za Funnelem adres klienta bierzemy z nagłówka Tailscale'a
+
+**Decyzja.** `clientKey` rozpoznaje ruch z `tailscale funnel` po nagłówku
+`Tailscale-Funnel-Request: ?1` i wtedy liczy limit po adresie z
+`X-Forwarded-For`. Poza tym przypadkiem obowiązuje dotychczasowa zasada:
+nagłówkowi nie ufamy, chyba że gniazdo jest na liście `TRUSTED_PROXY_IPS`.
+
+**Powód.** Po wystawieniu panelu Funnelem wszystkie żądania z internetu
+przychodzą z pętli zwrotnej, więc **limit per adres zdegenerował się do
+globalnego**. Zmierzone: dwanaście prób z zewnątrz i wywołania z localhosta
+miały ten sam skrót adresu w logu wejść. Skutkiem było to, że jedna osoba
+zgadująca hasło zamykała logowanie wszystkim pozostałym — czyli Oliwii
+i właścicielowi panelu.
+
+**Konsekwencja.** Zaufanie nagłówkowi jest bezpieczne, bo Tailscale go
+**nadpisuje**: przy próbie podszycia się (`X-Forwarded-For: 9.9.9.9` plus
+podrobiony znacznik) do aplikacji dotarł adres rzeczywisty, a znacznik wartość
+`?1`. Sprawdzone na żywym Funnelu. Po poprawce: dwanaście prób z zewnątrz daje
+8 × 401 i 4 × 429, a logowanie z localhosta w tym samym czasie przechodzi
+z kodem 200 — kubełki są rozdzielone.

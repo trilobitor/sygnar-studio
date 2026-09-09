@@ -225,3 +225,57 @@ describe('polaczenieSzyfrowane', () => {
     expect(polaczenieSzyfrowane(request)).toBe(false)
   })
 })
+
+describe('klucz licznika za tailscale funnel', () => {
+  function zadanie(naglowki: Record<string, string>): Request {
+    return new Request('http://127.0.0.1:3000/api/auth', { headers: naglowki })
+  }
+
+  it('rozdziela klientów po adresie podanym przez Funnela', () => {
+    // Bez tego wszyscy z internetu dzielili jeden kubełek, bo przez proxy
+    // każde żądanie przychodzi z pętli zwrotnej. Jedna osoba zgadująca hasło
+    // zamykała wtedy logowanie wszystkim pozostałym.
+    const a = clientKey(
+      zadanie({ 'tailscale-funnel-request': '?1', 'x-forwarded-for': '46.45.67.64' }),
+      'logowanie',
+    )
+    const b = clientKey(
+      zadanie({ 'tailscale-funnel-request': '?1', 'x-forwarded-for': '8.8.8.8' }),
+      'logowanie',
+    )
+
+    expect(a).not.toBe(b)
+    expect(a).toContain('46.45.67.64')
+  })
+
+  it('ten sam adres z Funnela daje ten sam kubełek', () => {
+    const naglowki = { 'tailscale-funnel-request': '?1', 'x-forwarded-for': '46.45.67.64' }
+
+    expect(clientKey(zadanie(naglowki), 'logowanie')).toBe(
+      clientKey(zadanie(naglowki), 'logowanie'),
+    )
+  })
+
+  it('bez znacznika Funnela nagłówkowi nie ufamy', () => {
+    // Ruch spoza Funnela może ten nagłówek podać dowolnie, więc gdyby liczył
+    // się zawsze, wystarczyłoby go rotować, żeby ominąć limit.
+    const a = clientKey(zadanie({ 'x-forwarded-for': '1.1.1.1' }), 'logowanie')
+    const b = clientKey(zadanie({ 'x-forwarded-for': '2.2.2.2' }), 'logowanie')
+
+    expect(a).toBe(b)
+  })
+
+  it('znacznik o innej wartości nie wystarcza', () => {
+    // Tailscale ustawia dokładnie `?1`, nadpisując cokolwiek przysłał klient.
+    const a = clientKey(
+      zadanie({ 'tailscale-funnel-request': 'tak', 'x-forwarded-for': '1.1.1.1' }),
+      'logowanie',
+    )
+    const b = clientKey(
+      zadanie({ 'tailscale-funnel-request': 'tak', 'x-forwarded-for': '2.2.2.2' }),
+      'logowanie',
+    )
+
+    expect(a).toBe(b)
+  })
+})
