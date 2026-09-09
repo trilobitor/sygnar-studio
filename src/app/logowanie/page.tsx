@@ -1,6 +1,7 @@
 import { Suspense } from 'react'
 
 import { LoginForm } from '@/components/studio/LoginForm'
+import { MetaballBackground } from '@/components/ui/MetaballBackground'
 import { Wordmark } from '@/components/studio/Wordmark'
 
 /**
@@ -12,7 +13,9 @@ import { Wordmark } from '@/components/studio/Wordmark'
 export default function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-surface-0 p-6">
-      <div className="w-full max-w-sm">
+      <MetaballBackground />
+
+      <div className="relative z-10 w-full max-w-sm">
         <h1 className="sr-only">Sygnar Studio — logowanie</h1>
 
         <div className="mb-8 flex justify-center">
@@ -27,7 +30,7 @@ export default function LoginPage() {
         </Suspense>
 
         <p className="mt-6 text-center text-xs text-ink-muted">
-          Panel do grafiki i wideo. Dostęp tylko dla zespołu Sygnara.
+          Panel do grafiki i wideo. Dostęp tylko dla zespołu hAit.
         </p>
       </div>
     </main>
