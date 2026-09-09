@@ -1267,3 +1267,31 @@ się statusem `done` — bo przyczyna została w międzyczasie naprawiona (D45).
   za rzeczami, które coś naprawiają.
 - **#98 — interfejs obróbki wsadowej.** Nie ma go, bo nie ma darktable.
   Uzupełnienie do D13: brakuje **także** wejścia w panelu, nie tylko narzędzia.
+
+---
+
+## D67 — Ostrzeżenia z briefu obowiązują na każdej drodze
+
+**Decyzja.** `ostrzezeniaZBriefu` liczy uwagi z samej makiety i dokleja je do
+wyniku niezależnie od tego, czy opis przygotował model, czy składacz.
+
+**Powód.** Ostrzeżenie o zbyt długim napisie żyło **wyłącznie w składaczu
+awaryjnym**, czyli w gałęzi uruchamianej dopiero po awarii pozostałych.
+Domyślna droga przez model nie ostrzegała o niczym: brief z 47-znakowym
+tekstem („Na drzwiach napis »Klinika Medicus poń-pt 9:00-18:00«") przeszedł bez
+słowa, a litery wyszły zniekształcone — „KINIKA MEDICUSS".
+
+To dokładnie ten sam wzorzec, który raz już naprawialiśmy przy regułach §4.6
+(D42): reguła zapisana w jednej gałęzi nie obowiązuje w pozostałych. Warto
+zapamiętać, że w tym projekcie **wystąpił dwa razy**.
+
+**Doszło drugie ostrzeżenie** — o scenach z więcej niż jedną osobą. Model tej
+wielkości potrafi skleić dwie postacie w jedną: zgłoszony przypadek to
+dentystka i pacjentka jako jedna osoba leżąca w fotelu i jednocześnie
+trzymająca lusterko. To ta sama klasa błędu co dodatkowa kończyna (D32),
+tylko na poziomie sceny.
+
+**Uwaga do treści pola.** Grafik wpisał w „tekst na obrazie" całe zdanie
+polecenia, nie sam napis. Podpowiedź przy polu mówi „Napis, który ma się
+pojawić w kadrze", ale najwyraźniej nie dość dobitnie — ostrzeżenie mówi teraz
+wprost, żeby wpisać sam tekst, bez zdania opisującego.

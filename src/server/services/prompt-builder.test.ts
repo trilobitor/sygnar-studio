@@ -260,3 +260,40 @@ describe('rozpoznawanie opisu wymagającego tłumaczenia', () => {
     expect(looksPolish('oak desk')).toBe(false)
   })
 })
+
+describe('ostrzeżenia z briefu, niezależne od drogi', () => {
+  it('długi napis w kadrze', async () => {
+    // Ostrzeżenie żyło wyłącznie w składaczu awaryjnym, więc domyślna droga
+    // przez model nie mówiła nic — brief z 47-znakowym napisem przechodził
+    // bez słowa, a litery wyszły zniekształcone.
+    const { ostrzezeniaZBriefu } = await import('./prompt')
+    const uwagi = ostrzezeniaZBriefu(
+      brief({ textOnImage: 'Na drzwiach napis "Klinika Medicus pon-pt 9:00-18:00"' }),
+    )
+
+    expect(uwagi.join(' ')).toMatch(/znaków/)
+  })
+
+  it('krótki napis nie budzi ostrzeżenia', async () => {
+    const { ostrzezeniaZBriefu } = await import('./prompt')
+
+    expect(ostrzezeniaZBriefu(brief({ textOnImage: 'OTWARTE' }))).toHaveLength(0)
+  })
+
+  it('scena z dwiema osobami', async () => {
+    // Model potrafi skleić dwie postacie w jedną — zgłoszony przypadek:
+    // dentystka i pacjentka wyszły jako jedna osoba.
+    const { ostrzezeniaZBriefu } = await import('./prompt')
+    const uwagi = ostrzezeniaZBriefu(
+      brief({ subject: 'Dentystka naprawia zęby klientowi w nowoczesnej klinice' }),
+    )
+
+    expect(uwagi.join(' ')).toMatch(/więcej niż jedna osoba/)
+  })
+
+  it('scena bez ludzi nie budzi ostrzeżenia', async () => {
+    const { ostrzezeniaZBriefu } = await import('./prompt')
+
+    expect(ostrzezeniaZBriefu(brief({ subject: 'Puste wnętrze kancelarii, dębowe biurko' }))).toHaveLength(0)
+  })
+})

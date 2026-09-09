@@ -117,7 +117,9 @@ async function viaCli(brief: Brief, order: Order, logger: Logger): Promise<Promp
   return {
     // Reguły z briefu realizacyjnego dokleja kod, nie model — decyzja D14.
     promptEn: applySceneRules(parsed.data.prompt_en, order, brief),
-    assumptions: parsed.data.assumptions,
+    // Ostrzeżenia z briefu dokleja kod, niezależnie od drogi — patrz
+    // `ostrzezeniaZBriefu`. Limit trzech pozycji jak dotąd.
+    assumptions: [...ostrzezeniaZBriefu(brief), ...parsed.data.assumptions].slice(0, 3),
     source: 'cli',
     needsTranslation: false,
   }
@@ -139,7 +141,9 @@ async function viaApi(brief: Brief, order: Order, logger: Logger): Promise<Promp
 
   return {
     promptEn: applySceneRules(result.prompt_en, order, brief),
-    assumptions: result.assumptions,
+    // Ostrzeżenia z briefu dokleja kod, niezależnie od drogi — patrz
+    // `ostrzezeniaZBriefu`. Limit trzech pozycji jak dotąd.
+    assumptions: [...ostrzezeniaZBriefu(brief), ...result.assumptions].slice(0, 3),
     source: 'api',
     needsTranslation: false,
   }
@@ -149,7 +153,9 @@ function viaBuilder(brief: Brief, order: Order | null): PromptOutcome {
   const built = buildPrompt(brief, order)
   return {
     promptEn: built.promptEn,
-    assumptions: built.assumptions,
+    // Ostrzeżenia z briefu dokleja kod, niezależnie od drogi — patrz
+    // `ostrzezeniaZBriefu`. Limit trzech pozycji jak dotąd.
+    assumptions: [...ostrzezeniaZBriefu(brief), ...built.assumptions].slice(0, 3),
     source: 'builder',
     // Punkt pierwszy idzie bez tłumaczenia, więc grafik musi go obejrzeć.
     needsTranslation: looksPolish(brief.subject),
@@ -163,6 +169,51 @@ function viaBuilder(brief: Brief, order: Order | null): PromptOutcome {
  * który nie ma czego zepsuć. Awaria warstwy promptowej nie może zatrzymać
  * generowania (SPEC §6).
  */
+/**
+ * Ostrzeżenia zależące od samego briefu, niezależne od tego, kto przygotował
+ * opis.
+ *
+ * Wcześniej siedziały wyłącznie w składaczu awaryjnym (`prompt-builder.ts`),
+ * czyli w gałęzi uruchamianej **dopiero po awarii** pozostałych. Domyślna
+ * droga przez model nie ostrzegała o niczym — brief z 47-znakowym napisem
+ * przechodził bez słowa, a litery wyszły zniekształcone.
+ *
+ * To ten sam wzorzec, który raz już naprawialiśmy przy regułach §4.6 (D42):
+ * reguła zapisana w jednej gałęzi nie obowiązuje w pozostałych.
+ */
+export function ostrzezeniaZBriefu(brief: Brief): string[] {
+  const uwagi: string[] = []
+
+  const napis = brief.textOnImage?.trim() ?? ''
+  if (napis.length > 14) {
+    uwagi.push(
+      `Napis ma ${napis.length} znaków — przy takiej długości litery często wychodzą zniekształcone. Wpisz sam tekst do wyświetlenia, bez zdania opisującego, i rozważ skrócenie.`,
+    )
+  }
+
+  /*
+   * Sceny z dwiema osobami.
+   *
+   * Model tej wielkości potrafi skleić dwie postacie w jedną — zgłoszony
+   * przypadek: dentystka i pacjentka wyszły jako jedna osoba leżąca w fotelu
+   * i jednocześnie trzymająca lusterko. To ta sama klasa błędu co dodatkowa
+   * kończyna, tylko na poziomie sceny.
+   */
+  const temat = brief.subject.toLowerCase()
+  const dwieOsoby = [
+    'klient', 'pacjent', 'para ', 'zespół', 'zespol', 'ekipa', 'grupa',
+    'rozmow', 'spotkani', 'razem', 'dwie osoby', 'dwóch', 'dwoch',
+  ]
+
+  if (dwieOsoby.some((s) => temat.includes(s))) {
+    uwagi.push(
+      'W scenie jest więcej niż jedna osoba — model bywa skleja je w jedną postać. Policz więcej podejść i przejrzyj je uważnie.',
+    )
+  }
+
+  return uwagi
+}
+
 export async function briefToPrompt(
   brief: Brief,
   order: Order | null,
