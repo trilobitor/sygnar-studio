@@ -1,4 +1,4 @@
-import { mkdtemp, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -160,10 +160,46 @@ describe('eksport do limitu wagi', () => {
 
 describe('odczyt wymiarów', () => {
   it('czyta wymiary obrazu', async () => {
-    expect(await readDimensions(sourcePath)).toEqual({ width: 1200, height: 900 })
+    expect(await readDimensions(sourcePath)).toEqual({
+      width: 1200,
+      height: 900,
+      // Obraz testowy jest nieprzezroczysty — a to właśnie ta wartość decyduje
+      // o szachownicy pod podglądem.
+      hasAlpha: false,
+    })
   })
 
   it('zwraca null dla pliku, który nie jest obrazem', async () => {
     expect(await readDimensions('/nieistniejacy/plik.png')).toBeNull()
+  })
+})
+
+describe('rozpoznawanie kanału alfa', () => {
+  it('obraz z przezroczystością jest rozpoznany', async () => {
+    const przezroczysty = join(tmpdir(), `alfa-${String(Date.now())}.png`)
+
+    await sharpLib({
+      create: { width: 64, height: 64, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
+    })
+      .png()
+      .toFile(przezroczysty)
+
+    expect((await readDimensions(przezroczysty))?.hasAlpha).toBe(true)
+    await rm(przezroczysty, { force: true })
+  })
+
+  it('PNG bez przezroczystości nie udaje, że ją ma', async () => {
+    // To jest przypadek generatora: mflux zapisuje PNG **bez** alfy, więc
+    // rozpoznawanie po rozszerzeniu stawiałoby szachownicę wokół każdego kadru.
+    const nieprzezroczysty = join(tmpdir(), `bez-alfy-${String(Date.now())}.png`)
+
+    await sharpLib({
+      create: { width: 64, height: 64, channels: 3, background: { r: 10, g: 20, b: 30 } },
+    })
+      .png()
+      .toFile(nieprzezroczysty)
+
+    expect((await readDimensions(nieprzezroczysty))?.hasAlpha).toBe(false)
+    await rm(nieprzezroczysty, { force: true })
   })
 })

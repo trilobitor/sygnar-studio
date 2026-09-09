@@ -6,6 +6,8 @@ import { webcrypto } from 'node:crypto'
 
 import { enqueue } from '@/server/queue/store'
 import { registerRunner, tick } from '@/server/queue/worker'
+import { readDimensions } from '@/server/adapters/sharp'
+
 import { registerAsset } from './assets'
 import { touchOrder } from './orders'
 
@@ -71,6 +73,11 @@ async function runGeneration(job: Job, ctx: JobContext): Promise<void> {
   ctx.onProgress({ percent: 1, phase: 'Zapisuję kadry' })
 
   for (const image of images) {
+    // Kanał alfa czytamy z pliku, a nie zgadujemy z rozszerzenia: generator
+    // zapisuje PNG bez przezroczystości, więc rozpoznawanie po formacie
+    // stawiałoby szachownicę wokół każdego kadru.
+    const sonda = await readDimensions(image.path)
+
     await registerAsset({
       orderId: job.orderId,
       jobId: job.id,
@@ -80,7 +87,12 @@ async function runGeneration(job: Job, ctx: JobContext): Promise<void> {
       width: image.width,
       height: image.height,
       seed: image.seed,
-      metadata: { purpose: params.purpose, promptEn: params.promptEn, mflux: image.metadata },
+      metadata: {
+        purpose: params.purpose,
+        promptEn: params.promptEn,
+        hasAlpha: sonda?.hasAlpha ?? false,
+        mflux: image.metadata,
+      },
     })
   }
 

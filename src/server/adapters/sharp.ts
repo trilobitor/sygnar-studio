@@ -176,14 +176,21 @@ export async function exportToWeight(
   }
 }
 
-/** Wymiary obrazu — potrzebne przy rejestrowaniu pliku w bazie. */
+/**
+ * Wymiary obrazu i informacja o kanale alfa — potrzebne przy rejestrowaniu
+ * pliku w bazie.
+ *
+ * `hasAlpha` decyduje o szachownicy pod podglądem. Sam format nie wystarcza:
+ * generator zapisuje PNG **bez** przezroczystości, więc rozpoznawanie po
+ * rozszerzeniu stawiałoby kratę wokół każdego kadru.
+ */
 export async function readDimensions(
   path: string,
-): Promise<{ width: number; height: number } | null> {
+): Promise<{ width: number; height: number; hasAlpha: boolean } | null> {
   try {
     const metadata = await sharpLib(path).metadata()
     if (metadata.width === undefined || metadata.height === undefined) return null
-    return { width: metadata.width, height: metadata.height }
+    return { width: metadata.width, height: metadata.height, hasAlpha: metadata.hasAlpha === true }
   } catch {
     // Plik nie jest obrazem albo jest uszkodzony — wywołujący to obsłuży.
     return null

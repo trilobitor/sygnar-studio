@@ -21,6 +21,26 @@ import { Lightbox } from "./Lightbox";
 
 const PAGE_SIZE = 24;
 
+/**
+ * Czy pod obrazem ma stać szachownica.
+ *
+ * Wyłącznie przy realnym kanale alfa, zapisanym przy rejestrowaniu pliku.
+ * Rozpoznawanie po formacie nie działa: generator zapisuje PNG bez
+ * przezroczystości, więc krata wychodziłaby wokół każdego kadru.
+ */
+function maPrzezroczystosc(asset: Asset): boolean {
+  if (asset.metadataJson === null) return false;
+
+  try {
+    const parsed: unknown = JSON.parse(asset.metadataJson);
+    if (typeof parsed !== "object" || parsed === null) return false;
+
+    return Reflect.get(parsed, "hasAlpha") === true;
+  } catch {
+    return false;
+  }
+}
+
 export function Gallery({
   assets,
   selectedId,
@@ -127,10 +147,20 @@ export function Gallery({
                   ? "Zdejmij oznaczenie kadru"
                   : "Odłóż ten kadr na bok"
               }
+              /*
+                Gwiazdka jest widoczna zawsze, przygaszona do połowy.
+                Wcześniej miała `opacity-0` i wyjeżdżała na `group-hover` —
+                a klasa `group` siedzi na sąsiednim przycisku kafelka, nie na
+                wspólnym przodku, więc ten warunek nie zapalał się nigdy.
+                Gwiazdki nie dało się zobaczyć ani myszą, ani palcem; jedyną
+                drogą było przejście tabulatorem, które zapalało `focus`.
+                Funkcja istniała w bazie, w serwisie i w interfejsie — i nie
+                było jak jej użyć.
+              */
               className={`absolute right-1 top-1 z-10 rounded px-1.5 py-0.5 text-sm transition ${
                 asset.starred === 1
-                  ? "bg-surface-0/80 text-accent"
-                  : "bg-surface-0/60 text-ink-muted opacity-0 hover:text-accent focus:opacity-100 group-hover:opacity-100"
+                  ? "bg-surface-0/80 text-accent opacity-100"
+                  : "bg-surface-0/60 text-ink-muted opacity-50 hover:text-accent hover:opacity-100 focus:opacity-100"
               }`}
             >
               {asset.starred === 1 ? "★" : "☆"}
@@ -139,6 +169,10 @@ export function Gallery({
             <button
               type="button"
               onClick={() => onSelect(asset)}
+              // Dwuklik na kadrze odkłada go na bok — ta sama akcja co
+              // gwiazdka, bez celowania w róg kafelka.
+              onDoubleClick={() => void przelaczOdlozenie(asset)}
+              title="Dwuklik odkłada kadr na bok"
               aria-label={`Kadr z numerem losowania ${asset.seed ?? "nieznanym"}`}
               aria-pressed={selectedId === asset.id}
               /*
@@ -166,7 +200,7 @@ export function Gallery({
                   który kadr jest pionowy.
                 */
                 style={{ aspectRatio: `${String(asset.width)} / ${String(asset.height)}` }}
-                className={asset.mime === "image/png" ? "checkerboard" : "bg-surface-0"}
+                className={maPrzezroczystosc(asset) ? "checkerboard" : "bg-surface-0"}
               >
                 {asset.mime.startsWith("video/") ? (
                   /*
@@ -398,7 +432,7 @@ export function Preview({ asset }: { asset: Asset | null }) {
         // wzór wchodziłby w pole widzenia przy ocenie koloru (SPEC §10).
         <span
           className={`inline-flex max-h-full max-w-full ${
-            asset.mime === "image/png" ? "checkerboard" : ""
+            maPrzezroczystosc(asset) ? "checkerboard" : ""
           }`}
           onDoubleClick={() => setPelnyEkran(true)}
           title="Dwuklik albo klawisz F — podgląd na cały ekran"

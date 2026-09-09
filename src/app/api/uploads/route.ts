@@ -105,6 +105,9 @@ export async function POST(request: Request): Promise<NextResponse> {
       width: metryka?.width ?? undefined,
       height: metryka?.height ?? undefined,
       durationMs: metryka?.durationMs ?? undefined,
+      // Szachownica pod podglądem zapala się wyłącznie przy realnym kanale
+      // alfa. Sam format nie wystarcza: PNG bywa nieprzezroczysty.
+      metadata: metryka !== null && 'hasAlpha' in metryka ? { hasAlpha: metryka.hasAlpha } : undefined,
     })
 
     touchOrder(order.id, 'active')
