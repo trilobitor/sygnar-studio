@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { stat } from 'node:fs/promises'
+import { rm, stat } from 'node:fs/promises'
 
 import { and, eq } from 'drizzle-orm'
 
@@ -96,4 +96,21 @@ export function setStarred(id: string, starred: boolean): void {
     .set({ starred: starred ? 1 : 0 })
     .where(eq(assets.id, id))
     .run()
+}
+
+/**
+ * Kasuje pojedynczy plik: wiersz w bazie i bajty z dysku.
+ *
+ * Kolejność ma znaczenie — najpierw dysk, potem baza. Odwrotnie zostawiałby
+ * przy awarii wiersz wskazujący na nieistniejący plik, czyli dokładnie ten
+ * stan, którego galeria nie umie pokazać.
+ */
+export async function deleteAsset(id: string): Promise<void> {
+  const asset = getAsset(id)
+  const sciezka = assetFilePath(asset)
+
+  // Brak pliku nie jest powodem, żeby zostawić wiersz — to ten sam skutek.
+  await rm(sciezka, { force: true })
+
+  db.delete(assets).where(eq(assets.id, id)).run()
 }

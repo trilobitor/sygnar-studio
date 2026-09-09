@@ -1103,3 +1103,25 @@ w konfiguracji modelu. Grafik przy pełnym dysku szukałby więc czegoś, czego 
 da się poprawić, zamiast zwolnić miejsce.
 
 **Zmierzone po poprawce paska:** 0 → 13 → 25 → 38 → 100, monotonicznie.
+
+---
+
+## D61 — Kolumna `starred` dostała endpoint i interfejs
+
+**Decyzja.** `PATCH /api/assets/[id]` z ciałem `{ starred }`, gwiazdka w rogu
+kafelka i filtr „tylko odłożone" nad siatką. Do tego `DELETE /api/assets/[id]`
+kasujące wiersz i plik.
+
+**Powód.** Kolumna istniała w bazie od pierwszej migracji, a funkcja
+`setStarred` w serwisie — bez endpointu i bez interfejsu. Przy ośmiu wariantach
+grafik musiał zapamiętać wybrany kadr albo zapisać jego numer losowania gdzieś
+obok panelu. Kasowania nie było wcale: odrzucone kadry i nieudane eksporty
+zostawały w galerii na zawsze.
+
+**Konsekwencja.** Gwiazdka stoi **obok** kafelka, nie w nim — kafelek jest
+przyciskiem, a przycisk w przycisku nie działa. Kasowanie usuwa najpierw plik,
+potem wiersz: odwrotna kolejność zostawiałaby przy awarii wiersz wskazujący na
+nieistniejący plik, czyli stan, którego galeria nie umie pokazać.
+
+**Zmierzone w przeglądarce:** 12 kafelków, oznaczenie jednego, filtr pokazuje
+jeden, zero błędów w konsoli.

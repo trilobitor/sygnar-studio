@@ -458,6 +458,7 @@ export function StudioScreen({
                   assets={detail?.assets ?? []}
                   selectedId={selected?.id ?? null}
                   onSelect={setSelected}
+                  onChanged={reload}
                 />
               </div>
             </>
