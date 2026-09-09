@@ -159,6 +159,18 @@ export const videoJobSchema = z.object({
 
 export type VideoJobInput = z.infer<typeof videoJobSchema>
 
+/**
+ * Pola formularza wgrywania poza samym plikiem.
+ *
+ * Handler sprawdzał wyłącznie `typeof orderId !== 'string'`, więc dowolny
+ * napis szedł dalej do `getOrder` i dopiero baza zwracała 404. Reguła
+ * z SPEC §13 mówi, że każde wejście przechodzi przez schemat — ta trasa była
+ * jedynym wyjątkiem. Sam plik walidujemy sygnaturą, nie Zodem.
+ */
+export const uploadFormSchema = z.object({
+  orderId: z.string().uuid(),
+})
+
 export const photoBatchSchema = z.object({
   orderId: z.string().uuid(),
   assetIds: z.array(z.string().uuid()).min(1).max(200),

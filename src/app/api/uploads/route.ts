@@ -6,6 +6,7 @@ import { NextResponse } from 'next/server'
 
 import { env } from '@/lib/env'
 import { logger } from '@/lib/logger'
+import { uploadFormSchema } from '@/lib/schemas'
 import { probeVideo } from '@/server/adapters/ffmpeg'
 import { readDimensions } from '@/server/adapters/sharp'
 import { fail, handleError, tooMany } from '@/server/api/respond'
@@ -48,14 +49,22 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
 
     const form = await request.formData()
-    const orderId = form.get('orderId')
     const file = form.get('file')
 
-    if (typeof orderId !== 'string' || !(file instanceof File)) {
+    if (!(file instanceof File)) {
       return fail('VALIDATION_FAILED', 400)
     }
 
-    const order = getOrder(orderId)
+    // Pola poza plikiem przez schemat, jak każde inne wejście (SPEC §13).
+    // Wcześniej sprawdzaliśmy tylko, czy `orderId` jest napisem — dowolny
+    // ciąg szedł do bazy i dopiero ona zwracała 404.
+    const parsed = uploadFormSchema.safeParse({ orderId: form.get('orderId') })
+
+    if (!parsed.success) {
+      return fail('VALIDATION_FAILED', 400)
+    }
+
+    const order = getOrder(parsed.data.orderId)
 
     if (file.size > MAX_UPLOAD_BYTES) {
       return fail('UPLOAD_TOO_LARGE', 413)
@@ -66,7 +75,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     if (detected === null) {
       logger.warn('odrzucono wgranie o nierozpoznanym typie', {
-        orderId,
+        orderId: order.id,
         // Rozmiar i deklarowany typ zostają w logu; treści pliku nie logujemy.
         declared: file.type,
         bytes: file.size,

@@ -76,3 +76,36 @@ describe('sufit wagi wgrywanego pliku', () => {
     expect(MAX_UPLOAD_BYTES).toBeGreaterThanOrEqual(50 * 1024 * 1024)
   })
 })
+
+describe('marki kontenera ISO-BMFF', () => {
+  function ftyp(marka: string): Uint8Array {
+    const bytes = new Uint8Array(32)
+    bytes.set([0x00, 0x00, 0x00, 0x20], 0)
+    bytes.set([0x66, 0x74, 0x79, 0x70], 4)
+    bytes.set([...marka].map((z) => z.charCodeAt(0)), 8)
+    return bytes
+  }
+
+  it('rozpoznaje MP4 po markach z listy', () => {
+    for (const marka of ['isom', 'mp42', 'avc1', 'iso2']) {
+      expect(detectType(ftyp(marka))?.mime, marka).toBe('video/mp4')
+    }
+  })
+
+  it('rozpoznaje QuickTime', () => {
+    expect(detectType(ftyp('qt  '))?.mime).toBe('video/quicktime')
+  })
+
+  it('odrzuca HEIC i AVIF zamiast brać je za film', () => {
+    // Zdjęcie z iPhone'a to ten sam kontener, inna marka. Wcześniej wchodziło
+    // w tor wideo: panel oferował montaż, a ffmpeg padał po tym, jak grafik
+    // zdążył wybrać kadr i pętlę.
+    for (const marka of ['heic', 'heix', 'mif1', 'avif']) {
+      expect(detectType(ftyp(marka)), marka).toBeNull()
+    }
+  })
+
+  it('odrzuca nieznaną markę zamiast zgadywać', () => {
+    expect(detectType(ftyp('xxxx'))).toBeNull()
+  })
+})

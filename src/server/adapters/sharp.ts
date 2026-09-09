@@ -99,6 +99,33 @@ export async function exportToWeight(
     kernel: 'lanczos3',
   })
 
+  /*
+   * Powiększanie ponad wymiar źródła.
+   *
+   * Preset ma stały wymiar docelowy, a kadr bywa mniejszy — wtedy `resize`
+   * po cichu rozciąga obraz. Nikt tego nie sprawdzał: plik oddany klientowi
+   * mógł być rozmyty, a panel meldował sukces i mieszczenie się w wadze.
+   *
+   * Nie blokujemy — czasem różnica jest znikoma i lepiej oddać cokolwiek niż
+   * nic — ale zapisujemy w logu, żeby dało się to zauważyć.
+   */
+  const zrodloWymiary = await readDimensions(request.sourcePath)
+
+  if (zrodloWymiary !== null) {
+    const skala = Math.max(
+      request.width / zrodloWymiary.width,
+      request.height / zrodloWymiary.height,
+    )
+
+    if (skala > 1.15) {
+      ctx?.logger.warn('eksport powiększa kadr ponad rozmiar źródła', {
+        skala: Number(skala.toFixed(2)),
+        zrodlo: `${zrodloWymiary.width}x${zrodloWymiary.height}`,
+        cel: `${request.width}x${request.height}`,
+      })
+    }
+  }
+
   let low = 30
   let high = 95
   let best: { buffer: Buffer; quality: number } | null = null

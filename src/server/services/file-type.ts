@@ -30,6 +30,19 @@ function startsWith(bytes: Uint8Array, signature: readonly number[], offset = 0)
   return signature.every((value, index) => bytes[offset + index] === value)
 }
 
+/**
+ * Marki kontenera ISO-BMFF, które są filmem.
+ *
+ * Ten sam kontener niesie MP4, MOV, ale też HEIC i AVIF — obrazy. Marka
+ * w pudełku `ftyp` jest jedynym, co je odróżnia.
+ */
+const MARKI_QUICKTIME = new Set(['qt  '])
+
+const MARKI_MP4 = new Set([
+  'isom', 'iso2', 'iso4', 'iso5', 'iso6',
+  'mp41', 'mp42', 'avc1', 'M4V ', 'M4A ', 'mmp4', 'dash',
+])
+
 /** Cztery znaki marki w pudełku `ftyp` kontenera ISO BMFF. */
 function isoBrand(bytes: Uint8Array): string | null {
   // `ftyp` leży na pozycji 4, marka zaraz za nim.
@@ -50,11 +63,26 @@ export function detectType(bytes: Uint8Array): DetectedType | null {
 
   const brand = isoBrand(bytes)
   if (brand !== null) {
-    if (brand.startsWith('qt')) {
+    if (MARKI_QUICKTIME.has(brand)) {
       return { mime: 'video/quicktime', extension: 'mov' }
     }
-    // `isom`, `mp42`, `avc1`, `M4V ` i pokrewne traktujemy jako MP4.
-    return { mime: 'video/mp4', extension: 'mp4' }
+
+    if (MARKI_MP4.has(brand)) {
+      return { mime: 'video/mp4', extension: 'mp4' }
+    }
+
+    /*
+     * Reszta kontenerów ISO-BMFF **nie jest** filmem.
+     *
+     * Wcześniej wszystko poza QuickTime uchodziło za MP4, więc zdjęcie HEIC
+     * z iPhone'a — ten sam kontener, inna marka — wchodziło w tor wideo.
+     * Panel oferował dla niego montaż, a ffmpeg kończył błędem po tym, jak
+     * grafik zdążył już wybrać kadr i pętlę.
+     *
+     * Odrzucamy zamiast zgadywać: lista marek jest zamknięta, a nieznana
+     * marka to sygnał, że plik jest czymś, czego nie obsługujemy.
+     */
+    return null
   }
 
   return null

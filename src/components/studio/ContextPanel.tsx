@@ -38,7 +38,21 @@ export function ContextPanel({
 }) {
   const [busy, setBusy] = useState(false)
   const [problem, setProblem] = useState<string | null>(null)
-  const [purpose, setPurpose] = useState<string>('services-wide')
+  /*
+   * Slot startowy bierzemy z metadanych kadru, nie ze stałej.
+   *
+   * Kadr powstał dla konkretnego przeznaczenia i ma je zapisane — panel
+   * proponował mimo to zawsze `services-wide`, więc grafik musiał przestawiać
+   * listę przy każdym eksporcie albo, gorzej, nie zauważał i oddawał plik
+   * w złym wymiarze.
+   *
+   * Komponent jest remountowany przy zmianie zaznaczenia (`key` w
+   * `StudioScreen`), więc wartość początkowa liczy się na nowo dla każdego
+   * kadru.
+   */
+  const [purpose, setPurpose] = useState<string>(
+    () => odczytajMetadane(asset?.metadataJson ?? null).purpose ?? 'services-wide',
+  )
   const [aspect, setAspect] = useState('vertical')
   const [pingPong, setPingPong] = useState(true)
   const [targetMb, setTargetMb] = useState(4)
