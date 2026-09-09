@@ -91,6 +91,8 @@ export function StudioScreen({
   const [prawaZwinieta, setPrawaZwinieta] = useState(false)
   const [galeriaSiatka, setGaleriaSiatka] = useState(false)
   const [pomocOtwarta, setPomocOtwarta] = useState(false)
+  /** Czy nad kolumną środkową wisi przeciągany plik. */
+  const [przeciaganie, setPrzeciaganie] = useState(false)
 
   /*
    * Zapamiętany układ wczytujemy **po** zamontowaniu, nie w inicjatorze stanu.
@@ -256,36 +258,87 @@ export function StudioScreen({
     }
   }
 
-  async function upload(file: File): Promise<void> {
-    if (orderId === null || wgrywanie !== null) return
+  /**
+   * Wysyłka jednego pliku z prawdziwym postępem.
+   *
+   * `fetch` nie raportuje postępu wysyłki, więc idziemy przez `XMLHttpRequest`
+   * — jedyne API przeglądarki, które daje `upload.onprogress`. Przy klipie
+   * ważącym sto megabajtów przez sieć prywatną „Wgrywam…" bez liczby nie mówi,
+   * czy cokolwiek się dzieje, czy wysyłka stoi.
+   */
+  function wyslijPlik(file: File, orderId: string, postep: (ulamek: number) => void): Promise<void> {
+    return new Promise((zrobione, blad) => {
+      const form = new FormData()
+      form.set('orderId', orderId)
+      form.set('file', file)
+
+      const zadanie = new XMLHttpRequest()
+      zadanie.open('POST', '/api/uploads')
+
+      zadanie.upload.onprogress = (event) => {
+        if (event.lengthComputable) postep(event.loaded / event.total)
+      }
+
+      zadanie.onload = () => {
+        if (zadanie.status >= 200 && zadanie.status < 300) {
+          zrobione()
+          return
+        }
+
+        try {
+          const odpowiedz = JSON.parse(zadanie.responseText) as ErrorResponse
+          blad(new Error(messageForCode(odpowiedz.errorCode)))
+        } catch {
+          blad(new Error('Nie udało się wgrać pliku.'))
+        }
+      }
+
+      zadanie.onerror = () => {
+        blad(new Error('Nie udało się wgrać pliku. Sprawdź połączenie i spróbuj jeszcze raz.'))
+      }
+
+      zadanie.send(form)
+    })
+  }
+
+  /**
+   * Wgranie jednego pliku albo całej garści.
+   *
+   * Wcześniej szedł wyłącznie jeden plik naraz, wybierany z okna systemowego,
+   * bez przeciągania i bez śladu postępu. Wgranie dziesięciu zdjęć do obróbki
+   * wsadowej znaczyło dziesięć przejść przez okno wyboru.
+   */
+  async function upload(files: File[]): Promise<void> {
+    if (orderId === null || wgrywanie !== null || files.length === 0) return
     setProblem(null)
 
     // Sprawdzenie po stronie klienta, zanim ruszy wysyłka. Serwer i tak
     // odrzuci po `Content-Length`, ale grafik dowiadywałby się o tym dopiero
     // po przesłaniu stu megabajtów przez łącze.
-    if (file.size > MAX_UPLOAD_BYTES) {
+    const zaCiezki = files.find((plik) => plik.size > MAX_UPLOAD_BYTES)
+
+    if (zaCiezki !== undefined) {
       setProblem(messageForCode('UPLOAD_TOO_LARGE'))
       return
     }
 
-    const form = new FormData()
-    form.set('orderId', orderId)
-    form.set('file', file)
-
     setWgrywanie(0)
 
     try {
-      const response = await fetch('/api/uploads', { method: 'POST', body: form })
-
-      if (!response.ok) {
-        const error = (await response.json()) as ErrorResponse
-        setProblem(messageForCode(error.errorCode))
-        return
+      for (const [numer, plik] of files.entries()) {
+        await wyslijPlik(plik, orderId, (ulamek) => {
+          // Postęp liczony przez całą paczkę, nie przez pojedynczy plik.
+          setWgrywanie((numer + ulamek) / files.length)
+        })
       }
 
       reload()
-    } catch {
-      setProblem('Nie udało się wgrać pliku. Sprawdź połączenie i spróbuj jeszcze raz.')
+    } catch (error) {
+      setProblem(
+        error instanceof Error
+          ? error.message
+          : 'Nie udało się wgrać pliku. Sprawdź połączenie i spróbuj jeszcze raz.',
+      )
     } finally {
       setWgrywanie(null)
     }
@@ -611,7 +664,44 @@ export function StudioScreen({
           )}
         </aside>
 
-        <main id="tresc" className="flex min-w-0 flex-1 flex-col gap-3 p-4">
+        {/*
+          Przeciąganie plików na kolumnę środkową. Wcześniej jedyną drogą było
+          okno wyboru plików, po jednym pliku — wgranie dziesięciu zdjęć do
+          obróbki wsadowej znaczyło dziesięć przejść przez to okno.
+
+          `onDragOver` musi wołać `preventDefault`, inaczej przeglądarka otworzy
+          upuszczony plik zamiast oddać go stronie.
+        */}
+        <main
+          id="tresc"
+          className={`relative flex min-w-0 flex-1 flex-col gap-3 p-4 ${
+            przeciaganie ? 'outline-2 outline-dashed outline-offset-[-8px] outline-ink-muted' : ''
+          }`}
+          onDragOver={(event) => {
+            if (orderId === null) return
+            event.preventDefault()
+            setPrzeciaganie(true)
+          }}
+          onDragLeave={(event) => {
+            // Zdarzenie leci też przy przejściu nad dzieckiem — reagujemy
+            // tylko wtedy, gdy kursor naprawdę opuścił kolumnę.
+            const cel = event.relatedTarget
+
+            if (!(cel instanceof Node) || !event.currentTarget.contains(cel)) {
+              setPrzeciaganie(false)
+            }
+          }}
+          onDrop={(event) => {
+            event.preventDefault()
+            setPrzeciaganie(false)
+            void upload([...event.dataTransfer.files])
+          }}
+        >
+          {przeciaganie && (
+            <p className="pointer-events-none absolute inset-x-0 top-1/2 z-20 text-center text-sm text-ink">
+              Upuść pliki, żeby je wgrać
+            </p>
+          )}
           <h2 className="sr-only">Kadry wybranego zlecenia</h2>
           {/* Etapy po lewej, sesja po prawej — jeden wiersz, żeby nie zabierać
               pionowego miejsca podglądowi kadru. */}
@@ -683,17 +773,19 @@ export function StudioScreen({
                   disabled={wgrywanie !== null}
                   onClick={() => fileInput.current?.click()}
                 >
-                  {wgrywanie !== null ? 'Wgrywam…' : 'Wgraj własny plik'}
+                  {wgrywanie !== null
+                    ? `Wgrywam… ${String(Math.round(wgrywanie * 100))}%`
+                    : 'Wgraj własne pliki'}
                 </Button>
                 <input
                   ref={fileInput}
                   type="file"
+                  multiple
                   accept="image/jpeg,image/png,video/mp4,video/quicktime"
                   className="hidden"
-                  aria-label="Wybierz plik do wgrania"
+                  aria-label="Wybierz pliki do wgrania"
                   onChange={(event) => {
-                    const file = event.target.files?.[0]
-                    if (file !== undefined) void upload(file)
+                    void upload([...(event.target.files ?? [])])
                     event.target.value = ''
                   }}
                 />
