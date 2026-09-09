@@ -3,7 +3,11 @@
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { formatCountdown, IDLE_WARNING_SECONDS } from '@/lib/countdown'
+import {
+  COUNTDOWN_VISIBLE_SECONDS,
+  formatCountdown,
+  IDLE_WARNING_SECONDS,
+} from '@/lib/countdown'
 
 /**
  * Odliczanie do wylogowania i przycisk wylogowania ręcznego.
@@ -85,16 +89,20 @@ export function SessionBar({ timeoutSeconds }: { timeoutSeconds: number }) {
   }, [timeoutSeconds, logout])
 
   const urgent = remaining <= IDLE_WARNING_SECONDS
+  // Licznik jest ukryty aż do ostatniej minuty — patrz `COUNTDOWN_VISIBLE_SECONDS`.
+  const showCountdown = remaining <= COUNTDOWN_VISIBLE_SECONDS
 
   return (
     <div className="flex shrink-0 items-center gap-2 text-xs">
-      <span
-        className={`tabular-nums ${urgent ? 'text-danger' : 'text-ink-muted'}`}
-        // Czytnik ekranu ma ogłaszać dopiero końcówkę, nie każdą sekundę.
-        aria-live={urgent ? 'polite' : 'off'}
-      >
-        Automatyczne wylogowanie za: {formatCountdown(remaining)}
-      </span>
+      {showCountdown && (
+        <span
+          className="tabular-nums text-danger"
+          // Czytnik ekranu ma ogłaszać dopiero końcówkę, nie każdą sekundę.
+          aria-live={urgent ? 'polite' : 'off'}
+        >
+          Automatyczne wylogowanie za: {formatCountdown(remaining)}
+        </span>
+      )}
 
       <button
         type="button"

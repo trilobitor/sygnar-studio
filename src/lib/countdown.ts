@@ -6,7 +6,16 @@
  * kodu, w którym błąd o jedną sekundę siedzi latami niezauważony.
  */
 
-/** Od ilu sekund licznik robi się czerwony i zaczyna być ogłaszany. */
+/**
+ * Od ilu sekund licznik w ogóle się pokazuje.
+ *
+ * Przez większość czasu jest ukryty — odliczanie na oczach przez pół godziny
+ * rozprasza i niczego nie wnosi. Wraca na ostatnią minutę, żeby wylogowanie
+ * nie zaskoczyło kogoś w połowie pisania briefu.
+ */
+export const COUNTDOWN_VISIBLE_SECONDS = 60
+
+/** Od ilu sekund licznik jest ogłaszany czytnikowi ekranu. */
 export const IDLE_WARNING_SECONDS = 10
 
 /**
