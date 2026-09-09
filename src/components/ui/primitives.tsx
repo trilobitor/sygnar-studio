@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 
 /**
  * Prymitywy interfejsu.
@@ -297,6 +298,35 @@ export function Dialog({
     }
   }, [open, onClose])
 
+  /*
+   * Okno renderujemy do własnego węzła doczepionego do `<body>`, a całą resztę
+   * dokumentu oznaczamy `inert` na czas jego otwarcia.
+   *
+   * Pułapka tabulatora niżej pilnuje klawiatury, ale nie zasłania treści przed
+   * czytnikiem ekranu przeglądającym dokument po swojemu. `inert` załatwia
+   * jedno i drugie natywnie. Portal jest tu konieczny: bez niego okno leży
+   * wewnątrz drzewa aplikacji, więc `inert` na kontenerze wyłączałby także je.
+   */
+  const oknoRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+
+    const okno = oknoRef.current
+    const rodzenstwo = Array.from(document.body.children).filter(
+      (element): element is HTMLElement => element instanceof HTMLElement && element !== okno,
+    )
+    const zastane = rodzenstwo.map((element) => element.inert)
+
+    for (const element of rodzenstwo) element.inert = true
+
+    return () => {
+      rodzenstwo.forEach((element, index) => {
+        element.inert = zastane[index] ?? false
+      })
+    }
+  }, [open])
+
   // Fokus ustawiamy **raz**, przy otwarciu — w osobnym efekcie zależnym tylko
   // od `open`. Wcześniej siedział razem z nasłuchem Escape, którego zależność
   // `onClose` zmieniała tożsamość przy każdej ramce SSE. Efekt uruchamiał się
@@ -316,10 +346,15 @@ export function Dialog({
     }
   }, [open])
 
-  if (!open) return null
+  // Okno otwiera się wyłącznie z akcji grafika, więc render po stronie serwera
+  // nigdy tu nie dochodzi — ale strażnik kosztuje jedną linię.
+  if (!open || typeof document === 'undefined') return null
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-6">
+  return createPortal(
+    <div
+      ref={oknoRef}
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-6"
+    >
       <div
         ref={panelRef}
         role="dialog"
@@ -346,7 +381,8 @@ export function Dialog({
           </footer>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

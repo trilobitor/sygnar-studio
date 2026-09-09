@@ -26,12 +26,15 @@ export function Gallery({
   selectedId,
   onSelect,
   onChanged,
+  laduje,
 }: {
   assets: Asset[];
   selectedId: string | null;
   onSelect: (asset: Asset) => void;
   /** Wołane po odłożeniu kadru na bok — lista musi się przeładować. */
   onChanged: () => void;
+  /** `true`, dopóki szczegół zlecenia nie wrócił z serwera. */
+  laduje: boolean
 }) {
   const [visible, setVisible] = useState(PAGE_SIZE);
   /**
@@ -56,6 +59,21 @@ export function Gallery({
   const images = assets
     .filter((asset) => asset.kind === "generated" || asset.kind === "uploaded")
     .filter((asset) => !tylkoOdlozone || asset.starred === 1);
+
+  if (laduje) {
+    /*
+      Szkielet, dopóki serwer nie odpowie. Wcześniej galeria z miejsca pisała
+      „Nie ma tu jeszcze żadnego kadru" — komunikat, którego nikt nie
+      potwierdził, wyświetlany zanim zapytanie w ogóle wystartowało.
+    */
+    return (
+      <div aria-hidden="true" className="grid grid-cols-4 items-start gap-3">
+        {[0, 1, 2, 3].map((nr) => (
+          <span key={nr} className="aspect-4/3 animate-pulse rounded bg-surface-2" />
+        ))}
+      </div>
+    );
+  }
 
   if (images.length === 0) {
     return (
@@ -88,7 +106,7 @@ export function Gallery({
         </label>
       </div>
 
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-4 items-start gap-3">
         {shown.map((asset) => (
           // Gwiazdka stoi **obok** kafelka, nie w nim: kafelek jest przyciskiem,
           // a przycisk w przycisku nie działa.
@@ -138,7 +156,17 @@ export function Gallery({
               {/* Szachownica tylko pod PNG: pod nieprzezroczystym JPEG-iem jest
                   wyłącznie szumem wokół obrazu. */}
               <div
-                className={`aspect-4/3 ${asset.mime === "image/png" ? "checkerboard" : "bg-surface-0"}`}
+                /*
+                  Proporcje z rzeczywistych wymiarów kadru, nie sztywne 4:3.
+                  Presety idą od 3:4 (usługa pionowa, 1200 × 1600) po 16:9
+                  (plansza wideo, 1920 × 1088). W kafelku 4:3 z `object-cover`
+                  kadr pionowy tracił kilkanaście procent góry i dołu, poziomy
+                  boki — czyli dokładnie te obszary, które brief nazywa martwymi
+                  strefami. Różna wysokość kafelków jest zaletą: od razu widać,
+                  który kadr jest pionowy.
+                */
+                style={{ aspectRatio: `${String(asset.width)} / ${String(asset.height)}` }}
+                className={asset.mime === "image/png" ? "checkerboard" : "bg-surface-0"}
               >
                 {asset.mime.startsWith("video/") ? (
                   /*
@@ -154,7 +182,7 @@ export function Gallery({
                     src={`/api/files/${asset.id}?miniatura`}
                     alt="Pierwsza klatka wgranego klipu"
                     loading="lazy"
-                    className="h-full w-full object-cover"
+                    className="h-full w-full object-contain"
                   />
                 ) : (
                   <>
@@ -175,7 +203,7 @@ export function Gallery({
                           : `Kadr, numer losowania ${asset.seed}`
                       }
                       loading="lazy"
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-contain"
                     />
                   </>
                 )}

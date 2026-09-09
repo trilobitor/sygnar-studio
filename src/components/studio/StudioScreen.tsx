@@ -49,7 +49,14 @@ export function StudioScreen({
   /** Imię zalogowanej osoby. `null`, gdy panel chodzi bez logowania. */
   kto: string | null
 }) {
-  const [orders, setOrders] = useState<Order[]>([])
+  /*
+   * `null` znaczy „serwer jeszcze nie odpowiedział", pusta tablica — „nie ma
+   * żadnego zlecenia". Wcześniej stan startował z pustej tablicy, więc przy
+   * pierwszym renderze, zanim `fetch` w ogóle wystartował, grafik czytał
+   * „Nie ma jeszcze żadnego zlecenia" — komunikat, którego serwer nie
+   * potwierdził i który po chwili sam się podmieniał.
+   */
+  const [orders, setOrders] = useState<Order[] | null>(null)
   const [orderId, setOrderId] = useState<string | null>(initialOrderId)
   const [detail, setDetail] = useState<OrderDetail | null>(null)
   const [selected, setSelected] = useState<Asset | null>(null)
@@ -313,7 +320,15 @@ export function StudioScreen({
           </div>
 
           <nav aria-label="Lista zleceń" className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
-            {orders.length === 0 ? (
+            {orders === null ? (
+              // Szkielet, nie komunikat: układ nie skacze, a grafik nie czyta
+              // zdania, które za chwilę samo zniknie.
+              <div aria-hidden="true" className="flex flex-col gap-1">
+                <span className="h-8 animate-pulse rounded bg-surface-2" />
+                <span className="h-8 animate-pulse rounded bg-surface-2" />
+                <span className="h-8 animate-pulse rounded bg-surface-2" />
+              </div>
+            ) : orders.length === 0 ? (
               <EmptyState>
                 Nie ma jeszcze żadnego zlecenia. Załóż pierwsze powyżej — wszystko inne dzieje
                 się w jego wnętrzu.
@@ -467,6 +482,7 @@ export function StudioScreen({
               <div className="max-h-64 overflow-y-auto">
                 <Gallery
                   assets={detail?.assets ?? []}
+                  laduje={detail === null || detail.order.id !== orderId}
                   selectedId={selected?.id ?? null}
                   onSelect={setSelected}
                   onChanged={reload}
