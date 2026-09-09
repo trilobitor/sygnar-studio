@@ -84,5 +84,5 @@ export const config = {
    * `sw.js` musi dać się pobrać z ekranu logowania — inaczej przeglądarka
    * nigdy nie uzna panelu za instalowalny.
    */
-  matcher: ['/((?!api/uploads|_next/|ikona-|favicon.ico|manifest.webmanifest|sw.js).*)'],
+  matcher: ['/((?!api/uploads|_next/|ikona-|favicon.ico|manifest.webmanifest|sw.js|offline.html).*)'],
 }

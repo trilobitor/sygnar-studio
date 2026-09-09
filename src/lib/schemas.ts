@@ -135,7 +135,16 @@ export const exportJobSchema = z.object({
 
 export type ExportJobInput = z.infer<typeof exportJobSchema>
 
-export const videoOperationSchema = z.enum(['trim', 'loop', 'crop', 'poster', 'export'])
+/**
+ * Nazwy operacji montażu — wyprowadzone z unii, nie trzymane obok niej.
+ *
+ * Wcześniej stała tu osobna lista `['trim','loop','crop','poster','export']`,
+ * nieodpowiadająca implementacji: `poster` i `export` nie są operacjami, tylko
+ * skutkami ubocznymi montażu. Nikt tego enuma nie używał, więc rozjazd nie dał
+ * o sobie znać — a właśnie dlatego jest groźny, bo wygląda na źródło prawdy.
+ */
+export const VIDEO_OPERATION_KINDS = ['trim', 'loop', 'crop'] as const
+export type VideoOperationKind = (typeof VIDEO_OPERATION_KINDS)[number]
 
 export const videoJobSchema = z.object({
   orderId: z.string().uuid(),

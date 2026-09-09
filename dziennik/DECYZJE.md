@@ -1147,3 +1147,31 @@ zlecenia od nowa. Pliki już oddane zachowują swoje nazwy.
 
 **Zmierzone:** zadanie wysłane bez `seeds` dostało od serwera
 `[385035724, 1799275389]`.
+
+---
+
+## D63 — Domknięcie kategorii III
+
+Zmiany, których nie warto opisywać osobno, ale które warto mieć zapisane:
+
+- **Pętla bez ping-ponga nie połowi już przepływności.** `loop` z
+  `pingPong: false` nie robi w łańcuchu filtrów nic, a mimo to podwajał
+  zakładany czas — plik wychodził dwa razy lżejszy i gorszy od zamówionego,
+  bez śladu w logu.
+- **`videoOperationSchema` usunięty.** Trzymał listę `['trim','loop','crop',
+  'poster','export']` nieodpowiadającą implementacji: `poster` i `export` nie
+  są operacjami. Nikt go nie używał, więc rozjazd nie dawał o sobie znać —
+  i właśnie dlatego był groźny, bo wyglądał na źródło prawdy.
+- **Wszystkie cztery limity czasu konfigurowalne.** Dwa były wpisane na
+  sztywno, więc na wolniejszej maszynie nie dało się ich podnieść bez zmiany
+  kodu.
+- **Zajętość katalogu danych widoczna w zdrowiu.** Katalog rośnie bez
+  ograniczenia; bez tej liczby właściciel dowiadywał się o problemie dopiero,
+  gdy dysk się kończył.
+- **Strona zastępcza offline.** Przy nawigacji bez połączenia grafik widział
+  systemowy ekran przeglądarki po angielsku. Cache'ujemy **wyłącznie** tę
+  jedną stronę — żądania danych mają zawieść normalnie, bo panel umie pokazać
+  własny baner, a podstawienie im czegokolwiek byłoby kłamstwem.
+- **SPEC.md dostał rozdział „Naniesione decyzje"** z tabelą odstępstw
+  i listą rzeczy istniejących w kodzie, których specyfikacja nie opisuje.
+  Lista przeznaczeń poprawiona z pięciu roboczych na dziesięć rzeczywistych.

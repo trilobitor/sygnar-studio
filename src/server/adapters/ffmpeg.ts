@@ -382,7 +382,16 @@ export async function render(
   )
 
   let effectiveDuration = trim === undefined ? sourceDuration : trim.endMs - trim.startMs
-  if (effectiveDuration !== null && request.operations.some((o) => o.kind === 'loop')) {
+  /*
+   * Czas podwaja **wyłącznie** pętla tam i z powrotem.
+   *
+   * `loop` z `pingPong: false` nie robi w łańcuchu filtrów nic — a mimo to
+   * podwajał tu zakładany czas, czyli połowił przepływność. Plik wychodził
+   * dwa razy lżejszy i dwa razy gorszy od zamówionego, bez śladu w logu.
+   */
+  const pingPong = request.operations.some((o) => o.kind === 'loop' && o.pingPong)
+
+  if (effectiveDuration !== null && pingPong) {
     effectiveDuration *= 2
   }
 

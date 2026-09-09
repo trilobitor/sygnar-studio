@@ -38,11 +38,12 @@ const NON_GPU_CONCURRENCY = 2
 const NON_GPU_JOB_KINDS: readonly JobKind[] = ['image_export', 'photo_batch']
 
 /** Twardy timeout per rodzaj zadania (SPEC §9). */
+/** Każdy rodzaj zadania ma własny, konfigurowalny limit czasu. */
 const TIMEOUTS_MS: Record<JobKind, number> = {
   image_generate: env.JOB_TIMEOUT_MS,
-  video_render: env.JOB_TIMEOUT_MS,
-  image_export: 120_000,
-  photo_batch: 600_000,
+  video_render: env.VIDEO_TIMEOUT_MS,
+  image_export: env.EXPORT_TIMEOUT_MS,
+  photo_batch: env.PHOTO_BATCH_TIMEOUT_MS,
 }
 
 /** Funkcja wykonawcza zadania danego rodzaju. Rejestrowana przez serwisy. */

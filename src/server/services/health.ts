@@ -1,4 +1,6 @@
+import { execFile } from 'node:child_process'
 import { statfs, unlink, writeFile } from 'node:fs/promises'
+import { promisify } from 'node:util'
 import { join } from 'node:path'
 
 import { sql } from 'drizzle-orm'
@@ -88,6 +90,23 @@ async function sprawdzOpis(): Promise<HealthStatus> {
   return api.ok ? api : { ok: true, version: 'składacz' }
 }
 
+/**
+ * Rozmiar katalogu danych w bajtach.
+ *
+ * Liczony przez `du -sk`, bo własne przejście po drzewie przy kilkuset plikach
+ * byłoby wolniejsze i trzeba by pilnować dowiązań. `null`, gdy się nie uda —
+ * to informacja dodatkowa, nie warunek działania.
+ */
+async function zajetoscKatalogu(sciezka: string): Promise<number | null> {
+  try {
+    const { stdout } = await promisify(execFile)('du', ['-sk', sciezka], { timeout: 10_000 })
+    const kb = Number(stdout.trim().split(/\s+/)[0] ?? '')
+    return Number.isFinite(kb) ? kb * 1024 : null
+  } catch {
+    return null
+  }
+}
+
 /** Ile miejsca zostało — poniżej tego progu jeden montaż potrafi zapchać dysk. */
 const MIN_WOLNE_BAJTY = 2 * 1024 * 1024 * 1024
 
@@ -114,7 +133,23 @@ async function sprawdzDysk(): Promise<HealthStatus> {
       return { ok: false, reason: 'misconfigured' }
     }
 
-    return { ok: true, version: `${Math.round(wolne / 1024 / 1024 / 1024)} GB wolnego` }
+    /*
+     * Pokazujemy też, ile zajmuje sam katalog danych.
+     *
+     * Rośnie bez ograniczenia i bez retencji — każdy kadr to 1,6 MB, każdy
+     * montaż kilka. Bez tej liczby właściciel nie ma na czym oprzeć decyzji
+     * o sprzątaniu; dowiaduje się dopiero wtedy, gdy dysk się kończy.
+     */
+    const zajete = await zajetoscKatalogu(env.STUDIO_DATA_DIR)
+    const zajeteGb = zajete === null ? null : (zajete / 1024 / 1024 / 1024).toFixed(1)
+
+    return {
+      ok: true,
+      version:
+        zajeteGb === null
+          ? `${Math.round(wolne / 1024 / 1024 / 1024)} GB wolnego`
+          : `${zajeteGb} GB zajęte, ${Math.round(wolne / 1024 / 1024 / 1024)} GB wolnego`,
+    }
   } catch {
     return { ok: false, reason: 'unreachable' }
   }

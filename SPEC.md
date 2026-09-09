@@ -368,7 +368,10 @@ Jeden schemat = walidacja klienta i serwera. Typy przez `z.infer`.
 ```ts
 export const briefSchema = z.object({
   subject:      z.string().min(3).max(500),   // punkt 1 makiety, jedyny wymagany
-  purpose:      z.enum(['square', 'story', 'hero', 'texture', 'other']),
+  purpose:      z.enum([
+                  'services-wide', 'services-tall', 'case', 'video-poster',
+                  'hero-showcase', 'og', 'portrait', 'square', 'story', 'texture',
+                ]),
   shot:         z.enum(['closeup', 'medium', 'full', 'wide']).optional(),
   angle:        z.enum(['eye', 'high', 'low', 'top']).optional(),
   timeOfDay:    z.string().max(100).optional(),
@@ -766,3 +769,32 @@ Zgodnie z `02-standardy-kodu`, rygor zbalansowany.
 jakości obrazów z FLUX.2 klein 4B na tej maszynie. Jeżeli okaże się
 niewystarczająca dla materiałów Sygnara, zmienia się model — nie architektura,
 bo workflow to plik JSON. Ale warto to wiedzieć przed E1, nie po E5.
+
+
+---
+
+## Naniesione decyzje
+
+Ten dokument jest źródłem zamiaru, a `dziennik/DECYZJE.md` — zapisem tego, co
+z niego wyszło. Poniżej lista miejsc, w których implementacja świadomie
+odbiega od pierwotnego brzmienia. Każda pozycja ma pełne uzasadnienie
+w dzienniku.
+
+| Gdzie | Co się zmieniło | Decyzja |
+|---|---|---|
+| §5 baza | SQLite zamiast Postgresa | D2 |
+| §6 generator | mflux zamiast ComfyUI — fp8 nie działa na MPS | D5 |
+| §6 sterownik | `better-sqlite3`, nie `node:sqlite` | D9 |
+| §7a lista przeznaczeń | dziesięć slotów z briefu zamiast pięciu roboczych | D7 |
+| §7a kody błędów | doszły `DATABASE_UNAVAILABLE`, `EXPORT_FAILED`, `INTERNAL_ERROR`, `DISK_FULL` | D30, D44, D60 |
+| §4.8 slot OG | JPEG zamiast PNG — PNG nie schodził do 300 KB | D16 |
+| §10 paleta | doszedł `--color-danger-text` i `--color-field` dla kontrastu | D33, D51 |
+| §13 sesja | 12 godzin zamiast tygodnia, plus unieważnianie | D49 |
+| §13 hasło | osobne hasła w bazie zamiast jednego w `.env` | D22 |
+| komponenty | własne prymitywy zamiast shadcn/ui | D11 |
+
+**Czego ten dokument nadal nie opisuje, a co istnieje w kodzie:** wystawienie
+publiczne przez `tailscale funnel`, kopia zapasowa (`npm run kopia`),
+zarządzanie dostępem (`npm run dostep`), alerty macOS i miniatury galerii.
+Wszystko to powstało po napisaniu specyfikacji i jest udokumentowane
+w `wdrozenie/README.md` oraz w dzienniku decyzji.

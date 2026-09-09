@@ -89,7 +89,19 @@ const envSchema = z.object({
 
   MAX_CONCURRENT_GPU_JOBS: z.coerce.number().int().min(1).max(1).default(1),
 
+  /** Twardy limit czasu generowania. Domyślnie 15 minut. */
   JOB_TIMEOUT_MS: z.coerce.number().int().min(10_000).default(900_000),
+
+  /*
+   * Limity dla pozostałych rodzajów zadań.
+   *
+   * Dwa z czterech były wpisane na sztywno w `worker.ts`, więc na maszynie
+   * wolniejszej albo przy większym wsadzie nie dało się ich podnieść bez
+   * zmiany kodu. Wartości domyślne to dokładnie te, które tam stały.
+   */
+  VIDEO_TIMEOUT_MS: z.coerce.number().int().min(10_000).default(900_000),
+  EXPORT_TIMEOUT_MS: z.coerce.number().int().min(5_000).default(120_000),
+  PHOTO_BATCH_TIMEOUT_MS: z.coerce.number().int().min(10_000).default(600_000),
 
   /**
    * Jedyny sposób na świadome wyłączenie bramki logowania.
