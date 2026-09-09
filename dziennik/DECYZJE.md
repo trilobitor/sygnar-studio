@@ -1474,3 +1474,43 @@ już pobranej liście, więc nie doszedł ani jeden endpoint.
 
 **Czego to nie zmienia.** Kolejność kadrów, doładowywanie po 24 i zachowanie
 podglądu zostają bez zmian.
+
+---
+
+## D72 — darktable zainstalowany z wydania projektu; E6 wreszcie uruchomione
+
+**Data:** 2026-09-09 · **Status:** obowiązuje, D13 zamknięta
+
+**Decyzja.** darktable 5.6.1 zainstalowany z **oficjalnego wydania projektu**
+(`github.com/darktable-org/darktable`, `darktable-5.6.1-arm64.dmg`), nie przez
+Homebrew. `DARKTABLE_CLI_PATH` wskazuje na binarkę w pakiecie aplikacji.
+
+**Dlaczego to działa, skoro D13 mówiła, że się nie da.** D13 opisywała dwie
+rzeczy naraz i myliła je ze sobą: Homebrew wyłączył pakiet 01.09.2026, bo
+build **nie przechodzi kontroli Gatekeepera**, i stąd wniosek, że darktable
+jest na tej maszynie niedostępny. Sprawdzone: `spctl --assess` faktycznie
+odrzuca aplikację, ale dotyczy to **uruchomienia okienkowego przez Findera**.
+Nasz adapter woła `darktable-cli` bezpośrednio przez `spawn`, a plik pobrany
+`curl`-em nie dostaje atrybutu kwarantanny, więc uruchamia się normalnie.
+Żadnego obchodzenia zabezpieczeń nie było i nie ma: Gatekeeper zostaje włączony
+w niezmienionej postaci.
+
+**Weryfikacja pochodzenia pliku.** Suma SHA-256 pobranego obrazu zgadza się
+z **dwoma niezależnymi źródłami**: opisem wydania na GitHubie i przepisem
+Homebrew (`155c25a48e06023eeeda3640f6f4fc7848bc1ad8e7384ba1d7b63098986fbeda`).
+
+**E6 uruchomione pierwszy raz.** Wsad trzech zdjęć 1600 × 1067 przeszedł
+w 16 sekund, z etapami po polsku. Pojedynczy plik: 3,9 s.
+
+**Dwie wady, które wyszły dopiero z prawdziwego przebiegu:**
+
+1. Pliki wyjściowe nazywały się identyfikatorem zasobu. Dla grafika oddającego
+   je klientowi taka nazwa nie niesie nic, a przy dwustu zdjęciach nie da się
+   ich odróżnić. Teraz idą przez `buildOutputName()`: `estate-zdjecia-01.jpg`.
+2. Wymiary nie były zapisywane (`None × None`), więc kontrola przed oddaniem
+   nie miała czego sprawdzić, a panel „Do oddania" pokazywał puste miejsce.
+   Czytane teraz z gotowego pliku.
+
+**Co pozostaje otwarte.** Sprzeczność SPEC §7a (RAW) kontra §12 (JPEG) i brak
+interfejsu do wgrania presetu XMP — pozycja #25 audytu, decyzja właściciela.
+Wsad działa dziś na JPEG-ach bez presetu, na domyślnych ustawieniach darktable.
