@@ -1,3 +1,4 @@
+import type { Brief } from '@/lib/schemas'
 import type { AdapterHealth } from '@/server/services/health'
 import type { Asset, Job, Order } from '@/server/db/schema'
 
@@ -18,7 +19,12 @@ export interface OrderDetail {
   order: Order
   assets: Asset[]
   jobs: Job[]
-  brief: unknown
+  /**
+   * Ostatni brief zlecenia. Typ był `unknown` i nikt go nie odczytywał —
+   * makieta zapisywała się do bazy, wracała w odpowiedzi API i tam kończyła
+   * żywot. Grafik po ponownym otwarciu okna widział puste pola.
+   */
+  brief: Brief | null
 }
 
 export interface PromptResponse {

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 
 import { Button, EmptyState, Field, Select, TextArea } from '@/components/ui/primitives'
-import { FIELD_HINTS, messageForCode } from '@/lib/messages'
+import { FIELD_HINTS, messageForCode, zacisnij } from '@/lib/messages'
 import { OUTPUT_PRESETS, PURPOSE_KEYS } from '@/lib/output-presets'
 import type { Asset, ErrorResponse } from '@/types/api'
 
@@ -227,7 +227,15 @@ export function ContextPanel({
                 max={50}
                 step={0.5}
                 value={targetMb}
-                onChange={(event) => setTargetMb(Number(event.target.value))}
+                onChange={(event) =>
+                    setTargetMb(
+                      zacisnij(Number(event.target.value), {
+                        min: 0.5,
+                        max: 50,
+                        domyslna: 4,
+                      }),
+                    )
+                  }
                 className="w-full rounded border border-line bg-surface-2 px-3 py-2 text-sm"
               />
             )}

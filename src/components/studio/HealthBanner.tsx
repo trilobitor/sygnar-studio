@@ -1,5 +1,6 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
 import type { HealthResponse } from '@/types/api'
@@ -10,8 +11,19 @@ import type { HealthResponse } from '@/types/api'
  * Gdy generowanie jest niedostępne, formularz briefu jest zablokowany,
  * a grafik dostaje zdanie mówiące, co zrobić — nie kod i nie nazwę narzędzia.
  */
+/**
+ * Trzy stany, nie dwa.
+ *
+ * Wcześniej awaria zapisywała `null` — dokładnie tę samą wartość co stan
+ * początkowy — więc zerwane połączenie wyglądało identycznie jak trwające
+ * sprawdzanie. Grafik patrzył w napis „Sprawdzam, czy stacja odpowiada…"
+ * dowolnie długo i nie miał jak odróżnić jednego od drugiego.
+ */
+type StanZdrowia = 'sprawdzam' | 'blad' | HealthResponse
+
 export function HealthBanner({ onReadyChange }: { onReadyChange: (ready: boolean) => void }) {
-  const [health, setHealth] = useState<HealthResponse | null>(null)
+  const router = useRouter()
+  const [health, setHealth] = useState<StanZdrowia>('sprawdzam')
 
   useEffect(() => {
     let cancelled = false
@@ -19,6 +31,14 @@ export function HealthBanner({ onReadyChange }: { onReadyChange: (ready: boolean
     async function check(): Promise<void> {
       try {
         const response = await fetch('/api/health')
+
+        // 401 to jedyna awaria, z którą grafik poradzi sobie sam: sesja
+        // wygasła, wystarczy zalogować się ponownie.
+        if (response.status === 401) {
+          router.push('/logowanie')
+          return
+        }
+
         if (!response.ok) throw new Error('health niedostępne')
         const data = (await response.json()) as HealthResponse
         if (cancelled) return
@@ -26,7 +46,7 @@ export function HealthBanner({ onReadyChange }: { onReadyChange: (ready: boolean
         onReadyChange(data.ready)
       } catch {
         if (cancelled) return
-        setHealth(null)
+        setHealth('blad')
         onReadyChange(false)
       }
     }
@@ -39,12 +59,23 @@ export function HealthBanner({ onReadyChange }: { onReadyChange: (ready: boolean
       cancelled = true
       clearInterval(timer)
     }
-  }, [onReadyChange])
+  }, [onReadyChange, router])
 
-  if (health === null) {
+  if (health === 'sprawdzam') {
     return (
       <div className="border-b border-line bg-surface-2 px-4 py-2 text-sm text-ink-muted">
         Sprawdzam, czy stacja odpowiada…
+      </div>
+    )
+  }
+
+  if (health === 'blad') {
+    return (
+      <div
+        role="alert"
+        className="border-b border-danger bg-danger/10 px-4 py-2 text-sm text-ink"
+      >
+        Nie mam kontaktu z panelem. Odśwież stronę — jeśli to nie pomoże, napisz do Kamila.
       </div>
     )
   }

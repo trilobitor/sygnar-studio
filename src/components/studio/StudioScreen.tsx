@@ -210,7 +210,21 @@ export function StudioScreen({
     reload()
   }
 
-  const stageIndex = detail === null ? 0 : detail.assets.length > 0 ? 2 : 1
+  /**
+   * Etap wyprowadzony ze stanu danych, nie z samej liczby plików.
+   *
+   * Wcześniej pasek zatrzymywał się na „Wybór", bo wyżej nie było jak zajść:
+   * warunek patrzył wyłącznie na to, czy w zleceniu są jakiekolwiek pliki.
+   * Grafik po eksporcie widział pasek w tym samym miejscu co przed nim.
+   */
+  const stageIndex = ((): number => {
+    if (detail === null) return 0
+    if (detail.assets.some((a) => a.kind === 'export' || a.kind === 'poster')) return 4
+    if (selected !== null) return 3
+    if (detail.assets.length > 0) return 2
+    if (detail.brief !== null) return 1
+    return 0
+  })()
 
   return (
     <div className="flex h-screen flex-col bg-surface-0">
@@ -294,6 +308,9 @@ export function StudioScreen({
                         setSelected(null)
                       }}
                       aria-current={orderId === order.id}
+                      // Nazwa jest ucinana wielokropkiem, więc bez tego dymka
+                      // dłuższe nazwy zleceń stawały się nie do odróżnienia.
+                      title={order.name}
                       className={`min-w-0 flex-1 truncate px-2 py-1.5 text-left text-sm ${
                         orderId === order.id ? 'text-ink' : 'text-ink-muted'
                       }`}
@@ -448,10 +465,19 @@ export function StudioScreen({
         </p>
       </Dialog>
 
-      {orderId !== null && (
+      {orderId !== null && detail?.order.id === orderId && (
         <BriefDialog
+          // Remount przy zmianie zlecenia — bez tego wypełniony brief jednego
+          // zlecenia pokazywał się w oknie następnego.
+          //
+          // Warunek `detail?.order.id === orderId` jest równie istotny: wartości
+          // startowe pól czyta `useState`, czyli **raz, przy montowaniu**. Okno
+          // zamontowane przed dojściem danych zapisywało pustki i zapisany brief
+          // nigdy nie wracał, mimo że API go zwracało.
+          key={orderId}
           open={briefOpen}
           orderId={orderId}
+          brief={detail.brief}
           disabled={!ready}
           onClose={zamknijBrief}
           onQueued={reload}

@@ -16,10 +16,13 @@ import {
   FIELD_HINTS,
   LIGHTING_LABELS,
   messageForCode,
+  odmiana,
   SHOT_LABELS,
   STYLE_LABELS,
+  zacisnij,
 } from '@/lib/messages'
 import { OUTPUT_PRESETS, PURPOSE_KEYS } from '@/lib/output-presets'
+import type { Brief } from '@/lib/schemas'
 import type { ErrorResponse, PromptResponse } from '@/types/api'
 
 /**
@@ -44,12 +47,21 @@ function toOptions(labels: Record<string, string>): { value: string; label: stri
 export function BriefDialog({
   open,
   orderId,
+  brief,
   disabled,
   onClose,
   onQueued,
 }: {
   open: boolean
   orderId: string
+  /**
+   * Ostatni brief tego zlecenia albo `null`.
+   *
+   * Makieta zapisywała się do bazy i wracała w odpowiedzi API, ale nikt jej
+   * stamtąd nie odczytywał — grafik po ponownym otwarciu okna zastawał puste
+   * pola i przepisywał wszystko od zera. Wartości startowe biorą się stąd.
+   */
+  brief: Brief | null
   disabled: boolean
   onClose: () => void
   onQueued: () => void
@@ -59,18 +71,18 @@ export function BriefDialog({
   const [problem, setProblem] = useState<string | null>(null)
   const [showMore, setShowMore] = useState(false)
 
-  const [subject, setSubject] = useState('')
-  const [purpose, setPurpose] = useState<string>('services-wide')
-  const [style, setStyle] = useState('')
-  const [timeOfDay, setTimeOfDay] = useState('')
-  const [mood, setMood] = useState('')
-  const [shot, setShot] = useState('')
-  const [angle, setAngle] = useState('')
-  const [lighting, setLighting] = useState('')
-  const [place, setPlace] = useState('')
-  const [colors, setColors] = useState('')
-  const [textOnImage, setTextOnImage] = useState('')
-  const [avoid, setAvoid] = useState('')
+  const [subject, setSubject] = useState(brief?.subject ?? '')
+  const [purpose, setPurpose] = useState<string>(brief?.purpose ?? 'services-wide')
+  const [style, setStyle] = useState(brief?.style ?? '')
+  const [timeOfDay, setTimeOfDay] = useState(brief?.timeOfDay ?? '')
+  const [mood, setMood] = useState(brief?.mood ?? '')
+  const [shot, setShot] = useState(brief?.shot ?? '')
+  const [angle, setAngle] = useState(brief?.angle ?? '')
+  const [lighting, setLighting] = useState(brief?.lighting ?? '')
+  const [place, setPlace] = useState(brief?.place ?? '')
+  const [colors, setColors] = useState(brief?.colors ?? '')
+  const [textOnImage, setTextOnImage] = useState(brief?.textOnImage ?? '')
+  const [avoid, setAvoid] = useState(brief?.avoid ?? '')
   const [variants, setVariants] = useState(4)
 
   const [promptEn, setPromptEn] = useState('')
@@ -118,6 +130,10 @@ export function BriefDialog({
         setProblem(messageForCode(error.errorCode))
         setPromptEn('')
         setAssumptions([])
+        // Zerowane razem z promptem: bez tego ostrzeżenie „opis poszedł bez
+        // tłumaczenia" zostawało z poprzedniej próby i dotyczyło tekstu,
+        // którego już nie ma.
+        setNeedsTranslation(false)
         setStep('prompt')
         return
       }
@@ -190,7 +206,15 @@ export function BriefDialog({
               min={1}
               max={8}
               value={variants}
-              onChange={(event) => setVariants(Number(event.target.value))}
+              onChange={(event) =>
+                setVariants(
+                  zacisnij(Math.round(Number(event.target.value)), {
+                    min: 1,
+                    max: 8,
+                    domyslna: 4,
+                  }),
+                )
+              }
               className="w-16 rounded border border-line bg-surface-2 px-2 py-1 text-sm"
             />
             <Button
@@ -209,7 +233,9 @@ export function BriefDialog({
               disabled={disabled || busy || promptEn.trim().length < 10}
               onClick={() => void startGeneration()}
             >
-              {busy ? 'Wysyłam…' : `Policz ${variants} podejść`}
+              {busy
+                ? 'Wysyłam…'
+                : `Policz ${variants} ${odmiana(variants, ['podejście', 'podejścia', 'podejść'])}`}
             </Button>
           </>
         )
@@ -253,7 +279,7 @@ export function BriefDialog({
               )}
             </Field>
 
-            <Field label="Pora dnia" hint={FIELD_HINTS.timeOfDay}>
+            <Field label="Pora dnia" hint={FIELD_HINTS.timeOfDay} counter={`${timeOfDay.length}/100`}>
               {(id) => (
                 <TextInput
                   id={id}
@@ -265,7 +291,7 @@ export function BriefDialog({
               )}
             </Field>
 
-            <Field label="Nastrój" hint={FIELD_HINTS.mood}>
+            <Field label="Nastrój" hint={FIELD_HINTS.mood} counter={`${mood.length}/100`}>
               {(id) => (
                 <TextInput
                   id={id}

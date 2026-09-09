@@ -113,3 +113,43 @@ export const INDUSTRY_LABELS: Record<string, string> = {
   build: 'Budowlana',
   other: 'Inne',
 }
+
+/**
+ * Polska odmiana liczebników.
+ *
+ * Reguła: 1 → forma pojedyncza; 2–4 → forma mnoga „kilka", **z wyłączeniem
+ * 12–14**, bo „12 podejścia" jest błędne; reszta → dopełniacz liczby mnogiej.
+ *
+ * Bez tego panel pisał „Policz 4 podejść" i „5 zadania przed Tobą" — obie
+ * formy błędne, obie widoczne dla grafika przy każdym generowaniu.
+ */
+export function odmiana(n: number, formy: [string, string, string]): string {
+  const bezwzgledna = Math.abs(n)
+
+  if (bezwzgledna === 1) return formy[0]
+
+  const dziesiatki = bezwzgledna % 100
+  const jednosci = bezwzgledna % 10
+
+  if (jednosci >= 2 && jednosci <= 4 && !(dziesiatki >= 12 && dziesiatki <= 14)) {
+    return formy[1]
+  }
+
+  return formy[2]
+}
+
+/**
+ * Zacisk wartości liczbowej z pola formularza.
+ *
+ * Pola `type="number"` z atrybutami `min`/`max` **nie blokują** wpisania
+ * wartości spoza zakresu ani wyczyszczenia pola — `Number('')` daje zero.
+ * Bez zacisku grafik wysyłał zadanie, które serwer odrzucał komunikatem
+ * o niezgodnym formularzu, bez wskazania, co poprawić.
+ */
+export function zacisnij(
+  wartosc: number,
+  { min, max, domyslna }: { min: number; max: number; domyslna: number },
+): number {
+  if (!Number.isFinite(wartosc) || wartosc === 0) return domyslna
+  return Math.min(max, Math.max(min, wartosc))
+}

@@ -4,7 +4,7 @@ import { mkdir, rm } from 'node:fs/promises'
 import { desc, eq } from 'drizzle-orm'
 
 import { env } from '@/lib/env'
-import type { CreateOrderInput } from '@/lib/schemas'
+import { briefSchema, type Brief, type CreateOrderInput } from '@/lib/schemas'
 import { ApiError } from '@/server/adapters/types'
 import { db } from '@/server/db/client'
 import { assets, briefs, orders, type Asset, type Order } from '@/server/db/schema'
@@ -109,7 +109,7 @@ export function saveBrief(orderId: string, payload: unknown): string {
   return id
 }
 
-export function latestBrief(orderId: string): unknown {
+export function latestBrief(orderId: string): Brief | null {
   const row = db
     .select()
     .from(briefs)
@@ -120,6 +120,10 @@ export function latestBrief(orderId: string): unknown {
 
   if (row === undefined) return null
 
-  const parsed: unknown = JSON.parse(row.payloadJson)
-  return parsed
+  // W bazie leżą wartości już zwalidowane tym schematem, więc `safeParse`
+  // chroni wyłącznie przed briefami zapisanymi wcześniejszą wersją makiety.
+  // Brief, którego nie da się odczytać, jest tym samym co jego brak —
+  // lepiej pusty formularz niż wysypana strona.
+  const parsed = briefSchema.safeParse(JSON.parse(row.payloadJson))
+  return parsed.success ? parsed.data : null
 }

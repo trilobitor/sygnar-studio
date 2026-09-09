@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 
-import { messageForCode } from '@/lib/messages'
+import { messageForCode, odmiana } from '@/lib/messages'
 import { Button } from '@/components/ui/primitives'
 import { activeJobs, formatElapsed } from './use-queue'
 import type { Job } from '@/types/api'
@@ -88,7 +88,11 @@ export function QueueBar({ jobs, onChanged }: { jobs: Job[]; onChanged: () => vo
         <span className="text-ink-muted">
           {waiting.length === 1
             ? 'W kolejce, 1 zadanie przed Tobą'
-            : `W kolejce, ${waiting.length} zadania przed Tobą`}
+            : `W kolejce, ${waiting.length} ${odmiana(waiting.length, [
+                'zadanie',
+                'zadania',
+                'zadań',
+              ])} przed Tobą`}
         </span>
       )}
     </div>

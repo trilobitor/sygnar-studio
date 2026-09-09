@@ -552,3 +552,27 @@ uszkodzony plik wywracał się **przy imporcie modułu**, więc padała każda t
 `503 {"errorCode":"DATABASE_UNAVAILABLE"}` zamiast pustego 500, a komunikat
 mówi, co robić. `db` jest pośrednikiem (`Proxy`), więc sam import tego modułu
 nigdy nie rzuca.
+
+---
+
+## D31 — Brief wraca do formularza, a etap wynika ze stanu zlecenia
+
+**Decyzja.** `latestBrief` zwraca typowany `Brief | null` przepuszczony przez
+`briefSchema.safeParse`; okno briefu dostaje go propem i montuje się dopiero,
+gdy dane należą już do wybranego zlecenia (`detail?.order.id === orderId`,
+plus `key={orderId}`). Etap na pasku wyprowadzamy ze stanu: brak briefu → 0,
+brief bez kadrów → 1, kadry → 2, zaznaczony kadr → 3, eksport → 4.
+
+**Powód.** Makieta zapisywała się do bazy i wracała w odpowiedzi API, ale nikt
+jej stamtąd nie czytał — grafik po ponownym otwarciu okna zastawał puste pola
+i przepisywał wszystko od zera. Pasek etapów z kolei nigdy nie wychodził poza
+„Wybór", bo warunek patrzył wyłącznie na to, czy w zleceniu są jakiekolwiek
+pliki.
+
+**Konsekwencja.** Warunek na `detail` jest równie ważny jak `key`: wartości
+startowe pól czyta `useState`, czyli **raz, przy montowaniu**. Pierwsza wersja
+poprawki przekazywała brief poprawnie, ale okno montowało się przed dojściem
+danych i dalej zapisywało pustki — złapane dopiero testem w przeglądarce.
+Zmierzone po poprawce: pole tematu wypełnia się treścią z bazy, a pasek
+pokazuje „Wybór" dla zlecenia z samymi kadrami i „Eksport" dla zlecenia
+z oddanymi plikami.
