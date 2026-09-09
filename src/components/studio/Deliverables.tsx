@@ -1,6 +1,6 @@
 'use client'
 
-import { EmptyState } from '@/components/ui/primitives'
+import { EmptyState, RowMenu } from '@/components/ui/primitives'
 import { brakujaceFormaty, sprawdzPlik } from '@/server/services/quality-check'
 import type { Asset } from '@/types/api'
 
@@ -35,7 +35,31 @@ function rodzaj(asset: Asset): string {
   return asset.mime.replace('image/', '').toUpperCase()
 }
 
-export function Deliverables({ assets, orderId }: { assets: Asset[]; orderId: string }) {
+export function Deliverables({
+  assets,
+  orderId,
+  onChanged,
+}: {
+  assets: Asset[]
+  orderId: string
+  /** Wołane po skasowaniu pliku — lista musi się przeładować. */
+  onChanged: () => void
+}) {
+  /**
+   * Skasowanie gotowego pliku.
+   *
+   * Eksport zapisany z niewłaściwym presetem albo z kadru, który się nie
+   * nadaje, zostawał na liście do oddania na zawsze — a paczka ZIP bierze
+   * wszystko, co na niej stoi. Pytamy przed skasowaniem: pliku nie da się
+   * odzyskać, ale sam kadr źródłowy zostaje i można wyeksportować ponownie.
+   */
+  async function skasuj(plik: Asset): Promise<void> {
+    if (!globalThis.confirm(`Skasować ${nazwaPliku(plik.path)}? Kadr źródłowy zostaje.`)) return
+
+    await fetch(`/api/assets/${plik.id}`, { method: 'DELETE' }).catch(() => {})
+    onChanged()
+  }
+
   const pliki = assets.filter((a) => a.kind === 'export' || a.kind === 'poster')
 
   /*
@@ -63,16 +87,42 @@ export function Deliverables({ assets, orderId }: { assets: Asset[]; orderId: st
       ) : (
         <ul className="flex max-h-64 flex-col gap-1 overflow-y-auto">
           {pliki.map((plik) => (
-            <li key={plik.id}>
-              <a
-                href={`/api/files/${plik.id}`}
-                download
-                className="flex items-baseline justify-between gap-2 rounded px-2 py-1.5 text-xs transition hover:bg-surface-2"
-              >
-                <span className="min-w-0 flex-1 truncate text-ink">{nazwaPliku(plik.path)}</span>
+            <li key={plik.id} className="group/plik">
+              <div className="flex items-baseline gap-2 rounded px-2 py-1.5 text-xs transition hover:bg-surface-2">
+                <a
+                  href={`/api/files/${plik.id}`}
+                  download
+                  className="min-w-0 flex-1 truncate text-ink"
+                  title={nazwaPliku(plik.path)}
+                >
+                  {nazwaPliku(plik.path)}
+                </a>
                 <span className="shrink-0 text-ink-muted">{rodzaj(plik)}</span>
                 <span className="shrink-0 tabular-nums text-ink-muted">{waga(plik.bytes)}</span>
-              </a>
+
+                {/* Menu wiersza — te same trzy kropki co przy zleceniach,
+                    żeby nie było dwóch różnych sposobów na to samo. */}
+                <span className="shrink-0 opacity-0 transition group-hover/plik:opacity-100 focus-within:opacity-100">
+                  <RowMenu
+                    label={`Więcej opcji dla pliku ${nazwaPliku(plik.path)}`}
+                    items={[
+                      {
+                        // Pobieranie jest już pod kliknięciem w nazwę, więc
+                        // menu daje to, czego kliknięciem zrobić się nie da.
+                        label: 'Kopiuj nazwę pliku',
+                        onSelect: () => {
+                          void navigator.clipboard.writeText(nazwaPliku(plik.path))
+                        },
+                      },
+                      {
+                        label: 'Skasuj plik',
+                        danger: true,
+                        onSelect: () => void skasuj(plik),
+                      },
+                    ]}
+                  />
+                </span>
+              </div>
 
               {(zastrzezenia.get(plik.id) ?? []).map((uwaga) => (
                 <p key={uwaga.kod} className="px-2 pb-1 text-xs text-danger">

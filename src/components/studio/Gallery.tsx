@@ -105,6 +105,25 @@ export function Gallery({
   );
   const [gdzie, setGdzie] = useState<string>("wszystkie");
 
+  /**
+   * Skasowanie kadru razem z plikiem na dysku.
+   *
+   * Endpoint istniał od kategorii III i interfejs nie wołał go ani razu —
+   * przy ośmiu wariantach, z których trzy są nieudane, jedynym sposobem
+   * uprzątnięcia galerii było skasowanie całego zlecenia.
+   *
+   * Pytamy przed skasowaniem: pliku nie da się odzyskać, a kadr z dobrym
+   * numerem losowania bywa wart więcej, niż widać po miniaturze.
+   */
+  async function skasujKadr(asset: Asset): Promise<void> {
+    const nazwa = asset.seed === null ? 'ten wgrany plik' : `kadr nr ${String(asset.seed)}`
+
+    if (!globalThis.confirm(`Skasować ${nazwa}? Pliku nie da się odzyskać.`)) return
+
+    await fetch(`/api/assets/${asset.id}`, { method: "DELETE" }).catch(() => {});
+    onChanged();
+  }
+
   async function przelaczOdlozenie(asset: Asset): Promise<void> {
     await fetch(`/api/assets/${asset.id}`, {
       method: "PATCH",
@@ -280,6 +299,24 @@ export function Gallery({
             // wirtualizacja wymagałaby biblioteki i własnego przewijania.
             className="relative [content-visibility:auto] [contain-intrinsic-size:auto_180px]"
           >
+            {/*
+              Kosz obok gwiazdki. Endpoint kasowania istniał od kategorii III i nie był
+              wołany ani razu — przy ośmiu wariantach, z których trzy są nieudane,
+              jedynym sposobem uprzątnięcia galerii było skasowanie całego zlecenia.
+            */}
+            <button
+              type="button"
+              onClick={() => void skasujKadr(asset)}
+              aria-label={
+                asset.seed === null
+                  ? "Skasuj ten wgrany plik"
+                  : `Skasuj kadr nr ${String(asset.seed)}`
+              }
+              title="Skasuj — pliku nie da się odzyskać"
+              className="absolute left-1 top-1 z-10 rounded px-1.5 py-0.5 text-sm text-ink-muted opacity-50 transition hover:text-danger-text hover:opacity-100 focus:opacity-100"
+            >
+              🗑
+            </button>
             <button
               type="button"
               onClick={() => void przelaczOdlozenie(asset)}
