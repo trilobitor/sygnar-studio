@@ -9,7 +9,7 @@ import { JobError, type JobContext } from '@/server/adapters/types'
 import type { Job } from '@/server/db/schema'
 import { enqueue } from '@/server/queue/store'
 import { registerRunner, tick } from '@/server/queue/worker'
-import { assetFilePath, getAsset, registerAsset } from './assets'
+import { assetFilePath, getOrderAsset, registerAsset } from './assets'
 import { getOrder, listAssets, touchOrder } from './orders'
 import { bucketDir, buildOutputName } from './paths'
 
@@ -46,7 +46,9 @@ async function runExport(job: Job, ctx: JobContext): Promise<void> {
   const params = parsed.data
   const preset = getPreset(params.purpose)
   const order = getOrder(params.orderId)
-  const source = getAsset(params.assetId)
+  // Plik musi należeć do tego zlecenia — inaczej dało się zamówić montaż
+  // albo eksport cudzego pliku, podając własne `orderId`.
+  const source = getOrderAsset(params.orderId, params.assetId)
   const sourcePath = assetFilePath(source)
 
   const maxBytes = (params.maxWeightKb ?? preset.maxWeightKb) * 1024

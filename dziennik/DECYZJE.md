@@ -967,3 +967,48 @@ czytnik dokończył wypowiedź i człowiek zdążył zareagować.
 **Konsekwencja.** Menu pod trzema kropkami straciło role `menu`/`menuitem` —
 deklarowały obsługę strzałek, której nie ma. Zwykła lista przycisków odpowiada
 temu, co komponent naprawdę robi.
+
+---
+
+## D53 — Poprawki jakości montażu
+
+**Decyzja.** Sześć zmian w adapterze i schemacie wideo:
+
+- **Odwrócony zakres przycięcia** odrzucany walidacją. Sprawdzenie stoi na
+  całym zadaniu, nie na wariancie `trim`, bo Zod nie przyjmuje `.refine`
+  na członie unii rozróżnianej. Wcześniej FFmpeg przerywał kodem 23,
+  a grafik widział komunikat o awarii montażu.
+- **Zdublowana klatka na zawrocie pętli** — ostatnia klatka pierwszego
+  przebiegu i pierwsza klatka odwróconego były tą samą klatką, co dawało
+  widoczne zacięcie. `select='gt(n\,0)'` obcina jedną.
+- **`-movflags +faststart`** dla H.264. Zmierzone: w starym pliku `moov`
+  leżało poza pierwszymi 2 KB, w nowym stoi na pozycji 72 — plik zaczyna grać
+  przed pobraniem całości.
+- **Kadrowanie normalizuje wymiar.** Bez `scale` wynik zależał od
+  rozdzielczości źródła: z 1080×1962 wychodziło 1080×1920, a z 640×480 —
+  270×480. `setsar=1` zeruje próbkowy współczynnik proporcji.
+- **Dźwięk wycinany tylko przy pętli.** Odtworzony wstecz brzmi źle, ale klip
+  przycięty bez pętli nie ma powodu tracić ścieżki. `-an` leciało
+  bezwarunkowo, mimo komentarza obok mówiącego coś przeciwnego.
+- **Koniec zmyślania długości.** Przy nieznanej długości podstawialiśmy
+  10 sekund; przy klipie trzydziestosekundowym dawało to trzykrotnie zawyżoną
+  przepływność i plik trzykrotnie cięższy od zamówionego, po cichu. Teraz
+  twardy błąd.
+
+**Zmierzone na prawdziwym montażu:** 1080×1920, SAR 1:1, długość krótsza
+o jedną klatkę od podwojonego przycięcia, 759 KB przy limicie 3 MB.
+
+---
+
+## D54 — Plik musi należeć do zlecenia
+
+**Decyzja.** `getOrderAsset(orderId, assetId)` zastępuje `getAsset` w serwisach
+montażu i eksportu.
+
+**Powód.** Serwisy brały plik po samym identyfikatorze, więc dało się zamówić
+montaż albo eksport **cudzego pliku**, podając własne `orderId` — wynik lądował
+w katalogu zamawiającego. Przy jednym grafiku nie miało to znaczenia; odkąd
+panel ma więcej niż jedną osobę i stoi w internecie, ma.
+
+**Konsekwencja.** Przy niezgodności wraca `NOT_FOUND`, nie osobny kod —
+odpowiedź nie ma zdradzać, że plik istnieje, tylko należy do kogoś innego.

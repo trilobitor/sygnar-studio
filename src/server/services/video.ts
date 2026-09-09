@@ -13,7 +13,7 @@ import { JobError, type JobContext } from '@/server/adapters/types'
 import type { Job } from '@/server/db/schema'
 import { enqueue } from '@/server/queue/store'
 import { registerRunner, tick } from '@/server/queue/worker'
-import { assetFilePath, getAsset, registerAsset } from './assets'
+import { assetFilePath, getOrderAsset, registerAsset } from './assets'
 import { getOrder, touchOrder } from './orders'
 import { bucketDir, buildOutputName } from './paths'
 
@@ -41,7 +41,9 @@ async function runVideo(job: Job, ctx: JobContext): Promise<void> {
 
   const params = parsed.data
   const order = getOrder(params.orderId)
-  const source = getAsset(params.assetId)
+  // Plik musi należeć do tego zlecenia — inaczej dało się zamówić montaż
+  // albo eksport cudzego pliku, podając własne `orderId`.
+  const source = getOrderAsset(params.orderId, params.assetId)
   const sourcePath = assetFilePath(source)
   const outputDir = bucketDir(env.STUDIO_DATA_DIR, params.orderId, 'exports')
 

@@ -89,11 +89,21 @@ export interface CropOperation {
 export type VideoOperation = TrimOperation | LoopOperation | CropOperation
 
 /** Proporcje kadru docelowego. Środek kadru zostaje, boki schodzą. */
+/**
+ * Kadrowanie z doskalowaniem do znormalizowanego rozmiaru.
+ *
+ * `min()` pilnuje, żeby wycinek nie wyszedł poza oryginał, a `scale`
+ * doprowadza wynik do stałego wymiaru. Bez skalowania wynik zależał od
+ * rozdzielczości źródła: z klipu 1080×1962 wychodziło 1080×1920, a z klipu
+ * 640×480 — 270×480. Dwa pliki w tym samym slocie miały różne wymiary.
+ *
+ * `setsar=1` zeruje próbkowy współczynnik proporcji: bez niego odtwarzacz
+ * potrafi rozciągnąć obraz, mimo poprawnych wymiarów w pikselach.
+ */
 const CROP_EXPRESSIONS: Record<CropAspect, string> = {
-  // `min()` pilnuje, żeby wycinek nie wyszedł poza oryginał.
-  vertical: "crop='min(iw,ih*9/16)':'min(ih,iw*16/9)'",
-  square: "crop='min(iw,ih)':'min(ih,iw)'",
-  horizontal: "crop='min(iw,ih*16/9)':'min(ih,iw*9/16)'",
+  vertical: "crop='min(iw,ih*9/16)':'min(ih,iw*16/9)',scale=1080:1920:flags=lanczos,setsar=1",
+  square: "crop='min(iw,ih)':'min(ih,iw)',scale=1080:1080:flags=lanczos,setsar=1",
+  horizontal: "crop='min(iw,ih*16/9)':'min(ih,iw*9/16)',scale=1920:1080:flags=lanczos,setsar=1",
 }
 
 function ffprobePath(): string {
@@ -337,7 +347,15 @@ export function buildFilterChain(operations: readonly VideoOperation[]): string 
     // Odtworzenie w przód i wstecz. `split` dubluje strumień, `reverse`
     // odwraca kopię, `concat` skleja je w jedną całość.
     const prefix = filters.length > 0 ? `${filters.join(',')},` : ''
-    return `${prefix}split[a][b];[b]reverse[r];[a][r]concat=n=2:v=1`
+
+    /*
+     * `select='gt(n\\,0)'` obcina pierwszą klatkę odwróconej gałęzi.
+     *
+     * Bez tego ostatnia klatka pierwszego przebiegu i pierwsza klatka
+     * odwróconego są **tą samą klatką** — na zawrocie pętli widać zacięcie
+     * obrazu. `setpts` przelicza znaczniki czasu po usunięciu klatki.
+     */
+    return `${prefix}split[a][b];[b]reverse,select='gt(n\\,0)',setpts=N/FRAME_RATE/TB[r];[a][r]concat=n=2:v=1`
   }
 
   return filters.length > 0 ? filters.join(',') : null
@@ -381,9 +399,23 @@ export async function render(
     args.push('-filter_complex', filterChain)
   }
 
-  // Bitrate liczony z docelowej wagi. Zapas 10% zostawiamy na kontener
-  // i ścieżkę dźwiękową, żeby plik nie przekroczył limitu o włos.
-  const seconds = effectiveDuration === null ? 10 : effectiveDuration / 1000
+  /*
+   * Bez znanej długości nie da się policzyć przepływności z docelowej wagi.
+   *
+   * Wcześniej podstawialiśmy 10 sekund. Przy klipie trzydziestosekundowym
+   * dawało to trzykrotnie zawyżoną przepływność i plik trzykrotnie cięższy
+   * od zamówionego — po cichu, bez śladu w logu.
+   */
+  if (effectiveDuration === null) {
+    throw new JobError(
+      'FFMPEG_FAILED',
+      'nie udało się zmierzyć długości klipu, a bez niej nie policzę wagi pliku',
+    )
+  }
+
+  // Zapas 10% zostawiamy na kontener i ścieżkę dźwiękową, żeby plik nie
+  // przekroczył limitu o włos.
+  const seconds = effectiveDuration / 1000
   const bitrate = Math.max(Math.floor((request.targetBytes * 8 * 0.9) / seconds), 100_000)
 
   if (request.codec === 'h264') {
@@ -422,9 +454,24 @@ export async function render(
    */
   if (request.codec === 'h264') {
     args.push('-maxrate', String(bitrate), '-bufsize', String(bitrate * 2))
+    // Indeks na początek pliku: bez tego przeglądarka nie zacznie grać, zanim
+    // nie ściągnie całości. Kosztuje drugi przebieg po gotowym pliku, przy
+    // tych rozmiarach ułamek sekundy.
+    args.push('-movflags', '+faststart')
   }
 
-  args.push('-an', request.outputPath)
+  /*
+   * Dźwięk wycinamy **tylko przy pętli**.
+   *
+   * Odtworzony wstecz brzmi źle, więc pętla musi być niema — ale klip
+   * przycięty albo wykadrowany bez pętli nie ma powodu tracić ścieżki
+   * dźwiękowej. Wcześniej `-an` leciało bezwarunkowo, mimo komentarza obok
+   * mówiącego coś przeciwnego.
+   */
+  const petla = request.operations.some((o) => o.kind === 'loop')
+  if (petla) args.push('-an')
+
+  args.push(request.outputPath)
 
   await runFfmpeg(args, ctx, {
     durationMs: effectiveDuration,

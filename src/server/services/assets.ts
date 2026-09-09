@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { stat } from 'node:fs/promises'
 
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 
 import { env } from '@/lib/env'
 import { ApiError } from '@/server/adapters/types'
@@ -59,6 +59,30 @@ export function getAsset(id: string): Asset {
   if (row === undefined) {
     throw new ApiError('NOT_FOUND', 'nie ma takiego pliku', 404)
   }
+  return row
+}
+
+/**
+ * Plik należący do wskazanego zlecenia.
+ *
+ * Serwisy brały `getAsset(assetId)` bez sprawdzania właściciela, więc dało się
+ * zamówić montaż albo eksport cudzego pliku, podając własne `orderId`. Wynik
+ * lądował wtedy w katalogu zamawiającego. Przy jednym grafiku nie miało to
+ * znaczenia; odkąd panel ma więcej niż jedną osobę, ma.
+ */
+export function getOrderAsset(orderId: string, assetId: string): Asset {
+  const row = db
+    .select()
+    .from(assets)
+    .where(and(eq(assets.id, assetId), eq(assets.orderId, orderId)))
+    .get()
+
+  if (row === undefined) {
+    // Ten sam kod co przy braku pliku: odpowiedź nie ma zdradzać, że plik
+    // istnieje, tylko należy do kogoś innego.
+    throw new ApiError('NOT_FOUND', 'nie ma takiego pliku w tym zleceniu', 404)
+  }
+
   return row
 }
 

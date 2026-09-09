@@ -128,6 +128,22 @@ export const videoJobSchema = z.object({
   targetMb: z.number().min(0.5).max(50).default(4),
   poster: z.boolean().default(true),
 })
+  /*
+   * Odwrócony zakres przycięcia przechodził walidację, a FFmpeg przerywał
+   * kodem 23 — grafik dostawał komunikat o awarii montażu zamiast informacji,
+   * że pomylił początek z końcem.
+   *
+   * Sprawdzenie stoi na całym zadaniu, nie na wariancie `trim`: Zod nie
+   * przyjmuje `.refine` na członie unii rozróżnianej.
+   */
+  .refine(
+    (job) =>
+      job.operations.every((o) => o.kind !== 'trim' || o.endMs > o.startMs),
+    {
+      message: 'Koniec fragmentu musi być za jego początkiem.',
+      path: ['operations'],
+    },
+  )
 
 export type VideoJobInput = z.infer<typeof videoJobSchema>
 

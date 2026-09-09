@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { MAX_GENERATION_PIXELS, OUTPUT_PRESETS } from './output-presets'
-import { briefSchema, generateJobSchema } from './schemas'
+import { briefSchema, generateJobSchema, videoJobSchema } from './schemas'
 
 /**
  * Mapowanie briefu na parametry generowania i walidacja limitu powierzchni
@@ -84,5 +84,52 @@ describe('zadanie generowania', () => {
       })
       expect(result.success, `preset ${key}`).toBe(true)
     }
+  })
+})
+
+describe('zakres przycięcia wideo', () => {
+  const podstawa = {
+    kind: 'video_render',
+    orderId: '11111111-1111-4111-8111-111111111111',
+    assetId: '22222222-2222-4222-8222-222222222222',
+    targetMb: 4,
+  }
+
+  it('odrzuca odwrócony zakres', () => {
+    // Bez tego FFmpeg przerywał kodem 23, a grafik widział komunikat o awarii
+    // montażu zamiast informacji, że pomylił początek z końcem.
+    const wynik = videoJobSchema.safeParse({
+      ...podstawa,
+      operations: [{ kind: 'trim', startMs: 5000, endMs: 2000 }],
+    })
+
+    expect(wynik.success).toBe(false)
+  })
+
+  it('odrzuca zakres zerowy', () => {
+    const wynik = videoJobSchema.safeParse({
+      ...podstawa,
+      operations: [{ kind: 'trim', startMs: 3000, endMs: 3000 }],
+    })
+
+    expect(wynik.success).toBe(false)
+  })
+
+  it('przepuszcza zakres poprawny', () => {
+    const wynik = videoJobSchema.safeParse({
+      ...podstawa,
+      operations: [{ kind: 'trim', startMs: 1000, endMs: 4000 }],
+    })
+
+    expect(wynik.success).toBe(true)
+  })
+
+  it('nie czepia się zadań bez przycięcia', () => {
+    const wynik = videoJobSchema.safeParse({
+      ...podstawa,
+      operations: [{ kind: 'crop', aspect: 'vertical' }],
+    })
+
+    expect(wynik.success).toBe(true)
   })
 })
