@@ -576,3 +576,32 @@ danych i dalej zapisywało pustki — złapane dopiero testem w przeglądarce.
 Zmierzone po poprawce: pole tematu wypełnia się treścią z bazy, a pasek
 pokazuje „Wybór" dla zlecenia z samymi kadrami i „Eksport" dla zlecenia
 z oddanymi plikami.
+
+---
+
+## D32 — Ostrzeżenie o pozach, na których model myli anatomię
+
+**Decyzja.** Brief pokazuje ostrzeżenie, gdy opis sceny zawiera postać w ruchu
+albo w powietrzu (`ryzykownaPoza`). Nie blokujemy takiego briefu — czasem
+wychodzi — ale grafik ma wiedzieć, że warto policzyć więcej podejść.
+
+**Powód.** Grafik zgłosił kadry z trzema nogami. Zmierzone na FLUX.2 klein 4B,
+ten sam numer losowania i te same ustawienia, zmieniany wyłącznie opis pozy:
+
+| poza | kadry z błędem |
+|---|---|
+| postać w powietrzu (wsad) | **3 z 3** — trzecia noga, brakująca ręka, zdublowana kończyna |
+| ta sama postać stojąca | **0 z 2** |
+
+Podniesienie kroków z 4 na 8 **nie pomogło** — obraz wyszedł ładniejszy, ale
+trzecia noga została, przy koszcie 40 s zamiast 24 s. To nie jest kwestia
+budżetu próbkowania, opisu sceny ani warstwy promptowej: rozrzucone kończyny
+w locie są dla modelu tej wielkości najtrudniejszym przypadkiem.
+
+**Konsekwencja.** Model zostaje 4B (D5). `flux2-klein-9b` istnieje w mfluxie,
+ale 4B zajmuje już 17,95 GB przy 32 GB pamięci maszyny, więc większy wariant
+i tak się nie mieści — sprawdzone, zanim padła propozycja.
+
+Zapisujemy też, że zdanie z `workflows/flux2-klein-t2i.json` o tym, że
+podnoszenie kroków „szkodzi", jest nieścisłe: przy 8 krokach kadr był lepszy,
+nie gorszy. Kroki zostają na 4 ze względu na czas, nie na jakość.

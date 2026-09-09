@@ -23,6 +23,7 @@ import {
 } from '@/lib/messages'
 import { OUTPUT_PRESETS, PURPOSE_KEYS } from '@/lib/output-presets'
 import type { Brief } from '@/lib/schemas'
+import { ryzykownaPoza } from '@/server/services/scene-rules'
 import type { ErrorResponse, PromptResponse } from '@/types/api'
 
 /**
@@ -259,6 +260,15 @@ export function BriefDialog({
               />
             )}
           </Field>
+
+          {ryzykownaPoza(subject) && (
+            <p className="rounded border border-accent bg-accent/10 px-3 py-2 text-xs text-ink">
+              Postać w ruchu albo w powietrzu bywa rysowana z błędami — dodatkowa noga,
+              brakująca ręka. Zmierzone na tej stacji: trzy takie kadry na trzy miały błąd,
+              a ta sama postać stojąca — żadnego. Policz więcej podejść i przejrzyj je uważnie
+              albo opisz postać stojącą.
+            </p>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <Field label="Przeznaczenie" hint={FIELD_HINTS.purpose}>
