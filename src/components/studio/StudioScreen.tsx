@@ -403,7 +403,9 @@ export function StudioScreen({
               {STAGES.map((stage, index) => (
                 <li
                   key={stage}
-                  className={index <= stageIndex ? 'text-accent' : undefined}
+                  /* Skala szarości, nie akcent: pasek stoi bezpośrednio nad
+                     kadrem, a nasycony kolor w tym miejscu psuje ocenę barw. */
+                  className={index <= stageIndex ? 'font-medium text-ink' : undefined}
                   aria-current={index === stageIndex}
                 >
                   {stage}

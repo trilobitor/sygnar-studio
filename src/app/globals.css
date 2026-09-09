@@ -76,18 +76,26 @@ body {
   outline-offset: 2px;
 }
 
-/* Szachownica pod przezroczystością, żeby dało się ocenić kanał alfa. */
+/*
+ * Szachownica pod przezroczystością, żeby dało się ocenić kanał alfa.
+ *
+ * Wzór był wcześniej #1c1c1c na #222222 — kontrast 1,07:1, czyli dla oka
+ * jednolita ciemna plama. Kanał alfa, dla którego ta szachownica powstała,
+ * pozostawał nie do oceny: przezroczysty róg kadru wyglądał identycznie jak
+ * ciemne tło zdjęcia. Dwie neutralne szarości o kontraście 1,6:1 są czytelne
+ * i pozostają neutralne, więc ograniczenie ze SPEC §10 dalej obowiązuje.
+ */
 .checkerboard {
   background-image:
-    linear-gradient(45deg, #1c1c1c 25%, transparent 25%),
-    linear-gradient(-45deg, #1c1c1c 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #1c1c1c 75%),
-    linear-gradient(-45deg, transparent 75%, #1c1c1c 75%);
-  background-size: 16px 16px;
+    linear-gradient(45deg, #6e6e6e 25%, transparent 25%),
+    linear-gradient(-45deg, #6e6e6e 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #6e6e6e 75%),
+    linear-gradient(-45deg, transparent 75%, #6e6e6e 75%);
+  background-size: 12px 12px;
   background-position:
     0 0,
-    0 8px,
-    8px -8px,
-    -8px 0px;
-  background-color: #222222;
+    0 6px,
+    6px -6px,
+    -6px 0px;
+  background-color: #8f8f8f;
 }
