@@ -1,0 +1,101 @@
+@import 'tailwindcss';
+
+/*
+ * Kolor jest decyzją warsztatową, nie estetyczną (SPEC §10).
+ *
+ * Interfejs wokół podglądu obrazu jest neutralnie szary, nie granatowy.
+ * Marka Sygnar używa #0a0d12; ten odcień zafałszowałby grafikowi ocenę
+ * koloru zdjęcia. Darktable, Lightroom i Capture One są szare z tego
+ * samego powodu.
+ */
+@theme {
+  --color-surface-0: #141414;
+  --color-surface-1: #1c1c1c;
+  --color-surface-2: #262626;
+  --color-line: #333333;
+
+  /*
+   * Granica pól formularza, osobno od `--line`.
+   *
+   * `--line` jest zgodne ze SPEC §10 i nadaje się do ramek paneli, ale przy
+   * polach wejściowych daje kontrast **1,20:1** wobec ich tła — pole niemal
+   * zlewa się z panelem. WCAG wymaga 3:1 dla elementów sterujących.
+   *
+   * `#707070` to pierwsza wartość spełniająca próg: 3,06:1 na `surface-2`
+   * i 3,44:1 na `surface-1`. Propozycja audytu (`#565656`) dawała 2,06:1,
+   * czyli nadal za mało — policzone, nie przyjęte na słowo.
+   */
+  --color-field: #707070;
+  --color-ink: #e8e8e8;
+  --color-ink-muted: #9a9a9a;
+  --color-accent: #b8935a;
+  --color-danger: #d9534f;
+
+  /*
+   * Czerwień do **tekstu**, rozjaśniona.
+   *
+   * `--color-danger` zostaje bez zmian, bo tak podaje tabela kolorów
+   * w SPEC §10 i tak wygląda obramowanie. Do napisów się jednak nie nadaje:
+   * zmierzone 4,30:1 na `surface-1` i 3,82:1 na `surface-2`, przy wymaganych
+   * przez SPEC 4,5:1. Ten odcień daje 5,77:1 i 5,13:1.
+   *
+   * Rozdział jest zgodny z WCAG: obramowania i elementy sterujące mają próg
+   * 3:1, tekst 4,5:1 — jeden token nie musi spełniać obu.
+   */
+  --color-danger-text: #e8736f;
+
+  /*
+   * Wrzos — kolor słowa „Studio" w znaku.
+   *
+   * Dobrany tak, żeby nie kolidował z żadnym akcentem marki: 274° odcienia,
+   * 55° od najbliższego (błękit Estate), kontrast 8,29:1 na tle aplikacji.
+   * Fiolet jest jedynym odcieniem nieobecnym w palecie Sygnara, więc czyta
+   * się jako narzędzie wewnętrzne, a nie kolejna branża. Zgaszony celowo —
+   * nasycony kolor obok podglądu zaburzałby ocenę barw zdjęcia (SPEC §10).
+   */
+  --color-studio: #c0a3d6;
+
+  /* Krój marki podpięty pod `font-serif`. Bez tego Tailwind użyłby
+     własnego domyślnego stosu szeryfowego i znak wyszedłby Georgią. */
+  --font-serif: var(--font-fraunces), Georgia, serif;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--color-surface-0);
+  color: var(--color-ink);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+/* Widoczny focus przy obsłudze z klawiatury — wymóg dostępności z §10. */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/*
+ * Szachownica pod przezroczystością, żeby dało się ocenić kanał alfa.
+ *
+ * Wzór był wcześniej #1c1c1c na #222222 — kontrast 1,07:1, czyli dla oka
+ * jednolita ciemna plama. Kanał alfa, dla którego ta szachownica powstała,
+ * pozostawał nie do oceny: przezroczysty róg kadru wyglądał identycznie jak
+ * ciemne tło zdjęcia. Dwie neutralne szarości o kontraście 1,6:1 są czytelne
+ * i pozostają neutralne, więc ograniczenie ze SPEC §10 dalej obowiązuje.
+ */
+.checkerboard {
+  background-image:
+    linear-gradient(45deg, #6e6e6e 25%, transparent 25%),
+    linear-gradient(-45deg, #6e6e6e 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #6e6e6e 75%),
+    linear-gradient(-45deg, transparent 75%, #6e6e6e 75%);
+  background-size: 12px 12px;
+  background-position:
+    0 0,
+    0 6px,
+    6px -6px,
+    -6px 0px;
+  background-color: #8f8f8f;
+}

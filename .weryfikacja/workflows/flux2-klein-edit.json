@@ -1,0 +1,15 @@
+{
+  "id": "flux2-klein-edit",
+  "label": "FLUX.2 klein 4B — poprawka istniejącego kadru",
+  "engine": "mflux",
+  "generator": "mflux-generate-flux2-edit",
+  "model": "flux2-klein-4b",
+  "steps": 4,
+  "guidance": 1.0,
+  "notes": [
+    "Ten sam model co przy generowaniu — step- i guidance-distilled.",
+    "Kroki i guidance zamrożone tutaj, nie w kodzie i nie w prompcie.",
+    "Zmierzone na tej maszynie: 108 s i szczyt 17,50 GB przy kadrze 1024x1344.",
+    "Lżejsze od generowania (27,81 GB), ale nadal jedno zadanie GPU naraz."
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "//": "Typy dla plików spoza aplikacji: scenariusze E2E, skrypty pomocnicze i konfiguracja. `npm run typecheck` nie obejmował ich wcale, więc błąd w e2e/ albo scripts/ wychodził dopiero przy uruchomieniu.",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "//include": "vitest.config.mts pominięty świadomie: `vitest/config` eksportuje typy inaczej niż widzi je ten projekt, a plik i tak jest sprawdzany przy każdym uruchomieniu testów.",
+  "include": ["e2e/**/*.ts", "scripts/**/*.mts", "playwright.config.ts", "next.config.ts"],
+  "exclude": ["node_modules", ".next"]
+}
