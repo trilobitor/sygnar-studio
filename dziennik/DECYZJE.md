@@ -1546,3 +1546,41 @@ liter nie należy obiecywać.
 pamięci — było napisane raz i użyte raz. Wyodrębnione do `uruchomMflux()`,
 bo generowanie i poprawianie różnią się wyłącznie listą argumentów i etykietą
 etapu, a dwie kopie tej logiki rozjechałyby się przy pierwszej poprawce.
+
+---
+
+## D74 — Licencje wag: klein wolny komercyjnie, rodzina `dev` niedostępna
+
+**Data:** 2026-09-10 · **Status:** obowiązuje
+
+**Zamyka otwarte pytanie z `CLAUDE.md`.** Widniało tam od początku: „licencja
+wag FLUX.2 klein 4B — nigdzie nie zapisano, na jakich warunkach używamy modelu.
+Trzeba to sprawdzić przed oddaniem klientowi pierwszego pliku". Sprawdzone
+w rejestrze modeli HuggingFace:
+
+| model | bramka | licencja | wolno komercyjnie |
+|---|---|---|---|
+| **FLUX.2-klein-4B** *(używany)* | nie | **apache-2.0** | **tak** |
+| Qwen-Image-Edit-2509 | nie | apache-2.0 | tak |
+| Tongyi-MAI/Z-Image | nie | apache-2.0 | tak |
+| FLUX.1-Fill-dev | tak | `flux-1-dev-non-commercial-license` | **nie** |
+| FLUX.1-Kontext-dev | tak | `flux-1-dev-non-commercial-license` | **nie** |
+
+**Wniosek pierwszy: pliki generowane dziś można oddawać klientom.** Model, na
+którym stoi całe studio, jest na Apache 2.0 i nie ma bramki. Pytanie, które
+blokowało oddanie pierwszego pliku, jest rozstrzygnięte.
+
+**Wniosek drugi: pędzel maski odpada, i to nie z powodów technicznych.**
+Jedynym narzędziem w środowisku, które przyjmuje maskę, jest
+`mflux-generate-fill`, a ono stoi na wagach `FLUX.1-Fill-dev` z licencją
+**niekomercyjną**. Sygnar oddaje pracę płacącym klientom, więc użycie tych wag
+byłoby złamaniem licencji. Pomiaru pamięci nie wykonywałem — pobieranie
+24 GB wag, których i tak nie wolno użyć, nie ma sensu.
+
+To samo dotyczy `dev-kontext`, `dev-redux` i `dev-depth` — cała rodzina `dev`
+Black Forest Labs jest niekomercyjna.
+
+**Co zostaje.** Poprawianie kadru opisem, bez maski — działa od D73 na wagach
+Apache. Precyzję przestrzenną da się uzyskać inaczej: wyciąć fragment kadru,
+poprawić sam fragment i wkleić z powrotem przez `sharp`. Bez maski i bez
+niekomercyjnych wag.

@@ -141,14 +141,7 @@ Wpisy do potwierdzenia przed implementacją odpowiednich fragmentów:
 
 - czy API ComfyUI daje odtwarzalny seed *(bramka E0)*
 - czy `darktable-cli` znosi równoległe uruchomienia *(E6)*
-- **licencja wag FLUX.2 klein 4B** — nigdzie nie zapisano, na jakich warunkach
-  używamy modelu. Karta modelu **nie jest pobrana lokalnie**: w cache'u
-  HuggingFace leżą same wagi (`text_encoder`, `transformer`, `vae`,
-  `tokenizer`), bez pliku licencji i bez README. Trzeba to sprawdzić
-  w `huggingface.co/black-forest-labs/FLUX.2-klein-4B` **przed oddaniem
-  klientowi pierwszego pliku wygenerowanego tym modelem** — dotyczy praw do
-  użycia komercyjnego. Nie zgadujemy: wpisanie tu wymyślonych warunków byłoby
-  gorsze niż ich brak.
+
 - **obróbka wsadowa (E6)** — nierozstrzygnięta sprzeczność: SPEC §7a mówi
   o plikach RAW, §12 o JPEG-ach. `detectType` nie zna sygnatur RAW, a interfejsu
   do wgrania presetu XMP nie ma. Do decyzji właściciela, zanim powstanie kod.
@@ -156,6 +149,10 @@ Wpisy do potwierdzenia przed implementacją odpowiednich fragmentów:
   nie ustalono, czy wchodzą do wersji 1. Wymagałyby kolumny w `assets`, pola
   w panelu eksportu i pliku zbiorczego.
 - jakość obrazów z FLUX.2 klein 4B — **nikt jej dotąd nie ocenił**
+
+Zamknięte: **licencja wag FLUX.2 klein 4B to Apache 2.0, bez bramki** —
+sprawdzone 10.09.2026 w rejestrze HuggingFace, szczegóły w D74. Pliki
+generowane tym modelem można oddawać klientom.
 
 Zamknięte: `tailscale serve` daje certyfikat Let's Encrypt i bezpieczny
 kontekst — sprawdzone 09.09.2026, komplet warunków instalacji PWA spełniony

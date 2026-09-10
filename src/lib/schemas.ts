@@ -222,6 +222,25 @@ export const imageEditSchema = z.object({
 
 export type ImageEditInput = z.infer<typeof imageEditSchema>
 
+/**
+ * Przycięcie kadru.
+ *
+ * Prostokąt podawany w pikselach pliku źródłowego, nie w pikselach ekranu —
+ * przeliczenie robi przeglądarka, bo tylko ona wie, w jakiej skali pokazuje
+ * podgląd. Serwer sprawdza, czy prostokąt mieści się w obrazie.
+ */
+export const cropSchema = z.object({
+  left: z.number().int().min(0),
+  top: z.number().int().min(0),
+  // Sto pikseli to najmniejszy kadr, z którego cokolwiek da się wyeksportować:
+  // najmniejszy slot w tabeli ma 624 px wysokości, a skalowanie w górę z mniej
+  // niż stu pikseli daje papkę.
+  width: z.number().int().min(100),
+  height: z.number().int().min(100),
+})
+
+export type CropInput = z.infer<typeof cropSchema>
+
 export const photoBatchSchema = z.object({
   orderId: z.string().uuid(),
   assetIds: z.array(z.string().uuid()).min(1).max(200),

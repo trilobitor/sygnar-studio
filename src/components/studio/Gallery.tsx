@@ -7,6 +7,7 @@ import { FIELD_HINTS, messageForCode } from "@/lib/messages";
 import { OUTPUT_PRESETS } from "@/lib/output-presets";
 import type { Asset, ErrorResponse } from "@/types/api";
 
+import { CropOverlay } from "./CropOverlay";
 import { Lightbox } from "./Lightbox";
 
 /**
@@ -548,6 +549,8 @@ export function Preview({
   onChanged: () => void;
 }) {
   const [pelnyEkran, setPelnyEkran] = useState(false);
+  const [kadrowanie, setKadrowanie] = useState(false);
+  const [obraz, setObraz] = useState<HTMLImageElement | null>(null);
   const [poprawkaOtwarta, setPoprawkaOtwarta] = useState(false);
   const [instrukcja, setInstrukcja] = useState("");
   const [wysylam, setWysylam] = useState(false);
@@ -648,6 +651,16 @@ export function Preview({
           <>
             <button
               type="button"
+              onClick={() => setKadrowanie(true)}
+              aria-label="Przytnij ten kadr"
+              title="Zaznacz prostokąt i przytnij — bez modelu, natychmiast"
+              className="flex h-9 w-9 items-center justify-center rounded-md border border-line bg-surface-0/85 text-sm text-ink-muted transition hover:border-field hover:text-ink"
+            >
+              ⧉
+            </button>
+
+            <button
+              type="button"
               onClick={() => setPoprawkaOtwarta(true)}
               aria-label="Popraw ten kadr"
               title="Popraw fragment kadru — model zostawi resztę bez zmian"
@@ -702,6 +715,7 @@ export function Preview({
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
+            ref={setObraz}
             src={`/api/files/${asset.id}`}
             alt="Podgląd wybranego kadru"
             className="max-h-full max-w-full object-contain"
@@ -763,6 +777,15 @@ export function Preview({
         </div>
       </Dialog>
       
+      {kadrowanie && !isVideo && (
+        <CropOverlay
+          asset={asset}
+          obraz={obraz}
+          onClose={() => setKadrowanie(false)}
+          onCropped={onChanged}
+        />
+      )}
+
       {pelnyEkran && !isVideo && (
         <Lightbox assets={[asset]} onClose={() => setPelnyEkran(false)} />
       )}
