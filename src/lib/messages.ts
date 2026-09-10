@@ -79,7 +79,7 @@ export const FIELD_HINTS = {
     'Czego nie chcesz w kadrze. Napisz normalnie — zamienimy to na opis tego, co ma być zamiast tego.',
   variants:
     'Ile różnych podejść do tej samej sceny policzyć. Każde trwa około pół minuty.',
-  seed: 'Numer losowania — ten sam numer daje ten sam kadr. Zapisz go, jeśli chcesz wrócić do tego ujęcia.',
+  seed: 'Numer losowania — ten sam numer daje ten sam kadr. Zapisz go, jeśli chcesz do niego wrócić.',
 } as const
 
 /** Etykiety etapów paska postępu (SPEC §10). */
