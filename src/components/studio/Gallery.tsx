@@ -305,6 +305,15 @@ export function Gallery({
               wołany ani razu — przy ośmiu wariantach, z których trzy są nieudane,
               jedynym sposobem uprzątnięcia galerii było skasowanie całego zlecenia.
             */}
+            {/*
+              Znaki, nie emoji. Emoji renderują się krojem systemowym i
+              **w kolorze** — kosz wychodził szary, pędzel brązowo-żółty —
+              więc nigdy nie pasowały do ⤢, ⧉, » ani ⋯, a kolor przy kadrze
+              łamie zasadę achromatycznego otoczenia podglądu. UX-002.
+
+              ⌦ zamiast ✕, bo ✕ znaczy w tej aplikacji „zamknij okno" i
+              potrafi być na ekranie w tej samej chwili.
+            */}
             <button
               type="button"
               onClick={() => void skasujKadr(asset)}
@@ -316,7 +325,7 @@ export function Gallery({
               title="Skasuj — pliku nie da się odzyskać"
               className="absolute left-1 top-1 z-10 rounded px-1.5 py-0.5 text-sm text-ink-muted opacity-50 transition hover:text-danger-text hover:opacity-100 focus:opacity-100"
             >
-              🗑
+              ⌦
             </button>
             <button
               type="button"
@@ -666,7 +675,7 @@ export function Preview({
               title="Popraw fragment kadru — model zostawi resztę bez zmian"
               className="flex h-9 w-9 items-center justify-center rounded-md border border-field bg-surface-0/85 text-sm text-ink-muted transition hover:border-field hover:text-ink"
             >
-              🖌
+              ✎
             </button>
 
             <button
