@@ -471,7 +471,7 @@ function PoprawKadr({
           className="text-xs font-normal normal-case tabular-nums text-ink-muted"
           title={FIELD_HINTS.seed}
         >
-          nr {asset.seed}
+          numer losowania {asset.seed}
         </span>
       </h4>
 

@@ -37,7 +37,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
   // w kodzie ani razu — grafik szukał podświetlenia, którego nigdy nie było.
   // Zamiast obietnicy: konkretne granice, które łatwo sprawdzić wzrokiem.
   VALIDATION_FAILED:
-    'Coś w formularzu się nie zgadza. Opis sceny musi mieć co najmniej trzy znaki, a liczba podejść od 1 do 8.',
+    'Coś w formularzu się nie zgadza. Opis sceny musi mieć co najmniej trzy znaki, a liczba kadrów od 1 do 8.',
   NOT_FOUND: 'Nie znaleźliśmy tego elementu. Odśwież stronę.',
   PATH_INVALID: 'Nie udało się otworzyć pliku — to po naszej stronie, nie po Twojej.',
   HEALTH_CHECK_FAILED: 'Nie udało się sprawdzić stanu stacji. Odśwież stronę za chwilę.',
@@ -78,7 +78,7 @@ export const FIELD_HINTS = {
   avoid:
     'Czego nie chcesz w kadrze. Napisz normalnie — zamienimy to na opis tego, co ma być zamiast tego.',
   variants:
-    'Ile różnych podejść do tej samej sceny policzyć. Każde trwa około pół minuty.',
+    'Ile różnych kadrów tej samej sceny policzyć. Każdy trwa około pół minuty.',
   seed: 'Numer losowania — ten sam numer daje ten sam kadr. Zapisz go, jeśli chcesz do niego wrócić.',
 } as const
 

@@ -1584,3 +1584,32 @@ Black Forest Labs jest niekomercyjna.
 Apache. Precyzję przestrzenną da się uzyskać inaczej: wyciąć fragment kadru,
 poprawić sam fragment i wkleić z powrotem przez `sharp`. Bez maski i bez
 niekomercyjnych wag.
+
+## D75 — słownik pojęć interfejsu
+
+**Data:** 10.09.2026 · **Powód:** znalezisko UX-005 audytu, sekcja A
+
+W tekstach widocznych krążyły cztery słowa na jedną rzecz: „kadr" (173),
+„wariant" (11), „podejście" (3), „ujęcie" (1), a numer losowania występował
+i w pełnej formie (10), i skrócony do „nr" (2). Grafik nie miał jak wiedzieć,
+czy „podejście" i „kadr" to to samo.
+
+Obowiązujące formy — jedyne dopuszczalne w tekście widocznym:
+
+| pojęcie | forma | czym nie jest |
+|---|---|---|
+| **kadr** | pojedynczy obraz z generatora albo wgrany | nie „wariant", nie „ujęcie", nie „podejście" |
+| **numer losowania** | zawsze w pełnej formie | nie „seed", nie „nr" |
+| **zlecenie** | byt spinający pracę dla klienta | nie „projekt" |
+| **stacja** | ten Mac liczący zadania | — |
+
+Pole „Liczba podejść" nazywa się teraz „Liczba kadrów", bo tym właśnie
+sterowało: `variants` to liczba obrazów wychodzących z jednego uruchomienia,
+a nie liczba uruchomień.
+
+Skrót „nr" wypadł zupełnie. Rozważany był wyjątek dla podpisu kafelka, gdzie
+jest ciasno, ale reguła z wyjątkiem to znowu dwie formy — a przy 12 px pełna
+forma mieści się w kolumnie galerii.
+
+W komentarzach kodu „wariant" zostaje: `variants` to nazwa pola w API i w
+schemacie, a komentarz opisujący kod ma używać nazw z kodu.

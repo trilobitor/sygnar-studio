@@ -174,7 +174,7 @@ export function Gallery({
     return (
       <EmptyState>
         Nie ma tu jeszcze żadnego kadru. Kliknij <strong>Nowy brief</strong>,
-        opisz, co ma być na obrazie, i policzymy kilka podejść.
+        opisz, co ma być na obrazie, i policzymy kilka kadrów.
       </EmptyState>
     );
   }
@@ -435,7 +435,7 @@ export function Gallery({
                 {asset.seed === null ? (
                   "plik wgrany"
                 ) : (
-                  <span className="tabular-nums">nr losowania {asset.seed}</span>
+                  <span className="tabular-nums">numer losowania {asset.seed}</span>
                 )}
               </div>
             </button>
@@ -511,7 +511,7 @@ function FaktyOKadrze({ asset }: { asset: Asset }) {
               });
             }}
           >
-            nr losowania {asset.seed}
+            numer losowania {asset.seed}
           </button>
           {skopiowane && <span className="text-ink">skopiowane</span>}
         </>
