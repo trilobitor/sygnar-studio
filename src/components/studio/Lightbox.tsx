@@ -219,7 +219,7 @@ export function Lightbox({ assets, onClose }: { assets: Asset[]; onClose: () => 
         type="button"
         onClick={onClose}
         aria-label="Zamknij podgląd"
-        className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-line bg-surface-1/90 text-lg text-ink-muted transition hover:border-field hover:text-ink"
+        className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-field bg-surface-1/90 text-lg text-ink-muted transition hover:border-field hover:text-ink"
       >
         ✕
       </button>

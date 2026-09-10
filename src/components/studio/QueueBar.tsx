@@ -141,7 +141,7 @@ export function QueueBar({
         <button
           type="button"
           onClick={() => setOdrzucone(lastFailed.id)}
-          className="rounded border border-line px-2 py-0.5 text-xs text-ink-muted hover:text-ink"
+          className="rounded border border-field px-2 py-0.5 text-xs text-ink-muted hover:text-ink"
         >
           Rozumiem
         </button>

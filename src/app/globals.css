@@ -26,6 +26,14 @@
    * czyli nadal za mało — policzone, nie przyjęte na słowo.
    */
   --color-field: #707070;
+  /*
+   * Audyt 10.09.2026, UX-004: sprawdzone, gdzie `--line` obramowuje coś, co
+   * trzeba zobaczyć, żeby tego użyć. Dziesięć takich miejsc — przyciski
+   * narzędziowe nad kadrem, wariant `ghost`, listy rozwijane, odnośniki do
+   * pobrania — przeniesiono na `--field`. Ramki paneli, nagłówki okien
+   * i separatory wierszy zostają na `--line`: to grupowanie treści, a nie
+   * element sterujący, i próg 3:1 ich nie obejmuje.
+   */
   --color-ink: #e8e8e8;
   --color-ink-muted: #9a9a9a;
   --color-accent: #b8935a;

@@ -220,7 +220,7 @@ export function Gallery({
               <select
                 value={gdzie}
                 onChange={(event) => setGdzie(event.target.value)}
-                className="rounded border border-line bg-surface-2 px-1.5 py-0.5 text-xs text-ink"
+                className="rounded border border-field bg-surface-2 px-1.5 py-0.5 text-xs text-ink"
               >
                 <option value="wszystkie">wszystkie</option>
                 {dostepneMiejsca.map((klucz) => (
@@ -654,7 +654,7 @@ export function Preview({
               onClick={() => setKadrowanie(true)}
               aria-label="Przytnij ten kadr"
               title="Zaznacz prostokąt i przytnij — bez modelu, natychmiast"
-              className="flex h-9 w-9 items-center justify-center rounded-md border border-line bg-surface-0/85 text-sm text-ink-muted transition hover:border-field hover:text-ink"
+              className="flex h-9 w-9 items-center justify-center rounded-md border border-field bg-surface-0/85 text-sm text-ink-muted transition hover:border-field hover:text-ink"
             >
               ⧉
             </button>
@@ -664,7 +664,7 @@ export function Preview({
               onClick={() => setPoprawkaOtwarta(true)}
               aria-label="Popraw ten kadr"
               title="Popraw fragment kadru — model zostawi resztę bez zmian"
-              className="flex h-9 w-9 items-center justify-center rounded-md border border-line bg-surface-0/85 text-sm text-ink-muted transition hover:border-field hover:text-ink"
+              className="flex h-9 w-9 items-center justify-center rounded-md border border-field bg-surface-0/85 text-sm text-ink-muted transition hover:border-field hover:text-ink"
             >
               🖌
             </button>
@@ -674,7 +674,7 @@ export function Preview({
               onClick={() => setPelnyEkran(true)}
               aria-label="Powiększ na cały ekran"
               title="Powiększ na cały ekran — klawisz F"
-              className="flex h-9 w-9 items-center justify-center rounded-md border border-line bg-surface-0/85 text-sm text-ink-muted transition hover:border-field hover:text-ink"
+              className="flex h-9 w-9 items-center justify-center rounded-md border border-field bg-surface-0/85 text-sm text-ink-muted transition hover:border-field hover:text-ink"
             >
               ⤢
             </button>
@@ -685,7 +685,7 @@ export function Preview({
           href={`/api/files/${asset.id}?pobierz`}
           download
           title="Pobierz ten plik"
-          className="flex h-9 items-center rounded-md border border-line bg-surface-0/85 px-3 text-xs text-ink-muted transition hover:border-field hover:text-ink"
+          className="flex h-9 items-center rounded-md border border-field bg-surface-0/85 px-3 text-xs text-ink-muted transition hover:border-field hover:text-ink"
         >
           Pobierz
         </a>

@@ -153,7 +153,7 @@ export function Deliverables({
           <a
             href={`/api/orders/${orderId}/paczka`}
             download
-            className="rounded border border-line px-2 py-1.5 text-center text-xs text-ink transition hover:border-field"
+            className="rounded border border-field px-2 py-1.5 text-center text-xs text-ink transition hover:border-ink-muted"
           >
             Pobierz wszystko jednym plikiem
           </a>

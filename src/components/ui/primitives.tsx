@@ -24,7 +24,7 @@ const BUTTON_STYLES: Record<ButtonVariant, string> = {
    * Wariant drugorzędny dostał obwódkę. Bez niej płaska plama `surface-2`
    * zlewała się z tłem panelu i nie wyglądała na coś, w co można kliknąć.
    */
-  ghost: 'border border-line bg-surface-2 text-ink hover:border-field hover:bg-line',
+  ghost: 'border border-field bg-surface-2 text-ink hover:border-ink-muted hover:bg-line',
   danger: 'border border-danger bg-transparent text-danger-text hover:bg-danger/10',
 }
 
