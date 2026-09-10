@@ -105,7 +105,7 @@ export function ContextPanel({
 
   return (
     <div className="flex flex-col gap-4">
-      <h3 className="text-sm font-medium text-ink">
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
         {tab === 'export' ? 'Eksport' : 'Montaż'}
       </h3>
 
@@ -465,9 +465,12 @@ function PoprawKadr({
 
   return (
     <section className="flex flex-col gap-2 rounded border border-line p-2">
-      <h4 className="flex items-baseline gap-1 text-sm font-medium text-ink">
+      <h4 className="flex items-baseline gap-1 text-xs font-semibold uppercase tracking-wider text-ink-muted">
         Popraw ten kadr
-        <span className="text-xs font-normal text-ink-muted" title={FIELD_HINTS.seed}>
+        <span
+          className="text-xs font-normal normal-case tabular-nums text-ink-muted"
+          title={FIELD_HINTS.seed}
+        >
           nr {asset.seed}
         </span>
       </h4>

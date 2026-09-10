@@ -623,7 +623,7 @@ export function StudioScreen({
           <h1 className="sr-only">Sygnar Studio</h1>
           <Wordmark />
 
-          <h2 className="text-sm font-medium tracking-wide text-ink">Zlecenia</h2>
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Zlecenia</h2>
 
           <div className="flex flex-col gap-2 rounded border border-line p-2">
             <Field label="Nowe zlecenie">

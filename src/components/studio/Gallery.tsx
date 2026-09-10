@@ -435,7 +435,7 @@ export function Gallery({
                 {asset.seed === null ? (
                   "plik wgrany"
                 ) : (
-                  <span>nr losowania {asset.seed}</span>
+                  <span className="tabular-nums">nr losowania {asset.seed}</span>
                 )}
               </div>
             </button>
@@ -491,7 +491,7 @@ function FaktyOKadrze({ asset }: { asset: Asset }) {
 
   return (
     <p className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1 py-0.5 text-xs text-ink-muted">
-      <span>
+      <span className="tabular-nums">
         {asset.width} × {asset.height}
       </span>
       <span aria-hidden="true">·</span>
@@ -503,7 +503,7 @@ function FaktyOKadrze({ asset }: { asset: Asset }) {
           <button
             type="button"
             title="Skopiuj numer losowania"
-            className="underline decoration-dotted underline-offset-2 hover:text-ink"
+            className="tabular-nums underline decoration-dotted underline-offset-2 hover:text-ink"
             onClick={() => {
               void navigator.clipboard.writeText(String(asset.seed)).then(() => {
                 setSkopiowane(true);
