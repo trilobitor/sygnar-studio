@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 
-import { Button, EmptyState, Field, Select, TextArea } from '@/components/ui/primitives'
+import { Button, EmptyState, Field, Hint, Select, TextArea } from '@/components/ui/primitives'
 import { FIELD_HINTS, messageForCode, zacisnij } from '@/lib/messages'
 import { OUTPUT_PRESETS, PURPOSE_KEYS } from '@/lib/output-presets'
 import type { Asset, ErrorResponse } from '@/types/api'
@@ -139,14 +139,36 @@ export function ContextPanel({
               nigdzie niepokazany — grafik wybierał slot po samej nazwie. */}
           <p className="-mt-2 text-xs text-ink-muted">{preset.hint}</p>
 
-          <p className="text-xs text-ink-muted">
-            Wyjdzie {preset.deliver.width} × {preset.deliver.height} pikseli, maksymalnie{' '}
-            {preset.maxWeightKb} KB, w formatach{' '}
-            {/* Wersaliki nakładamy na same nazwy formatów: `.toUpperCase()`
-                na całości zamieniał polski spójnik „i" na „I". */}
-            {preset.formats.map((f) => f.toUpperCase()).join(' i ')}.
-            Jakość dobierzemy sami tak, żeby zmieścić się w wadze.
-          </p>
+          {/* Cztery dane, nie zdanie. Grafik czyta je przy każdym eksporcie,
+              czyli kilkanaście razy dziennie, a ze zdania musiał je za każdym
+              razem wyłuskać. Znalezisko UX-003 z audytu 10.09.2026. */}
+          <dl className="flex flex-col gap-1 rounded border border-line bg-surface-2 px-3 py-2 text-xs">
+            <div className="flex items-baseline justify-between gap-3">
+              <dt className="text-ink-muted">Wymiary</dt>
+              <dd className="tabular-nums text-ink">
+                {preset.deliver.width} × {preset.deliver.height} px
+              </dd>
+            </div>
+            <div className="flex items-baseline justify-between gap-3">
+              <dt className="text-ink-muted">Waga najwyżej</dt>
+              <dd className="tabular-nums text-ink">{preset.maxWeightKb} KB</dd>
+            </div>
+            <div className="flex items-baseline justify-between gap-3">
+              <dt className="text-ink-muted">Formaty</dt>
+              {/* Wersaliki nakładamy na same nazwy formatów: `.toUpperCase()`
+                  na całości zamieniał polski spójnik „i" na „I". */}
+              <dd className="text-ink">
+                {preset.formats.map((f) => f.toUpperCase()).join(' i ')}
+              </dd>
+            </div>
+            <div className="flex items-baseline justify-between gap-3">
+              <dt className="flex items-center text-ink-muted">
+                Jakość
+                <Hint text="Dobieramy ją sami: schodzimy z jakością tak długo, aż plik zmieści się w wadze. Grafik nie ustawia jej ręcznie." />
+              </dt>
+              <dd className="text-ink">dobierana sama</dd>
+            </div>
+          </dl>
 
           <Button
             variant="primary"
