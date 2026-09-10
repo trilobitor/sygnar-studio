@@ -16,3 +16,7 @@ tailnet.png
 # Powłoka AiOS — stan lokalny przebiegu, nie treść projektu
 .aios/
 telemetry/
+
+# Faza 0.5 — środowisko pomiarowe wideo, nie treść projektu
+spike/venv/
+spike/out/
