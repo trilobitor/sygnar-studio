@@ -1016,6 +1016,8 @@ export function StudioScreen({
             ['[ i ]', 'zwiń lewą i prawą kolumnę'],
             ['C', 'porównaj odłożone kadry obok siebie'],
             ['Spacja', 'odłóż zaznaczony kadr na bok'],
+            ['1 2 3', 'trzy sposoby powtórzenia zaznaczonego kadru'],
+            ['⌘ ↵', 'to samo co 1, prosto z pola opisu sceny'],
             ['?', 'to okno'],
             ['Escape', 'zamknij okno albo podgląd'],
           ].map(([klawisz, opis]) => (

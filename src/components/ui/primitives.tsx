@@ -1,6 +1,13 @@
 'use client'
 
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
+} from 'react'
 import { createPortal } from 'react-dom'
 
 /**
@@ -53,6 +60,24 @@ export function Button({
     >
       {children}
     </button>
+  )
+}
+
+/**
+ * Znacznik klawisza skrótu na przycisku.
+ *
+ * `aria-hidden`, bo nazwa przycisku ma zostać nazwą akcji — czytnik ekranu
+ * czytający „Powtórz bez zmian 3" brzmi jak lista, nie jak polecenie. Skrót
+ * jedzie do `title`, gdzie szuka go i mysz, i klawiatura.
+ */
+export function Skrot({ klawisz }: { klawisz: string }) {
+  return (
+    <span
+      aria-hidden
+      className="ml-2 rounded border border-field px-1 text-[0.6875rem] leading-4 font-normal text-ink-muted"
+    >
+      {klawisz}
+    </span>
   )
 }
 
@@ -177,6 +202,7 @@ export function TextArea({
   placeholder,
   maxLength,
   lang,
+  naKlawisz,
 }: {
   id: string
   value: string
@@ -190,6 +216,12 @@ export function TextArea({
    * jako `pl`, a opis dla modelu jest po angielsku.
    */
   lang?: string
+  /**
+   * Skrót działający **wewnątrz** pola. Globalny nasłuch milknie, gdy focus
+   * siedzi w polu tekstowym — inaczej każda wpisana litera byłaby skrótem —
+   * więc ⌘↵ z opisu sceny musi wejść tędy.
+   */
+  naKlawisz?: (event: ReactKeyboardEvent<HTMLTextAreaElement>) => void
 }) {
   return (
     <textarea
@@ -200,6 +232,7 @@ export function TextArea({
       maxLength={maxLength}
       placeholder={placeholder}
       onChange={(event) => onChange(event.target.value)}
+      onKeyDown={naKlawisz}
       className={INPUT_CLASS}
     />
   )

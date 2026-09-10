@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
-import { Button, EmptyState, Field, Hint, Select, TextArea } from '@/components/ui/primitives'
+import { Button, EmptyState, Field, Hint, Select, Skrot, TextArea } from '@/components/ui/primitives'
 import { FIELD_HINTS, messageForCode, zacisnij } from '@/lib/messages'
 import { OUTPUT_PRESETS, PURPOSE_KEYS } from '@/lib/output-presets'
 import type { Asset, ErrorResponse } from '@/types/api'
@@ -377,6 +377,92 @@ function PoprawKadr({
     }
   }
 
+  /*
+   * Trzy przyciski iteracji to oś tej pracy — grafik klika je dziesiątki razy
+   * dziennie, a różnią się przestawieniem tych samych trzech słów. Skróty są
+   * pozycyjne (1, 2, 3), nie mnemoniczne: „ten sam numer" i „ten sam opis"
+   * zaczynają się tak samo, więc każda litera byłaby zgadywanką.
+   *
+   * Jedna lista obsługuje i przyciski, i klawiaturę — inaczej skrót mógłby
+   * odpalić akcję, której przycisk jest właśnie wyszarzony. Znalezisko UX-006.
+   */
+  const wolno = !disabled && !zajety
+  const opisGotowy = opis.trim().length >= 10
+  const akcje = [
+    {
+      klawisz: '1',
+      etykieta: 'Ten sam numer, nowy opis',
+      opis: 'Ten sam kadr, poprawiony opis',
+      glowna: true,
+      widoczna: true,
+      czynna: wolno && opisGotowy && asset.seed !== null,
+      uruchom: () => void wyslij(zadanie(opis, { seeds: [asset.seed ?? 0] })),
+    },
+    {
+      klawisz: '2',
+      etykieta: 'Nowe numery, ten sam opis',
+      opis: 'Cztery nowe kadry z tego samego opisu',
+      glowna: false,
+      widoczna: true,
+      czynna: wolno && opisGotowy,
+      uruchom: () => void wyslij(zadanie(opis, { ile: 4 })),
+    },
+    {
+      /*
+       * Powtórzenie bez żadnej zmiany: ten sam numer i opis zapisany przy
+       * kadrze, nie ten z pola wyżej. Służy do sprawdzenia, czy stacja daje
+       * ten sam wynik — na przykład po aktualizacji generatora.
+       */
+      klawisz: '3',
+      etykieta: 'Powtórz bez zmian',
+      opis: 'Ten sam numer i ten sam opis, do sprawdzenia stacji',
+      glowna: false,
+      widoczna: metadane.promptEn !== undefined && asset.seed !== null,
+      czynna: wolno,
+      uruchom: () =>
+        void wyslij(zadanie(metadane.promptEn ?? '', { seeds: [asset.seed ?? 0] })),
+    },
+  ]
+
+  /*
+   * Nasłuch czyta akcje przez `ref`, a nie z zamknięcia: lista powstaje na nowo
+   * przy każdym renderze, więc w zależnościach efektu kazałaby przepinać
+   * zdarzenie po każdym naciśnięciu klawisza w opisie sceny.
+   */
+  const akcjeRef = useRef(akcje)
+  useEffect(() => {
+    akcjeRef.current = akcje
+  })
+
+  useEffect(() => {
+    function klawisz(event: KeyboardEvent): void {
+      if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return
+
+      const cel = event.target
+      if (
+        cel instanceof HTMLElement &&
+        (cel.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(cel.tagName))
+      ) {
+        return
+      }
+
+      /*
+       * Otwarte okno modalne zabiera wszystko. Bez tego „2" naciśnięte przy
+       * otwartym briefie puszczałoby generowanie w tle, a grafik zobaczyłby
+       * cztery kadry, o które nie prosił.
+       */
+      if (document.querySelector('[role="dialog"]') !== null) return
+
+      const akcja = akcjeRef.current.find((a) => a.klawisz === event.key)
+      if (akcja === undefined || !akcja.widoczna || !akcja.czynna) return
+      event.preventDefault()
+      akcja.uruchom()
+    }
+
+    window.addEventListener('keydown', klawisz)
+    return () => window.removeEventListener('keydown', klawisz)
+  }, [])
+
   return (
     <section className="flex flex-col gap-2 rounded border border-line p-2">
       <h4 className="flex items-baseline gap-1 text-sm font-medium text-ink">
@@ -395,39 +481,37 @@ function PoprawKadr({
             rows={5}
             maxLength={2000}
             lang="en"
+            /*
+             * ⌘↵ prosto z opisu sceny. Bez tego grafik, który właśnie poprawił
+             * opis, musiałby najpierw wyjść z pola, żeby cyfrowy skrót zadziałał
+             * — a to dokładnie ten moment, w którym chce puścić generowanie.
+             */
+            naKlawisz={(event) => {
+              if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+                const glowna = akcje[0]
+                if (glowna !== undefined && glowna.czynna) {
+                  event.preventDefault()
+                  glowna.uruchom()
+                }
+              }
+            }}
           />
         )}
       </Field>
 
-      <Button
-        variant="primary"
-        disabled={disabled || zajety || opis.trim().length < 10 || asset.seed === null}
-        onClick={() => void wyslij(zadanie(opis, { seeds: [asset.seed ?? 0] }))}
-      >
-        Ten sam numer, nowy opis
-      </Button>
-
-      <Button
-        disabled={disabled || zajety || opis.trim().length < 10}
-        onClick={() => void wyslij(zadanie(opis, { ile: 4 }))}
-      >
-        Nowe numery, ten sam opis
-      </Button>
-
-      {/*
-        Powtórzenie bez żadnej zmiany: ten sam numer i opis zapisany przy kadrze,
-        nie ten z pola wyżej. Służy do sprawdzenia, czy stacja daje ten sam wynik
-        — na przykład po aktualizacji generatora.
-      */}
-      {metadane.promptEn !== undefined && asset.seed !== null && (
-        <Button
-          disabled={disabled || zajety}
-          onClick={() =>
-            void wyslij(zadanie(metadane.promptEn ?? '', { seeds: [asset.seed ?? 0] }))
-          }
-        >
-          Powtórz bez zmian
-        </Button>
+      {akcje.map((akcja) =>
+        akcja.widoczna ? (
+          <Button
+            key={akcja.klawisz}
+            variant={akcja.glowna ? 'primary' : 'ghost'}
+            disabled={!akcja.czynna}
+            title={`${akcja.opis} — klawisz ${akcja.klawisz}`}
+            onClick={akcja.uruchom}
+          >
+            {akcja.etykieta}
+            <Skrot klawisz={akcja.klawisz} />
+          </Button>
+        ) : null,
       )}
     </section>
   )
