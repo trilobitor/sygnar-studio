@@ -1,0 +1,35 @@
+{
+  "wersja": "1.0-S",
+  "zdarzen": 1228,
+  "preflight": {
+    "uruchomien": 921,
+    "fail": 13,
+    "warn": 320
+  },
+  "bramki": {
+    "A": {
+      "pass": 172,
+      "fail": 2,
+      "skipped": 0
+    },
+    "B": {
+      "pass": 33,
+      "fail": 2,
+      "skipped": 0
+    },
+    "C": {
+      "pass": 2,
+      "fail": 0,
+      "skipped": 4
+    }
+  },
+  "fail_total": 4,
+  "eskalacje": 0,
+  "detektory_dodane": 21,
+  "fail_wg_kategorii": {
+    "H": 12,
+    "A": 1
+  },
+  "ostatnie": "2026-08-24T14:07:07+02:00",
+  "iteracje_srednio": 1
+}

@@ -1,0 +1,87 @@
+{
+  "$schema": "haitstack/v1/config",
+  "_uwaga": "Jeden config na repozytorium. Nic w skillach ani skryptach nie jest zahardkodowane — wszystko czyta się stąd. Wzorzec przejęty świadomie z open-mercato/skills (.ai/agentic.config.json); powód w PAPER §9.2.",
+
+  "chart": "engineering-team",
+  "galaz_bazowa": "main",
+
+  "sciezki": {
+    "briefy": "docs/briefs",
+    "kontrakty": "docs/contracts",
+    "rca": "docs/rca",
+    "rejestr": "docs/STACK_PITFALLS.md",
+    "stan": "docs",
+    "telemetria": "telemetry",
+    "artefakty": ".hait/artifacts",
+    "bench": ".hait/bench"
+  },
+
+  "komendy": {
+    "build": "npm run build",
+    "lint": "npm run lint",
+    "tsc": "npx tsc --noEmit",
+    "start": "npm run start",
+    "test": "npm test"
+  },
+
+  "bramka_b": {
+    "port": 3999,
+    "czekaj_s": 6,
+    "trasy": ["/"],
+    "api": []
+  },
+
+  "silnik": {
+    "limit_iteracji": 3,
+    "prog_trybu_petli": 20,
+    "ziarnistosc_recenzji": "final",
+    "_ziarnistosc_opcje": ["final", "checkpoint", "per-step"],
+    "_ziarnistosc_powod": "Za open-mercato/skills DECISIONS 2026-07-24: opóźnienie wykrycia defektu jest decyzją zespołu, nie stałą. 'final' = najtaniej, 'per-step' = najwcześniej."
+  },
+
+  "tracker": "github",
+  "runner": "claude-code",
+
+  "pamiec": {
+    "wlaczona": true,
+    "host": "localhost",
+    "port": 5433,
+    "baza": "hait_memory",
+    "uzytkownik": "aios",
+    "min_pgvector": "0.8.2",
+
+    "_embedder_uwaga": "Embedder jest OPCJONALNY — bez niego pamiec dziala w trybie zdegradowanym (FTS, kod 69). Profil wybiera pole `aktywny`. UWAGA: `wymiar` MUSI zgadzac sie z literalem embedding vector(N) w db/001_schema.sql (kontrola PRZED startem bazy: node db/check-wymiar.mjs) oraz z kolumna w juz dzialajacej bazie. Zmiana profilu na inny wymiar wymaga migracji: db/migrations/002_migrate_dim.sql, potem memory.sh reindex. `memory.sh doctor` sprawdza zgodnosc embedder<->baza i glosno oblewa przy rozjezdzie, ale dopiero PO starcie.",
+    "embedder": {
+      "aktywny": "tei-metal",
+
+      "profile": {
+        "ollama-docker": {
+          "backend": "ollama",
+          "url": "http://localhost:11435",
+          "model": "embeddinggemma",
+          "wymiar": 768,
+          "kontekst": 2048,
+          "uruchomienie": "docker compose --profile embed up -d && docker exec aios-memory-embed ollama pull embeddinggemma",
+          "_uwaga": "DOMYSLNY, przenosny. Dziala wszedzie, gdzie jest Docker. Kontekst 2048 tokenow bywa ciasny: streszczenia briefow siegaja 5,4 tys. znakow, wiec najdluzsze wpisy sa obcinane po cichu."
+        },
+        "tei-metal": {
+          "backend": "tei",
+          "url": "http://localhost:8081",
+          "model": "BAAI/bge-m3",
+          "wymiar": 1024,
+          "kontekst": 8192,
+          "uruchomienie": "text-embeddings-router --model-id BAAI/bge-m3 --port 8081",
+          "_uwaga": "TYLKO Apple Silicon. Natywny Metal POZA Dockerem — kontener nie ma dostepu do GPU Apple, wiec konteneryzacja tego profilu zabralaby caly zysk. Kontekst 8192 miesci najdluzsze streszczenie z zapasem; bge-m3 jest wielojezyczny i mocniejszy na polskim niz EmbeddingGemma. Wymaga recznego uruchomienia — hAit go NIE startuje i NIE nadzoruje."
+        }
+      }
+    }
+  },
+
+  "_stack_powod": "Filtr `stack` w recall jest jedyną obroną przed precedensem z niewłaściwej wersji — schemat świadomie NIE karze za wiek, tylko za niedopasowanie stacku. Puste pole wyłącza tę obronę po cichu.",
+  "stack": "node22-esm-zerodep",
+
+  "budzet": {
+    "tokeny_na_zadanie": 200000,
+    "twarde_zatrzymanie": false
+  }
+}

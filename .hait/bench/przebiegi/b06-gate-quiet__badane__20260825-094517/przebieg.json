@@ -1,0 +1,23 @@
+{
+  "zadanie": "b06-gate-quiet",
+  "ramie": "badane",
+  "harness": "hait-fazowy, protokol pelny",
+  "zaczeto": "2026-08-24T20:05:00+02:00",
+  "bramka_walidacji_pass": true,
+  "walidacja_zweryfikowana_przez_arbitra": true,
+  "npm_test": "344/345 (1 FAIL: budzet-czasu, flak srodowiskowy — ten sam test oblewa w ramieniu kontrolnym)",
+  "tryb_pelny_bajtowo_niezmieniony": true,
+  "iteracje": 2,
+  "eskalacje": 0,
+  "agentow": 5,
+  "tokeny_agentow": 648697,
+  "tokeny_orkiestracji": null,
+  "tokeny_wejscie": null,
+  "tokeny_wyjscie": null,
+  "koszt_usd": null,
+  "czas_s": null,
+  "bledy_zlapane_przed_merge": 12,
+  "uwagi": "ZAKONCZONE. Walidacja PASS, tryb pelny bajtowo identyczny (zmierzone przez podmiane samego gate.sh w czystym klonie bazowym, nie przez stash). Rozwiazanie: 44 wstawienia / 26 skresien. Pierwsza wersja zlamala macierz mutacji powloki (24 FAIL) — latki MS* biora fragmenty gate.sh za kontekst; poprawione w iteracji 2 przeniesieniem q() poza blok kontekstowy. tokeny_agentow = suma 5 podagentow (125873+67096+121853+144214+189661). tokeny_orkiestracji Arbitra NIEZMIERZONE (null) — ich doliczenie moze wynik tylko POGORSZYC dla tego ramienia. Fazy 5-8 uciete, wiec koszt jest ZANIZONY, a jakosc potencjalnie tez.",
+  "fazy_wykonane": "0,1,2(2 rundy),3",
+  "fazy_uciete": "5 (tester), 6 (przeglad kodu), 7, 8 — uciete przez Arbitra dla kosztu pilota"
+}

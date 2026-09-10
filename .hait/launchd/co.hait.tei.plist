@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- hAitOS - nadzor nad embedderem TEI (profil `tei-metal`).
+
+       POWOD: TEI biegnie na Metalu POZA Dockerem, bo kontener nie ma dostepu
+       do GPU Apple. Nie korzysta wiec z restart-policy Dockera i jako jedyny
+       komponent warstwy pamieci nie ma zadnego nadzoru.
+
+       ZMIERZONE 2026-09-02: proces dzialal do 2026-08-25 (13 recalli
+       wektorowych), potem zginal i nikt go nie wznowil. Przez tydzien pamiec
+       schodzila po cichu do FTS, bo kod 69 = tryb zdegradowany, ktory
+       Z PROJEKTU nie blokuje protokolu. Brak nadzoru spotkal sie z brakiem
+       alarmu. Ten agent zdejmuje pierwsza polowe problemu; druga zdejmuje
+       detektor [P-H19] w rejestrze pulapek.
+
+       INSTALACJA:
+         cp .hait/launchd/co.hait.tei.plist ~/Library/LaunchAgents/
+         launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/co.hait.tei.plist
+       WYCOFANIE:
+         launchctl bootout gui/$(id -u)/co.hait.tei
+         rm ~/Library/LaunchAgents/co.hait.tei.plist
+  -->
+  <key>Label</key>
+  <string>co.hait.tei</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/opt/homebrew/bin/text-embeddings-router</string>
+    <string>--model-id</string>
+    <string>BAAI/bge-m3</string>
+    <string>--port</string>
+    <string>8081</string>
+  </array>
+
+  <!-- RunAtLoad: wstaje przy logowaniu. KeepAlive: wraca po kazdym padzie. -->
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+
+  <!-- 10 s miedzy probami: model laduje sie ~9 s, wiec petla restartow przy
+       trwalej awarii nie zjada rdzenia. -->
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+
+  <key>ProcessType</key>
+  <string>Interactive</string>
+
+  <key>StandardOutPath</key>
+  <string>/Users/ceo/Library/Logs/hait-tei.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/ceo/Library/Logs/hait-tei.log</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+</dict>
+</plist>

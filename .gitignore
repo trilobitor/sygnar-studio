@@ -12,3 +12,7 @@ playwright-report/
 tsconfig.tsbuildinfo
 tailnet.png
 .e2e-dane/
+
+# Powłoka AiOS — stan lokalny przebiegu, nie treść projektu
+.aios/
+telemetry/
