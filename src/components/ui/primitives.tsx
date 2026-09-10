@@ -69,12 +69,16 @@ export function Button({
  * `aria-hidden`, bo nazwa przycisku ma zostać nazwą akcji — czytnik ekranu
  * czytający „Powtórz bez zmian 3" brzmi jak lista, nie jak polecenie. Skrót
  * jedzie do `title`, gdzie szuka go i mysz, i klawiatura.
+ *
+ * Kolor dziedziczony (`border-current`, `opacity`), nie ustalony na sztywno:
+ * na przycisku głównym tło jest mosiężne, a napis prawie czarny — szary
+ * znacznik ginął na nim zupełnie. Zmierzone na zrzucie, nie wydedukowane.
  */
 export function Skrot({ klawisz }: { klawisz: string }) {
   return (
     <span
       aria-hidden
-      className="ml-2 rounded border border-field px-1 text-[0.6875rem] leading-4 font-normal text-ink-muted"
+      className="ml-2 rounded border border-current px-1 text-[0.6875rem] leading-4 font-normal opacity-60"
     >
       {klawisz}
     </span>

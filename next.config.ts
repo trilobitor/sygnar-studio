@@ -40,6 +40,23 @@ const nextConfig: NextConfig = {
   // Nazwa i wersja frameworka to darmowa podpowiedź dla skanera.
   poweredByHeader: false,
 
+  /*
+   * Katalog wyniku budowania da się przestawić zmienną środowiskową.
+   *
+   * Domyślny `.next` jest wspólny dla budowania i dla `next start`, więc
+   * przebudowa podmienia pliki pod nogami działającemu panelowi — a ten
+   * doczytuje fragmenty z dysku leniwie i zaczyna oddawać 404 na kawałki,
+   * które grafik ma właśnie otwarte. Osobny katalog pozwala zbudować nową
+   * wersję obok, sprawdzić ją na innym porcie i dopiero potem przełączyć.
+   */
+  distDir: process.env.STUDIO_DIST_DIR ?? '.next',
+  /*
+   * Uwaga przy używaniu: budowanie z ustawionym `STUDIO_DIST_DIR` przepisuje
+   * `next-env.d.ts` i `tsconfig.json` na ten katalog. Po zbudowaniu wersji
+   * obocznej trzeba je cofnąć (`git checkout next-env.d.ts tsconfig.json`),
+   * inaczej wjadą do commita i zepsują zwykłe budowanie.
+   */
+
   async headers() {
     return [{ source: '/:path*', headers: naglowkiOchronne }]
   },

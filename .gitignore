@@ -20,3 +20,6 @@ telemetry/
 # Faza 0.5 — środowisko pomiarowe wideo, nie treść projektu
 spike/venv/
 spike/out/
+
+# Katalog budowania obok działającego panelu — patrz STUDIO_DIST_DIR.
+.next-audyt/

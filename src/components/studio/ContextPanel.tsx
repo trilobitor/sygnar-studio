@@ -465,15 +465,16 @@ function PoprawKadr({
 
   return (
     <section className="flex flex-col gap-2 rounded border border-line p-2">
-      <h4 className="flex items-baseline gap-1 text-xs font-semibold uppercase tracking-wider text-ink-muted">
+      {/*
+        Nagłówek i numer jeden pod drugim, nie obok siebie. W kolumnie szerokiej
+        na 288 px oba łamały się na dwie linijki i stały jak dwie kolumny tabeli.
+      */}
+      <h4 className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
         Popraw ten kadr
-        <span
-          className="text-xs font-normal normal-case tabular-nums text-ink-muted"
-          title={FIELD_HINTS.seed}
-        >
-          numer losowania {asset.seed}
-        </span>
       </h4>
+      <p className="-mt-1 text-xs tabular-nums text-ink-muted" title={FIELD_HINTS.seed}>
+        numer losowania {asset.seed}
+      </p>
 
       <Field label="Opis sceny" hint="Zmień to, co ma wyjść inaczej. Reszta zostaje.">
         {(id) => (
