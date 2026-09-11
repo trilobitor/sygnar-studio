@@ -714,7 +714,7 @@ export function Preview({
          */
         // eslint-disable-next-line jsx-a11y/media-has-caption
         <video
-          src={`/api/files/${asset.id}`}
+          src={`/api/files/${asset.id}?podglad`}
           controls
           className="max-h-full max-w-full"
         />
@@ -731,7 +731,7 @@ export function Preview({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             ref={setObraz}
-            src={`/api/files/${asset.id}`}
+            src={`/api/files/${asset.id}?podglad`}
             alt="Podgląd wybranego kadru"
             className="max-h-full max-w-full object-contain"
           />
