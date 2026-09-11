@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import {
   Button,
@@ -95,6 +95,13 @@ export function BriefDialog({
 
   const preset = OUTPUT_PRESETS[purpose as keyof typeof OUTPUT_PRESETS]
 
+  /** Bieżące żądanie o opis — przerywane, gdy okno znika. */
+  const sterowanieOpisem = useRef<AbortController | null>(null)
+
+  useEffect(() => {
+    return () => sterowanieOpisem.current?.abort()
+  }, [])
+
   function buildBrief(): Record<string, unknown> {
     const optional = (value: string): string | undefined =>
       value.length > 0 ? value : undefined
@@ -120,11 +127,20 @@ export function BriefDialog({
     setBusy(true)
     setProblem(null)
 
+    /*
+     * Żądanie da się przerwać. Zamknięcie okna briefu przerywa je, a serwer
+     * przerywa proces modelu — wcześniej dożywał swoich dwóch minut, choć
+     * nikt już nie czekał na wynik (SYG-109).
+     */
+    const sterowanie = new AbortController()
+    sterowanieOpisem.current = sterowanie
+
     try {
       const response = await fetch(`/api/orders/${orderId}/prompt`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(buildBrief()),
+        signal: sterowanie.signal,
       })
 
       if (!response.ok) {
