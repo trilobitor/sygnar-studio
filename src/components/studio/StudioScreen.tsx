@@ -70,6 +70,7 @@ export function StudioScreen({
   autoLogoutSeconds,
   kto,
   wideoDostepne,
+  narzedzie = 'obrazy',
 }: {
   initialOrderId: string | null
   /** Zero wyłącza pasek sesji — panel bez logowania nie ma czego odliczać. */
@@ -82,6 +83,12 @@ export function StudioScreen({
    * do bundla klienta. `NEXT_PUBLIC_` odpada — SPEC §11 tego zabrania.
    */
   wideoDostepne: boolean
+  /**
+   * Które narzędzie otwarto. Ten sam ekran, inne pierwszeństwo działań —
+   * galeria, kolejka, historia i pliki do oddania są wspólne dla zlecenia,
+   * więc druga aplikacja powielałaby je bez powodu (sekcja C audytu).
+   */
+  narzedzie?: 'obrazy' | 'wideo'
   /** Imię zalogowanej osoby. `null`, gdy panel chodzi bez logowania. */
   kto: string | null
 }) {
@@ -895,27 +902,46 @@ export function StudioScreen({
           ) : (
             <>
               <div className="flex items-center gap-2">
-                <Button
-                  variant="primary"
-                  disabled={!ready}
-                  onClick={() => setBriefOpen(true)}
-                  title={ready ? undefined : 'Stacja jest offline'}
-                >
-                  Nowy brief
-                </Button>
                 {/*
-                  Zamówienie klipu obok briefu, nie w osobnym ekranie: wideo dzieli
-                  ze zleceniem galerię, kolejkę i pliki do oddania — osobna aplikacja
-                  powielałaby to wszystko.
+                  Kolejność działań zależy od otwartego narzędzia: w wideo pierwszy
+                  jest klip, w obrazach brief. Ekran jest ten sam, bo galeria,
+                  kolejka i pliki do oddania należą do zlecenia, nie do narzędzia.
                 */}
-                {wideoDostepne && (
+                {narzedzie === 'wideo' ? (
                   <Button
-                    disabled={!ready}
+                    variant="primary"
+                    disabled={!ready || !wideoDostepne}
                     onClick={() => setKlipOpen(true)}
-                    title={ready ? undefined : 'Stacja jest offline'}
+                    title={
+                      !wideoDostepne
+                        ? 'Generowanie klipów nie jest skonfigurowane na tej stacji'
+                        : ready
+                          ? undefined
+                          : 'Stacja jest offline'
+                    }
                   >
                     Zamów klip
                   </Button>
+                ) : (
+                  <>
+                    <Button
+                      variant="primary"
+                      disabled={!ready}
+                      onClick={() => setBriefOpen(true)}
+                      title={ready ? undefined : 'Stacja jest offline'}
+                    >
+                      Nowy brief
+                    </Button>
+                    {wideoDostepne && (
+                      <Button
+                        disabled={!ready}
+                        onClick={() => setKlipOpen(true)}
+                        title={ready ? undefined : 'Stacja jest offline'}
+                      >
+                        Zamów klip
+                      </Button>
+                    )}
+                  </>
                 )}
                 <Button
                   disabled={wgrywanie !== null}

@@ -23,9 +23,18 @@ const ODSWIEZANIE_MS = 10_000
 export function Kafelki({
   autoLogoutSeconds,
   kto,
+  niedostepne = [],
 }: {
   autoLogoutSeconds: number
   kto: string | null
+  /**
+   * Klucze narzędzi, które na tej stacji nie są skonfigurowane.
+   *
+   * Rejestr mówi, co narzędzie **umie**; konfiguracja mówi, czy da się tego
+   * użyć tutaj. Bez tego stacja bez katalogu FastVideo obiecywałaby kafelek
+   * prowadzący do przycisku, który i tak jest wyszarzony.
+   */
+  niedostepne?: readonly string[]
 }) {
   /*
    * Biegnące zadania, żeby kafelek mógł pokazać, że narzędzie właśnie pracuje.
@@ -81,7 +90,19 @@ export function Kafelki({
 
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           {NARZEDZIA.map((n) => (
-            <Kafelek key={n.klucz} narzedzie={n} pracuje={pracuje(n, zadania)} />
+            <Kafelek
+              key={n.klucz}
+              narzedzie={
+                niedostepne.includes(n.klucz)
+                  ? {
+                      ...n,
+                      stan: 'niedostepne',
+                      powod: 'Nie skonfigurowano na tej stacji.',
+                    }
+                  : n
+              }
+              pracuje={pracuje(n, zadania)}
+            />
           ))}
         </div>
       </main>

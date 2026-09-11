@@ -1,5 +1,5 @@
 import { Kafelki } from '@/components/studio/Kafelki'
-import { env, requiresLogin } from '@/lib/env'
+import { env, hasFastVideo, requiresLogin } from '@/lib/env'
 import { ktoZalogowany } from '@/server/services/kto'
 
 /**
@@ -16,6 +16,7 @@ export default async function Home() {
     <Kafelki
       autoLogoutSeconds={requiresLogin ? env.AUTO_LOGOUT_SECONDS : 0}
       kto={await ktoZalogowany()}
+      niedostepne={hasFastVideo ? [] : ['wideo']}
     />
   )
 }

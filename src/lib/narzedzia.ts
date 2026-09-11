@@ -66,19 +66,18 @@ export const NARZEDZIA: readonly Narzedzie[] = [
     klucz: 'wideo',
     nazwa: 'Wideo',
     opis:
-      'Opiszesz ujęcie, a stacja policzy z niego klip. Pięć sekund materiału ' +
-      'zajmuje jej około pięciu minut, więc wideo zamawia się jak zlecenie ' +
-      'i odbiera później, a nie czeka przy ekranie.',
+      'Opisz ujęcie, a stacja policzy z niego klip. Pięć sekund materiału ' +
+      'zajmuje jej około pięciu minut, więc klip zamawia się jak zlecenie ' +
+      'i odbiera później. Zmontujesz tu też własny materiał: przycięcie, ' +
+      'kadr pod format, pętla i plansza.',
     ikona: [
       // Klatka filmu z perforacją i trójkątem odtwarzania.
       'M3 6a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z',
       'M3 8.5h3M3 15.5h3M18 8.5h3M18 15.5h3M7.5 3v18M16.5 3v18',
       'M10.75 9.25l3.75 2.75-3.75 2.75z',
     ],
-    stan: 'wkrotce',
-    // Powód konkretny, nie „w przygotowaniu": grafik ma wiedzieć, na co czeka.
-    powod: 'Czekamy na ocenę jakości: nikt jeszcze nie obejrzał gotowego klipu.',
-    rodzajeZadan: ['video_render'],
+    stan: 'dostepne',
+    rodzajeZadan: ['video_generate', 'video_render'],
   },
 ]
 
