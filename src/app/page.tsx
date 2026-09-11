@@ -1,24 +1,19 @@
+import { Kafelki } from '@/components/studio/Kafelki'
 import { env, requiresLogin } from '@/lib/env'
 import { ktoZalogowany } from '@/server/services/kto'
-import { StudioScreen } from '@/components/studio/StudioScreen'
 
 /**
- * Ekran roboczy wymaga renderowania na żądanie.
+ * Ekran wyboru narzędzia.
  *
- * Bez tego Next prerenderuje stronę przy budowaniu i zapieka w niej
- * `AUTO_LOGOUT_SECONDS` z chwili builda — zmiana w `.env` nie miałaby
- * wtedy żadnego skutku, nawet po restarcie. Wykryte pomiarem: serwer
- * uruchomiony z inną wartością i tak podawał tę z builda.
+ * `force-dynamic` z tego samego powodu co przy ekranie roboczym: bez tego
+ * Next zapiekłby w stronie `AUTO_LOGOUT_SECONDS` z chwili budowania i zmiana
+ * w `.env` nie miałaby skutku nawet po restarcie.
  */
 export const dynamic = 'force-dynamic'
 
-/** Ekran roboczy bez wybranego zlecenia — lista po lewej czeka na wybór. */
 export default async function Home() {
-  // Wartość idzie propem z serwera, a nie zmienną `NEXT_PUBLIC_` —
-  // `SPEC.md` §11 zabrania tego prefiksu w tym projekcie.
   return (
-    <StudioScreen
-      initialOrderId={null}
+    <Kafelki
       autoLogoutSeconds={requiresLogin ? env.AUTO_LOGOUT_SECONDS : 0}
       kto={await ktoZalogowany()}
     />

@@ -1,7 +1,13 @@
 .env*
 !.env.example
 node_modules/
-.next/
+# Wszystkie katalogi budowania, nie tylko domyślny.
+#
+# Wzorzec, a nie lista nazw: STUDIO_DIST_DIR pozwala zbudować wersję obok
+# działającego panelu, a każda taka nazwa jest wymyślana doraźnie.
+# Dwa razy w trakcie audytu artefakty budowania trafiły do commita,
+# bo .gitignore znał tylko nazwy wpisane wcześniej.
+.next*/
 .DS_Store
 
 # Wyniki Playwrighta — artefakty przebiegu, nie kod.
@@ -22,7 +28,6 @@ spike/venv/
 spike/out/
 
 # Katalog budowania obok działającego panelu — patrz STUDIO_DIST_DIR.
-.next-audyt/
 
 # Kopia aplikacji zostawiona przez bramkę A frameworka hait. Wpadła do gałęzi
 # audytowej przez `git add -A` i trafiłaby do PUBLICZNEGO repozytorium jako

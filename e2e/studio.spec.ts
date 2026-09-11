@@ -84,7 +84,7 @@ test.describe('Sygnar Studio', () => {
      * montażu, a więc bez wszystkich miejsc, w których te słowa mogłyby
      * wyciec. Tamten test przechodził niezależnie od implementacji.
      */
-    await page.goto(`/zlecenia/${orderId}`)
+    await page.goto(`/n/obrazy/${orderId}`)
     await expect(page.getByRole('img').first()).toBeVisible()
 
     const widoczny = (await page.locator('body').innerText()).toLowerCase()
@@ -227,7 +227,8 @@ test.describe('Sygnar Studio', () => {
       })
     })
 
-    await page.goto('/')
+    // `/` to od teraz ekran wyboru narzędzia; ekran roboczy jest pod /n/obrazy.
+    await page.goto('/n/obrazy')
 
     // Komunikat mówi, co zrobić, nie co się zepsuło wewnątrz.
     // Zawężamy do naszego banera — Next.js trzyma własny `role="alert"`

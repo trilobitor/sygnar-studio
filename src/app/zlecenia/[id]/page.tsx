@@ -1,25 +1,18 @@
-import { env, requiresLogin } from '@/lib/env'
-import { ktoZalogowany } from '@/server/services/kto'
-import { StudioScreen } from '@/components/studio/StudioScreen'
+import { permanentRedirect } from 'next/navigation'
 
 /**
- * Ekran zlecenia wymaga renderowania na żądanie.
+ * Stary adres szczegółu zlecenia.
  *
- * Bez tego Next prerenderuje stronę przy budowaniu i zapieka w niej
- * `AUTO_LOGOUT_SECONDS` z chwili builda — zmiana w `.env` nie miałaby
- * wtedy żadnego skutku, nawet po restarcie. Wykryte pomiarem: serwer
- * uruchomiony z inną wartością i tak podawał tę z builda.
+ * Przekierowanie jest obowiązkowe, nie kosmetyczne: grafik ma te adresy
+ * w zakładkach, a panel jest zainstalowany jako aplikacja na pulpicie (PWA),
+ * więc stary adres siedzi też w skrócie. `permanentRedirect` daje 308, czyli
+ * przeglądarka zapamięta zmianę i przestanie pytać.
  */
-export const dynamic = 'force-dynamic'
-
-/** Ten sam ekran roboczy, ale z otwartym konkretnym zleceniem. */
-export default async function OrderPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function StareZlecenie({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}): Promise<never> {
   const { id } = await params
-  return (
-    <StudioScreen
-      initialOrderId={id}
-      autoLogoutSeconds={requiresLogin ? env.AUTO_LOGOUT_SECONDS : 0}
-      kto={await ktoZalogowany()}
-    />
-  )
+  permanentRedirect(`/n/obrazy/${id}`)
 }
