@@ -24,7 +24,7 @@ import {
 } from '@/lib/messages'
 import { OUTPUT_PRESETS, PURPOSE_KEYS } from '@/lib/output-presets'
 import type { Brief } from '@/lib/schemas'
-import { ryzykownaPoza } from '@/server/services/scene-rules'
+import { ryzykownaPoza } from '@/lib/pozy'
 import type { ErrorResponse, PromptResponse } from '@/types/api'
 
 /**

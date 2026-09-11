@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/primitives'
 import { INDUSTRY_LABELS, messageForCode, STAGES } from '@/lib/messages'
 import { zwinieteKolumny } from '@/lib/uklad'
-import { MAX_UPLOAD_BYTES } from '@/server/services/file-type'
+import { MAX_UPLOAD_BYTES } from '@/lib/limity'
 import type { Asset, ErrorResponse, Order, OrderDetail } from '@/types/api'
 import { BriefDialog } from './BriefDialog'
 import { ContextPanel } from './ContextPanel'

@@ -10,7 +10,7 @@ import { handleError, fail } from '@/server/api/respond'
 import { wymagajSesji } from '@/server/api/sesja'
 import { ensureStarted } from '@/server/bootstrap'
 import { getOrder, listAssets } from '@/server/services/orders'
-import { brakujaceFormaty, sprawdzPlik } from '@/server/services/quality-check'
+import { brakujaceFormaty, sprawdzPlik } from '@/lib/quality-check'
 import { zbudujZip, type WpisArchiwum } from '@/server/services/zip'
 
 export const dynamic = 'force-dynamic'

@@ -23,7 +23,8 @@ export interface DetectedType {
  * sięgałoby kilku gigabajtów. Drugi: 100 MB w zupełności wystarcza klipowi
  * z telefonu, a to jedyny scenariusz wgrywania wideo w E5.
  */
-export const MAX_UPLOAD_BYTES = 100 * 1024 * 1024
+// Limit mieszka w `lib/limity`, bo znać go musi też przeglądarka.
+export { MAX_UPLOAD_BYTES } from '@/lib/limity'
 
 function startsWith(bytes: Uint8Array, signature: readonly number[], offset = 0): boolean {
   if (bytes.length < offset + signature.length) return false

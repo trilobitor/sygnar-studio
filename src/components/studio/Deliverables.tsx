@@ -1,7 +1,7 @@
 'use client'
 
 import { EmptyState, RowMenu } from '@/components/ui/primitives'
-import { brakujaceFormaty, sprawdzPlik } from '@/server/services/quality-check'
+import { brakujaceFormaty, sprawdzPlik } from '@/lib/quality-check'
 import type { Asset } from '@/types/api'
 
 /**
