@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 
 import {
@@ -621,6 +622,21 @@ export function StudioScreen({
           {/* Znak marki jest nagłówkiem pierwszego poziomu — lista zleceń
               schodzi o poziom niżej, żeby nagłówki szły bez przeskoków. */}
           <h1 className="sr-only">Sygnar Studio</h1>
+          {/*
+            Wyjście do wyboru narzędzia, nad znakiem marki.
+          
+            `Link`, nie przycisk z `router.push`: renderuje zwykły odnośnik, więc
+            działa środkowym przyciskiem myszy i z menu kontekstowego, a przy
+            okazji przechodzi bez przeładowania strony.
+          */}
+          <Link
+            href="/"
+            className="-ml-1 inline-flex w-fit items-center gap-1.5 rounded px-1 py-0.5 text-xs text-ink-muted transition hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+          >
+            <span aria-hidden>«</span>
+            Wszystkie narzędzia
+          </Link>
+
           <Wordmark />
 
           <h2 className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Zlecenia</h2>

@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useState } from 'react'
 
 import { NARZEDZIA, type Narzedzie } from '@/lib/narzedzia'
@@ -93,14 +94,34 @@ function pracuje(n: Narzedzie, zadania: readonly Job[]): boolean {
   return zadania.some((z) => n.rodzajeZadan.includes(z.kind))
 }
 
+/** Ikona narzędzia: ścieżki z rejestru w siatce 24 × 24, rysowane obrysem. */
+function Ikona({ sciezki }: { sciezki: readonly string[] }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.25}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-20 w-20"
+    >
+      {sciezki.map((d) => (
+        <path key={d} d={d} />
+      ))}
+    </svg>
+  )
+}
+
 function Kafelek({ narzedzie, pracuje }: { narzedzie: Narzedzie; pracuje: boolean }) {
   const dostepne = narzedzie.stan === 'dostepne'
 
   const wnetrze = (
     <>
-      <div className="flex items-baseline justify-between">
-        <span aria-hidden className="text-3xl leading-none text-accent">
-          {narzedzie.znak}
+      <div className="flex items-start justify-between">
+        <span className="text-accent">
+          <Ikona sciezki={narzedzie.ikona} />
         </span>
 
         {pracuje && (
@@ -116,8 +137,10 @@ function Kafelek({ narzedzie, pracuje }: { narzedzie: Narzedzie; pracuje: boolea
         )}
       </div>
 
-      <h2 className="mt-4 text-lg font-medium text-ink">{narzedzie.nazwa}</h2>
-      <p className="mt-1 text-sm leading-relaxed text-ink-muted">{narzedzie.opis}</p>
+      <h2 className="mt-6 text-2xl font-medium text-ink">{narzedzie.nazwa}</h2>
+      <p className="mt-2 max-w-prose text-sm leading-relaxed text-ink-muted">
+        {narzedzie.opis}
+      </p>
 
       {/* Powód wprost na kafelku, nie w dymku — grafik ma wiedzieć, na co czeka,
           bez najeżdżania na cokolwiek. */}
@@ -129,13 +152,30 @@ function Kafelek({ narzedzie, pracuje }: { narzedzie: Narzedzie; pracuje: boolea
     </>
   )
 
-  const wspolne = 'flex min-h-56 flex-col rounded-lg border p-6 text-left transition'
+  /*
+   * Kwadrat, nie prostokąt. Przy dwóch kafelkach szeroki prostokąt wyglądał
+   * jak pasek, a nie jak wybór narzędzia — kwadrat czyta się jak kafelek.
+   */
+  /*
+   * `min-h` zamiast samego `aspect-square`: proporcja wyznacza wysokość
+   * z szerokości, ale treść dłuższa niż kwadrat i tak go rozpycha — i wtedy
+   * kafelki przestają być równe. Minimalna wysokość trzyma kwadrat jako
+   * podłogę, a siatka wyrównuje oba do wyższego.
+   */
+  const wspolne =
+    'flex aspect-square min-h-full flex-col rounded-xl border p-8 text-left transition'
 
   if (!dostepne) {
+    /*
+     * Niedostępny kafelek też odpowiada na najechanie — rozjaśnia się i
+     * podświetla obramowanie. Nie po to, żeby udawać klikalny (kursor mówi
+     * wprost, że nie jest), tylko żeby powód niedostępności dał się przeczytać
+     * bez wysiłku i żeby ekran nie wyglądał na wpół zepsuty.
+     */
     return (
       <div
         aria-disabled="true"
-        className={`${wspolne} cursor-not-allowed border-line bg-surface-1 opacity-60`}
+        className={`${wspolne} cursor-not-allowed border-line bg-surface-1 opacity-60 hover:border-field hover:opacity-90`}
       >
         {wnetrze}
       </div>
@@ -143,11 +183,11 @@ function Kafelek({ narzedzie, pracuje }: { narzedzie: Narzedzie; pracuje: boolea
   }
 
   return (
-    <a
+    <Link
       href={`/n/${narzedzie.klucz}`}
       className={`${wspolne} border-field bg-surface-1 hover:border-accent hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40`}
     >
       {wnetrze}
-    </a>
+    </Link>
   )
 }

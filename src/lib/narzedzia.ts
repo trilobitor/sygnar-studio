@@ -23,12 +23,15 @@ export interface Narzedzie {
   /** Jedno zdanie. W kafelku ma się zmieścić w dwóch linijkach. */
   opis: string
   /**
-   * Znak z rodziny tekstowej, nie emoji.
+   * Ikona jako ścieżki wektorowe, rysowane obrysem w siatce 24 × 24.
    *
-   * Emoji renderują się krojem systemowym i w kolorze, więc nigdy nie pasują
-   * do reszty znaków w interfejsie — ustalenie z sekcji A audytu (UX-002).
+   * Nie emoji — te renderują się krojem systemowym i w kolorze, więc nigdy
+   * nie pasują do reszty interfejsu (UX-002). Nie znak tekstowy — przy
+   * ikonie wielkości kilkudziesięciu pikseli znak z kroju pisma wygląda
+   * ubogo i zależy od tego, co akurat ma w sobie font systemowy.
+   * Nie biblioteka ikon — to zależność, a `CLAUDE.md` każe o nie pytać.
    */
-  znak: string
+  ikona: readonly string[]
   stan: StanNarzedzia
   /**
    * Rodzaje zadań, których bieg oznacza „to narzędzie właśnie pracuje".
@@ -46,21 +49,35 @@ export const NARZEDZIA: readonly Narzedzie[] = [
   {
     klucz: 'obrazy',
     nazwa: 'Obrazy',
-    opis: 'Opisz scenę, a stacja policzy kilka kadrów do wyboru.',
-    // Siatka, bo to narzędzie pokazuje galerię kadrów. `◫` czytało się jak
-    // pusty prostokąt i nie mówiło nic.
-    znak: '▦',
+    opis:
+      'Opisz scenę, a stacja policzy kilka kadrów do wyboru. Potem przytniesz ' +
+      'wybrany, poprawisz w nim fragment i zapiszesz gotowy plik w wymiarach ' +
+      'i wadze wymaganych przez kanał, do którego trafia.',
+    ikona: [
+      // Ramka kadru, słońce i linia wzgórz — klasyczny znak obrazu.
+      'M3 6a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z',
+      'M3 16.5l4.5-4.5 3.5 3.5 3-3 6 6',
+      'M10 8.75a1.75 1.75 0 1 1-3.5 0 1.75 1.75 0 0 1 3.5 0z',
+    ],
     stan: 'dostepne',
     rodzajeZadan: ['image_generate', 'image_edit', 'image_export', 'photo_batch'],
   },
   {
     klucz: 'wideo',
     nazwa: 'Wideo',
-    opis: 'Opisz ujęcie i odbierz klip za kilka minut.',
-    znak: '▷',
+    opis:
+      'Opiszesz ujęcie, a stacja policzy z niego klip. Pięć sekund materiału ' +
+      'zajmuje jej około pięciu minut, więc wideo zamawia się jak zlecenie ' +
+      'i odbiera później, a nie czeka przy ekranie.',
+    ikona: [
+      // Klatka filmu z perforacją i trójkątem odtwarzania.
+      'M3 6a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z',
+      'M3 8.5h3M3 15.5h3M18 8.5h3M18 15.5h3M7.5 3v18M16.5 3v18',
+      'M10.75 9.25l3.75 2.75-3.75 2.75z',
+    ],
     stan: 'wkrotce',
     // Powód konkretny, nie „w przygotowaniu": grafik ma wiedzieć, na co czeka.
-    powod: 'Pięć sekund klipu liczy się tu pięć minut. Czekamy na ocenę jakości.',
+    powod: 'Czekamy na ocenę jakości: nikt jeszcze nie obejrzał gotowego klipu.',
     rodzajeZadan: ['video_render'],
   },
 ]
