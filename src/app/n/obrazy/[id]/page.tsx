@@ -1,4 +1,4 @@
-import { env, requiresLogin } from '@/lib/env'
+import { env, hasFastVideo, requiresLogin } from '@/lib/env'
 import { ktoZalogowany } from '@/server/services/kto'
 import { StudioScreen } from '@/components/studio/StudioScreen'
 
@@ -20,6 +20,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
       initialOrderId={id}
       autoLogoutSeconds={requiresLogin ? env.AUTO_LOGOUT_SECONDS : 0}
       kto={await ktoZalogowany()}
+      wideoDostepne={hasFastVideo}
     />
   )
 }

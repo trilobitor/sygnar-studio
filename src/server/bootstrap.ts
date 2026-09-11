@@ -38,6 +38,7 @@ import '@/server/services/generation'
 import '@/server/services/edit'
 import '@/server/services/export'
 import '@/server/services/video'
+import '@/server/services/video-generate'
 import '@/server/services/photo-batch'
 
 let started = false

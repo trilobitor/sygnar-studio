@@ -31,7 +31,18 @@ export type JobStatus = Job['status']
  * szczytu przy kadrze 1024 × 1344 wobec 27,81 GB przy generowaniu 2,08 Mpx.
  * Mniej, ale nie na tyle, żeby puścić oba naraz na maszynie z 32 GB.
  */
-export const GPU_JOB_KINDS: readonly JobKind[] = ['image_generate', 'image_edit']
+/*
+ * Generowanie wideo idzie do puli GPU razem z obrazem, bo oba modele nie
+ * zmieszczą się naraz: zmierzone szczyty to 27,81 GB dla obrazu przy 2,08 Mpx
+ * i 12,3 GB dla wideo 720p, czyli 40,1 GB przy 32 GB w maszynie.
+ * Przy MAX_CONCURRENT_GPU_JOBS=1 daje to serializację bez ani jednej nowej
+ * linii w workerze.
+ */
+export const GPU_JOB_KINDS: readonly JobKind[] = [
+  'image_generate',
+  'image_edit',
+  'video_generate',
+]
 
 /**
  * Montaż ma własną pulę o rozmiarze jeden.

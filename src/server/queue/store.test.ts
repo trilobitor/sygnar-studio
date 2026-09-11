@@ -58,8 +58,17 @@ describe('podział na pule', () => {
     expect(isGpuJob('image_export')).toBe(false)
     expect(isGpuJob('photo_batch')).toBe(false)
 
+    /*
+     * Generowanie wideo dołączyło do tej puli 11.09.2026 i było to świadome:
+     * zmierzone szczyty pamięci to 27,81 GB dla obrazu przy 2,08 Mpx
+     * i 12,3 GB dla wideo 720p, czyli 40,1 GB przy 32 GB w maszynie. Oba
+     * modele naraz się nie zmieszczą, więc wideo musi dzielić pulę
+     * z obrazem, a nie dostać własną.
+     */
+    expect(isGpuJob('video_generate')).toBe(true)
+
     // Liczba pilnuje, żeby nowy rodzaj zadania nie wpadł do tej puli po cichu.
-    expect(GPU_JOB_KINDS).toHaveLength(2)
+    expect(GPU_JOB_KINDS).toHaveLength(3)
   })
 
   it('montaż ma własną pulę, nie dzieli jej z generowaniem', () => {

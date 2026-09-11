@@ -14,6 +14,14 @@ export const ORDER_INDUSTRIES = ['legal', 'medical', 'estate', 'build', 'other']
 export const JOB_KINDS = [
   'image_generate',
   'image_edit',
+  /*
+   * Generowanie klipu z opisu (Wan 2.2 TI2V-5B przez FastVideo/MLX).
+   *
+   * Osobny rodzaj od `video_render`, który jest montażem FFmpeg trwającym
+   * sekundy. Generowanie liczy się minutami i zajmuje GPU, więc dzielenie
+   * z montażem jednego klucza zepsułoby pulę, limit czasu i komunikaty.
+   */
+  'video_generate',
   'video_render',
   'image_export',
   'photo_batch',

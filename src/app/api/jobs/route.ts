@@ -6,6 +6,7 @@ import {
   imageEditSchema,
   jobKindSchema,
   photoBatchSchema,
+  videoGenerateJobSchema,
   videoJobSchema,
 } from '@/lib/schemas'
 import { handleError, fail, tooMany } from '@/server/api/respond'
@@ -17,6 +18,7 @@ import { enqueueExport } from '@/server/services/export'
 import { enqueueGeneration } from '@/server/services/generation'
 import { enqueuePhotoBatch } from '@/server/services/photo-batch'
 import { enqueueVideo } from '@/server/services/video'
+import { enqueueVideoGenerate } from '@/server/services/video-generate'
 
 export const dynamic = 'force-dynamic'
 
@@ -63,6 +65,10 @@ export async function POST(request: Request): Promise<NextResponse> {
       }
       case 'image_export': {
         const job = enqueueExport(exportJobSchema.parse(body))
+        return NextResponse.json({ jobId: job.id, position: positionInQueue(job) }, { status: 202 })
+      }
+      case 'video_generate': {
+        const job = enqueueVideoGenerate(videoGenerateJobSchema.parse(body))
         return NextResponse.json({ jobId: job.id, position: positionInQueue(job) }, { status: 202 })
       }
       case 'video_render': {

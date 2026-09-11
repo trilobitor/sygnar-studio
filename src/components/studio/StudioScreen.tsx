@@ -17,6 +17,7 @@ import { zwinieteKolumny } from '@/lib/uklad'
 import { MAX_UPLOAD_BYTES } from '@/lib/limity'
 import type { Asset, ErrorResponse, Order, OrderDetail } from '@/types/api'
 import { BriefDialog } from './BriefDialog'
+import { KlipDialog } from './KlipDialog'
 import { ContextPanel } from './ContextPanel'
 import { Deliverables } from './Deliverables'
 import { Gallery, Preview } from './Gallery'
@@ -68,10 +69,19 @@ export function StudioScreen({
   initialOrderId,
   autoLogoutSeconds,
   kto,
+  wideoDostepne,
 }: {
   initialOrderId: string | null
   /** Zero wyłącza pasek sesji — panel bez logowania nie ma czego odliczać. */
   autoLogoutSeconds: number
+  /**
+   * Czy generowanie klipów jest skonfigurowane.
+   *
+   * Propem z serwera, nie przez `@/lib/env`: ten moduł waliduje `process.env`,
+   * którego w przeglądarce nie ma, a ścieżki na dysku nie mają prawa trafić
+   * do bundla klienta. `NEXT_PUBLIC_` odpada — SPEC §11 tego zabrania.
+   */
+  wideoDostepne: boolean
   /** Imię zalogowanej osoby. `null`, gdy panel chodzi bez logowania. */
   kto: string | null
 }) {
@@ -164,6 +174,7 @@ export function StudioScreen({
   const [selected, setSelected] = useState<Asset | null>(null)
   const [ready, setReady] = useState(false)
   const [briefOpen, setBriefOpen] = useState(false)
+  const [klipOpen, setKlipOpen] = useState(false)
   const [problem, setProblem] = useState<string | null>(null)
   /**
    * `null` = nie wgrywamy. Liczba = trwa wysyłka.
@@ -892,6 +903,20 @@ export function StudioScreen({
                 >
                   Nowy brief
                 </Button>
+                {/*
+                  Zamówienie klipu obok briefu, nie w osobnym ekranie: wideo dzieli
+                  ze zleceniem galerię, kolejkę i pliki do oddania — osobna aplikacja
+                  powielałaby to wszystko.
+                */}
+                {wideoDostepne && (
+                  <Button
+                    disabled={!ready}
+                    onClick={() => setKlipOpen(true)}
+                    title={ready ? undefined : 'Stacja jest offline'}
+                  >
+                    Zamów klip
+                  </Button>
+                )}
                 <Button
                   disabled={wgrywanie !== null}
                   onClick={() => fileInput.current?.click()}
@@ -1060,6 +1085,15 @@ export function StudioScreen({
           brief={detail.brief}
           disabled={!ready}
           onClose={zamknijBrief}
+          onQueued={reload}
+        />
+      )}
+
+      {orderId !== null && wideoDostepne && (
+        <KlipDialog
+          open={klipOpen}
+          orderId={orderId}
+          onClose={() => setKlipOpen(false)}
           onQueued={reload}
         />
       )}

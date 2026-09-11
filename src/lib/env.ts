@@ -100,6 +100,14 @@ const envSchema = z.object({
    * zmiany kodu. Wartości domyślne to dokładnie te, które tam stały.
    */
   VIDEO_TIMEOUT_MS: z.coerce.number().int().min(10_000).default(900_000),
+  /*
+   * Limit generowania klipu. Domyślnie 15 minut, czyli trzykrotność
+   * zmierzonych 310 s przy 720p/5s — z zapasem na pierwsze uruchomienie
+   * po starcie maszyny, które dokłada ładowanie modelu z dysku.
+   */
+  VIDEO_GENERATE_TIMEOUT_MS: z.coerce.number().int().min(60_000).default(900_000),
+  /** Katalog środowiska FastVideo: `venv/bin/python` i `wagi/`. */
+  FASTVIDEO_DIR: z.string().default(''),
   EXPORT_TIMEOUT_MS: z.coerce.number().int().min(5_000).default(120_000),
   PHOTO_BATCH_TIMEOUT_MS: z.coerce.number().int().min(10_000).default(600_000),
 
@@ -188,3 +196,11 @@ export const hasAnthropicKey = env.ANTHROPIC_API_KEY.length > 0
 
 /** Czy darktable jest w ogóle skonfigurowany. Dotyczy etapu E6. */
 export const hasDarktable = env.DARKTABLE_CLI_PATH.length > 0
+
+/**
+ * Czy generowanie wideo jest skonfigurowane.
+ *
+ * Model waży 18 GB, więc na maszynie bez niego panel ma po prostu działać
+ * dalej z wyłączonym kafelkiem, a nie odmawiać startu.
+ */
+export const hasFastVideo = env.FASTVIDEO_DIR.length > 0

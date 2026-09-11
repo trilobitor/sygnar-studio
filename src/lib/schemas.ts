@@ -150,6 +150,25 @@ export type ExportJobInput = z.infer<typeof exportJobSchema>
 export const VIDEO_OPERATION_KINDS = ['trim', 'loop', 'crop'] as const
 export type VideoOperationKind = (typeof VIDEO_OPERATION_KINDS)[number]
 
+/**
+ * Zamówienie klipu z opisu.
+ *
+ * `sourceAssetId` jest opcjonalne i **dziś nieużywane**. Wchodzi od początku,
+ * bo model to Wan 2.2 **TI2V** — umie kondycjonować obrazem, tylko nasz
+ * przebieg jeszcze tego nie obsługuje. Gdy obsłuży, nie trzeba będzie
+ * migrować zadań ani zmieniać schematu (rozstrzygnięcie arbitra, sekcja C).
+ */
+export const videoGenerateJobSchema = z.object({
+  orderId: z.string().uuid(),
+  promptEn: z.string().min(10).max(2000),
+  wariant: z.enum(['podglad', 'oddanie']),
+  // Bez numeru serwer wylosuje własny — tak samo jak przy obrazie.
+  seed: z.number().int().min(0).optional(),
+  sourceAssetId: z.string().uuid().optional(),
+})
+
+export type VideoGenerateJobInput = z.infer<typeof videoGenerateJobSchema>
+
 export const videoJobSchema = z.object({
   orderId: z.string().uuid(),
   assetId: z.string().uuid(),

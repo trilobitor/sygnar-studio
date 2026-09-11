@@ -114,6 +114,87 @@ def _default_prompt_cache_path(fingerprint: dict[str, object]) -> Path:
     return Path.home() / ".cache" / "fastvideo" / "prompt_embeds" / f"wan22_{digest}.npy"
 
 
+
+def _sample_z_postepem(
+    model,
+    encoder_hidden_states,
+    noise_latents,
+    freqs_cis,
+    *,
+    dmd_denoising_steps,
+    flow_shift,
+    warp_denoising_step,
+    seed,
+    build_schedule,
+    dmd_step,
+    pred_noise_to_pred_video,
+):
+    """
+    Odpowiednik `sample_wan22_dmd`, ale wypisujący postęp po każdym kroku.
+
+    Dlaczego kopia zamiast wywołania biblioteki: `sample_wan22_dmd` nie
+    przyjmuje żadnej funkcji zwrotnej, a cała pętla liczenia jest w środku.
+    Zmierzone 11.09.2026: przy 480p/2s daje to 24 sekundy ciszy, a przy
+    720p/5s — 234 sekundy, czyli prawie cztery minuty ekranu bez żadnego
+    znaku życia. Panel nie ma z czego pokazać postępu.
+
+    Łatania biblioteki nie robimy: pętla składa się wyłącznie z rzeczy
+    publicznie eksportowanych (`build_wan22_dmd_schedule`, `dmd_step`,
+    `pred_noise_to_pred_video`), więc da się ją złożyć u siebie. Ciało pętli
+    jest przepisane **co do znaku** z `fastvideo/mlx_runtime/wan22_sample.py`,
+    żeby wynik pozostał bit w bit ten sam — jedyna różnica to `print`.
+
+    Uwaga przy aktualizacji FastVideo: jeżeli biblioteka zmieni tę pętlę,
+    ta kopia się rozjedzie. Wtedy albo przepisać ponownie, albo zgłosić
+    autorom prośbę o funkcję zwrotną.
+    """
+    import time as _time
+
+    import mlx.core as mx
+    import numpy as np
+
+    schedule, timesteps = build_schedule(
+        dmd_denoising_steps,
+        flow_shift=flow_shift,
+        warp_denoising_step=warp_denoising_step,
+    )
+    renoise_rng = np.random.default_rng(seed)
+    latents = noise_latents
+    batch, _c, frames, height, width = latents.shape
+    pt, ph, pw = model.patch_size
+    tokens = (frames // pt) * (height // ph) * (width // pw)
+    last = len(timesteps) - 1
+    start = _time.perf_counter()
+
+    for i, t in enumerate(timesteps):
+        ts = mx.full((batch, tokens), float(t), dtype=mx.float32)
+        pred = model(latents.astype(mx.float16), encoder_hidden_states, ts, freqs_cis)
+        ni = latents.astype(mx.float32)
+        pn = pred.astype(mx.float32)
+        if i < last:
+            renoise = mx.array(renoise_rng.standard_normal(tuple(latents.shape)).astype(np.float32))
+            latents = dmd_step(
+                latents=ni,
+                noise_input_latent=ni,
+                pred_noise=pn,
+                schedule=schedule,
+                timestep=float(t),
+                next_timestep=float(timesteps[i + 1]),
+                noise=renoise,
+            ).astype(latents.dtype)
+        else:
+            latents = pred_noise_to_pred_video(pn, ni, schedule.sigma_for(float(t))).astype(latents.dtype)
+        mx.eval(latents)
+
+        # Format czytany przez adapter panelu. Zmiana wymaga zmiany tam.
+        print(
+            f"[postep] krok {i + 1}/{len(timesteps)} po {_time.perf_counter() - start:.1f}s",
+            flush=True,
+        )
+
+    return latents
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="MLX Wan2.2-5B T2V (encode → DiT DMD → TAEHV/VAE decode)"
@@ -299,6 +380,7 @@ def main() -> None:
         mlx_wan22_dit_from_mlx_checkpoint,
     )
     from fastvideo.mlx_runtime.wan22_sample import build_wan22_dmd_schedule, sample_wan22_dmd
+    from fastvideo.mlx_runtime.sampling import dmd_step, pred_noise_to_pred_video
     from fastvideo.mlx_runtime.wan_vae import decode_latents_to_video
 
     if args.mlx_checkpoint is not None:
@@ -409,7 +491,7 @@ def main() -> None:
     steps = [int(s) for s in args.dmd_denoising_steps.split(",") if s.strip()]
     t2 = time.perf_counter()
     mx.reset_peak_memory()
-    latents = sample_wan22_dmd(
+    latents = _sample_z_postepem(
         dit,
         ehs,
         noise,
@@ -418,6 +500,9 @@ def main() -> None:
         flow_shift=args.flow_shift,
         warp_denoising_step=not args.no_warp,
         seed=args.renoise_seed,
+        build_schedule=build_wan22_dmd_schedule,
+        dmd_step=dmd_step,
+        pred_noise_to_pred_video=pred_noise_to_pred_video,
     )
     if spatial_mode == "refine":
         schedule, warped_steps = build_wan22_dmd_schedule(

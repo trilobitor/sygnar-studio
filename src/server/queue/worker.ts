@@ -59,6 +59,16 @@ const TIMEOUTS_MS: Record<JobKind, number> = {
   // Poprawka idzie tym samym modelem i tyloma samymi krokami co generowanie,
   // więc dzieli z nim limit czasu.
   image_edit: env.JOB_TIMEOUT_MS,
+  /*
+   * Generowanie wideo dostaje własny limit, osobny od montażu.
+   *
+   * Montaż FFmpeg trwa sekundy, generowanie minuty — jeden limit dla obu
+   * musiałby być ustawiony pod dłuższy i przestałby chronić przed zawieszonym
+   * montażem. Wartość domyślna to trzykrotność zmierzonego czasu (310 s przy
+   * 720p/5s), a nie dwukrotność: pierwsze uruchomienie po starcie maszyny
+   * dokłada ładowanie modelu z dysku, którego nie zmierzyłem osobno.
+   */
+  video_generate: env.VIDEO_GENERATE_TIMEOUT_MS,
   video_render: env.VIDEO_TIMEOUT_MS,
   image_export: env.EXPORT_TIMEOUT_MS,
   photo_batch: env.PHOTO_BATCH_TIMEOUT_MS,
