@@ -20,7 +20,7 @@
  * danych waży dziś 138 MB i bez sprzątania kopie zjadłyby dysk.
  */
 import { execFile } from 'node:child_process'
-import { mkdirSync, readdirSync, rmSync, statSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 
@@ -83,6 +83,29 @@ await uruchom('rsync', ['-a', '--delete', join(zrodlo, 'orders') + '/', join(kat
 const { stdout } = await uruchom('du', ['-sk', join(katalog, 'orders')])
 const kb = Number(stdout.trim().split(/\s+/)[0] ?? '0')
 console.error(`  pliki: ${czytelnie(kb * 1024)}`)
+
+/*
+ * Dokumentacja audytu, jeśli jest.
+ *
+ * `audyt/` jest świadomie poza repozytorium — to mapa niezałatanych słabości
+ * aplikacji stojącej pod publicznym adresem, a repozytorium jest publiczne
+ * (decyzja właściciela z 11.09.2026, opisana w `.gitignore`). Skutek uboczny
+ * tamtej decyzji był taki, że katalogu nie chronił **ani git, ani kopia** —
+ * jeden egzemplarz na jednym dysku. Kopia zapasowa jest jedynym miejscem,
+ * w którym da się to naprawić bez wypychania rejestru na GitHub.
+ *
+ * Katalog może nie istnieć — na innej maszynie albo po jego uprzątnięciu.
+ * Brak nie jest błędem kopii.
+ */
+const audyt = join(process.cwd(), 'audyt')
+
+if (existsSync(audyt)) {
+  await uruchom('rsync', ['-a', '--delete', audyt + '/', join(katalog, 'audyt')])
+
+  const { stdout: wyjscieAudytu } = await uruchom('du', ['-sk', join(katalog, 'audyt')])
+  const kbAudytu = Number(wyjscieAudytu.trim().split(/\s+/)[0] ?? '0')
+  console.error(`  audyt: ${czytelnie(kbAudytu * 1024)}`)
+}
 
 // --- retencja -----------------------------------------------------------
 /**
