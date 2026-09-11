@@ -48,7 +48,53 @@ export async function POST(request: Request): Promise<NextResponse> {
       return fail('UPLOAD_TOO_LARGE', 413)
     }
 
-    const form = await request.formData()
+    /*
+     * Nagłówek długości to deklaracja klienta, nie fakt.
+     *
+     * Żądanie z `Transfer-Encoding: chunked` nie ma `content-length`, więc
+     * sprawdzenie wyżej przepuszczało je z `deklarowane` równym zeru, a ciało
+     * szło prosto do `formData()` — które buforuje je wielokrotnie, bez
+     * żadnego sufitu. Limit 100 MB nadal obowiązywał, ale dopiero po tym, jak
+     * pamięć została zajęta (SYG-005).
+     *
+     * Teraz liczymy bajty w locie i przerywamy w momencie przekroczenia, więc
+     * zużycie pamięci jest ograniczone niezależnie od tego, co klient napisał
+     * w nagłówkach.
+     */
+    const strumien = request.body
+
+    if (strumien === null) {
+      return fail('VALIDATION_FAILED', 400)
+    }
+
+    const kawalki: Uint8Array[] = []
+    let policzone = 0
+    const czytnik = strumien.getReader()
+
+    for (;;) {
+      const { done, value } = await czytnik.read()
+      if (done) break
+
+      policzone += value.byteLength
+
+      if (policzone > MAX_UPLOAD_BYTES) {
+        await czytnik.cancel()
+        logger.warn('odrzucone wgranie po policzeniu bajtów', { bytes: policzone })
+        return fail('UPLOAD_TOO_LARGE', 413)
+      }
+
+      kawalki.push(value)
+    }
+
+    // Odtworzone żądanie niesie te same nagłówki, więc `formData()` widzi
+    // granicę części wieloczęściowych tak samo jak przedtem.
+    const zmierzone = new Request(request.url, {
+      method: 'POST',
+      headers: request.headers,
+      body: Buffer.concat(kawalki),
+    })
+
+    const form = await zmierzone.formData()
     const file = form.get('file')
 
     if (!(file instanceof File)) {
