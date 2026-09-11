@@ -28,3 +28,16 @@ spike/out/
 # audytowej przez `git add -A` i trafiłaby do PUBLICZNEGO repozytorium jako
 # 212-plikowy, już rozjechany duplikat całego kodu (SYG-036, SYG-055).
 .weryfikacja/
+
+
+# Rejestr defektów zostaje lokalnie.
+#
+# Repozytorium jest publiczne, a `audyt/02-defekty.md` to mapa 117 słabości
+# aplikacji, która stoi pod publicznym adresem przez tailscale funnel — z
+# nazwami plików i numerami linii. Kod może być jawny; lista tego, czego
+# jeszcze nie załatano, nie musi. Decyzja właściciela z 11.09.2026.
+#
+# Katalog został wycięty z historii **przed** pierwszym wypchnięciem, więc
+# nigdy nie trafił na GitHub. Gdyby kiedyś miał — trzeba znów przepisać
+# historię, bo samo dopisanie tutaj usuwa tylko przyszłe zmiany.
+audyt/
