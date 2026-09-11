@@ -1,4 +1,13 @@
+import { execFile } from 'node:child_process'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { promisify } from 'node:util'
+
 import { beforeEach, describe, expect, it } from 'vitest'
+
+import { env } from '@/lib/env'
+import { registerAsset } from '@/server/services/assets'
 
 import { resetAll } from '@/server/services/rate-limit'
 
@@ -14,6 +23,7 @@ import { GET as jobsGet, POST as jobsPost } from './jobs/route'
 import { DELETE as jobDelete, GET as jobGet } from './jobs/[id]/route'
 import { GET as fileGet } from './files/[assetId]/route'
 import { POST as uploadsPost } from './uploads/route'
+import { GET as paczkaGet } from './orders/[id]/paczka/route'
 
 /**
  * Każdy route handler ma test happy path i minimum dwa przypadki błędu
@@ -511,5 +521,90 @@ describe('odpowiedzi błędów nie wynoszą szczegółów', () => {
     const cialo = (await handleError(blad, 'test').json()) as Record<string, unknown>
 
     expect(JSON.stringify(cialo)).not.toContain('/Users')
+  })
+})
+
+/**
+ * SYG-001 — brak jednego pliku na dysku wywracał całą paczkę.
+ *
+ * `readFile` rzucał, obsługa błędów oddawała JSON z kodem, a przeglądarka —
+ * przez atrybut `download` na odnośniku — zapisywała go pod nazwą archiwum.
+ * Grafik dostawał „paczkę" z treścią błędu zamiast roboty, i to przy panelu
+ * meldującym, że wymiary, formaty i jakość zgadzają się z tabelą.
+ *
+ * Wiersz w bazie potrafi przeżyć swój plik: skasowany ręcznie, przerwany
+ * zapis, pomyłka przy sprzątaniu.
+ */
+describe('paczka do oddania wobec brakującego pliku (SYG-001)', () => {
+  /** Zlecenie z dwoma plikami do oddania. Zwraca ścieżki obu. */
+  async function zlecenieZDwomaEksportami(): Promise<{
+    orderId: string
+    sciezki: [string, string]
+  }> {
+    const orderId = await createOrder()
+    const sciezki: string[] = []
+
+    for (const nazwa of ['pierwszy.webp', 'drugi.webp']) {
+      const sciezka = join(env.STUDIO_DATA_DIR, nazwa)
+      await writeFile(sciezka, Buffer.from(`zawartość ${nazwa}`.repeat(20), 'utf8'))
+      await registerAsset({
+        orderId,
+        jobId: null,
+        kind: 'export',
+        absolutePath: sciezka,
+        mime: 'image/webp',
+        width: 1200,
+        height: 900,
+      })
+      sciezki.push(sciezka)
+    }
+
+    // Bez tej asercji test mógłby przejść, nie przygotowawszy niczego.
+    expect(sciezki.length, 'przygotowanie plików do testu nie powiodło się').toBe(2)
+    return { orderId, sciezki: [sciezki[0] ?? '', sciezki[1] ?? ''] }
+  }
+
+  it('oddaje archiwum z pozostałymi plikami, zamiast wywracać całość', async () => {
+    const { orderId, sciezki } = await zlecenieZDwomaEksportami()
+    await rm(sciezki[0])
+
+    const response = await paczkaGet(new Request('http://localhost'), params({ id: orderId }))
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get('Content-Type')).toBe('application/zip')
+  })
+
+  it('karta kontrolna mówi wprost, którego pliku brakuje', async () => {
+    const { orderId, sciezki } = await zlecenieZDwomaEksportami()
+    await rm(sciezki[0])
+
+    const response = await paczkaGet(new Request('http://localhost'), params({ id: orderId }))
+    const archiwum = Buffer.from(await response.arrayBuffer())
+
+    /*
+     * Rozpakowujemy systemowym `unzip`, tak jak `zip.test.ts`. Szukanie napisu
+     * w surowych bajtach nie zadziała: treść idzie przez `deflateRawSync`.
+     */
+    const katalog = await mkdtemp(join(tmpdir(), 'paczka-'))
+    const plik = join(katalog, 'paczka.zip')
+    await writeFile(plik, archiwum)
+    const { stdout } = await promisify(execFile)('unzip', ['-p', plik, 'karta-kontrolna.txt'])
+
+    expect(stdout).toContain('pierwszy.webp')
+    expect(stdout).toContain('nie ma na dysku')
+    // Liczba w karcie ma mówić prawdę, a nie liczbę wierszy w bazie.
+    expect(stdout).toContain('Plików w paczce: 1 z 2')
+  })
+
+  it('odmawia, gdy nie ma już ani jednego pliku', async () => {
+    const { orderId, sciezki } = await zlecenieZDwomaEksportami()
+    await rm(sciezki[0])
+    await rm(sciezki[1])
+
+    const response = await paczkaGet(new Request('http://localhost'), params({ id: orderId }))
+
+    // Paczka z samą kartą kontrolną byłaby gorsza niż jawna odmowa.
+    expect(response.status).toBe(404)
+    expect((await readJson(response)).errorCode).toBe('NOT_FOUND')
   })
 })

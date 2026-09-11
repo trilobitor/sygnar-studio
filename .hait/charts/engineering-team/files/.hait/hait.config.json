@@ -1,0 +1,58 @@
+{
+  "$schema": "haitstack/v1/config",
+  "_uwaga": "Jeden config na repozytorium. Nic w skillach ani skryptach nie jest zahardkodowane — wszystko czyta się stąd. Wzorzec przejęty świadomie z open-mercato/skills (.ai/agentic.config.json); powód w PAPER §9.2.",
+
+  "chart": "engineering-team",
+  "galaz_bazowa": "main",
+
+  "sciezki": {
+    "briefy": "docs/briefs",
+    "kontrakty": "docs/contracts",
+    "rca": "docs/rca",
+    "rejestr": "docs/STACK_PITFALLS.md",
+    "stan": "docs",
+    "telemetria": "telemetry",
+    "artefakty": ".hait/artifacts",
+    "bench": ".hait/bench"
+  },
+
+  "komendy": {
+    "build": "npm run build",
+    "lint": "npm run lint",
+    "tsc": "npx tsc --noEmit",
+    "start": "npm run start",
+    "test": "npm test"
+  },
+
+  "bramka_b": {
+    "port": 3999,
+    "czekaj_s": 6,
+    "trasy": ["/"],
+    "api": []
+  },
+
+  "silnik": {
+    "limit_iteracji": 3,
+    "prog_trybu_petli": 20,
+    "ziarnistosc_recenzji": "final",
+    "_ziarnistosc_opcje": ["final", "checkpoint", "per-step"],
+    "_ziarnistosc_powod": "Za open-mercato/skills DECISIONS 2026-07-24: opóźnienie wykrycia defektu jest decyzją zespołu, nie stałą. 'final' = najtaniej, 'per-step' = najwcześniej."
+  },
+
+  "tracker": "github",
+  "runner": "claude-code",
+
+  "pamiec": {
+    "wlaczona": true,
+    "host": "localhost",
+    "port": 5433,
+    "baza": "hait_memory",
+    "embedder": "opcjonalny",
+    "min_pgvector": "0.8.2"
+  },
+
+  "budzet": {
+    "tokeny_na_zadanie": 200000,
+    "twarde_zatrzymanie": false
+  }
+}

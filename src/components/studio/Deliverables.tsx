@@ -1,7 +1,7 @@
 'use client'
 
 import { EmptyState, RowMenu } from '@/components/ui/primitives'
-import { brakujaceFormaty, sprawdzPlik } from '@/server/services/quality-check'
+import { brakujaceFormaty, sprawdzPlik } from '@/lib/quality-check'
 import type { Asset } from '@/types/api'
 
 /**
@@ -75,7 +75,7 @@ export function Deliverables({
 
   return (
     <section className="flex flex-col gap-2 border-t border-line pt-3">
-      <h3 className="flex items-baseline justify-between text-sm font-medium text-ink">
+      <h3 className="flex items-baseline justify-between text-xs font-semibold uppercase tracking-wider text-ink-muted">
         Do oddania
         {pliki.length > 0 && <span className="text-xs text-ink-muted">{pliki.length}</span>}
       </h3>
@@ -153,7 +153,7 @@ export function Deliverables({
           <a
             href={`/api/orders/${orderId}/paczka`}
             download
-            className="rounded border border-line px-2 py-1.5 text-center text-xs text-ink transition hover:border-field"
+            className="rounded border border-field px-2 py-1.5 text-center text-xs text-ink transition hover:border-ink-muted"
           >
             Pobierz wszystko jednym plikiem
           </a>

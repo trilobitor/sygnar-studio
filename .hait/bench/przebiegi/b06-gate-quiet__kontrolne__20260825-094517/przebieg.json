@@ -1,0 +1,21 @@
+{
+  "zadanie": "b06-gate-quiet",
+  "ramie": "kontrolne",
+  "harness": "open-mercato/skills (om-auto-create-pr), 1 agent",
+  "zaczeto": "2026-08-24T21:40:00+02:00",
+  "bramka_walidacji_pass": true,
+  "walidacja_zweryfikowana_przez_arbitra": true,
+  "npm_test": "347/348 (1 FAIL: budzet-czasu, ten sam flak srodowiskowy co w ramieniu badanym)",
+  "tryb_pelny_bajtowo_niezmieniony": true,
+  "iteracje": 1,
+  "eskalacje": 0,
+  "agentow": 1,
+  "tokeny_agentow": 151198,
+  "tokeny_orkiestracji": null,
+  "tokeny_wejscie": null,
+  "tokeny_wyjscie": null,
+  "koszt_usd": null,
+  "czas_s": 2111,
+  "bledy_zlapane_przed_merge": 5,
+  "uwagi": "bledy_zlapane_przed_merge = 5 rzeczy nazwanych w raporcie wlasnym agenta (pulapka preflight --quiet; bajtowe przypiecie trybu pelnego przez zero-regresji.test.mjs; kolizja z latkami MS5/MS6; kolizja nazw info(); artefakty generowane przez przebieg). Zaden nie pochodzil z niezaleznego przegladu — arm nie ma recenzenta. tokeny_orkiestracji = null, bo ramie kontrolne nie ma orkiestracji; to jest ZERO strukturalne, ale zapisane jako null dla symetrii z ramieniem badanym, gdzie null oznacza brak pomiaru."
+}

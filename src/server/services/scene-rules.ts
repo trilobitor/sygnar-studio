@@ -1,4 +1,8 @@
+import { ryzykownaPoza } from '@/lib/pozy'
 import type { Order } from '@/server/db/schema'
+
+// Re-eksport dla kodu serwerowego, który sięgał tu od początku.
+export { ryzykownaPoza }
 
 /**
  * Reguły sceny nienegocjowalne — brief realizacyjny §4.2, §4.5, §4.6, §4.7.
@@ -71,6 +75,24 @@ export function paletteFor(order: Order | null, colors: string | undefined): str
 }
 
 /**
+ * Sufit długości wyniku.
+ *
+ * Bierzemy go z `generateJobSchema.promptEn` (2000) — czyli z pola, **do
+ * którego ten wynik trafia**. Wcześniej stało tu 1500, wzięte z
+ * `promptResultSchema.prompt_en`, które ogranicza co innego: ile wolno zwrócić
+ * **modelowi**. Pomylenie tych dwóch schematów było przyczyną SYG-105.
+ */
+const MAX_PROMPT = 2000
+
+/** Długość separatora „. " wstawianego między opis a pierwszą regułę. */
+const SPOINA = 2
+
+/** Składa części w jedno zdanie ciągłe, bez podwójnych kropek i spacji. */
+function zloz(czesci: readonly string[]): string {
+  return `${czesci.join('. ')}.`.replace(/\.\.+/g, '.').replace(/\s+/g, ' ').trim()
+}
+
+/**
  * Dokleja reguły do gotowego opisu sceny, pomijając te, które model już
  * spełnił. Sprawdzenie jest pobieżne z rozmysłem — lepiej powtórzyć regułę
  * niż jej nie zastosować, a model i tak dostaje ją w prompcie systemowym.
@@ -102,56 +124,36 @@ export function applySceneRules(
     czesci.push(`Rendered with ${paleta}`)
   }
 
-  const wynik = `${czesci.join('. ')}.`.replace(/\.\.+/g, '.').replace(/\s+/g, ' ').trim()
+  const pelny = zloz(czesci)
+  if (pelny.length <= MAX_PROMPT) return pelny
 
-  // Twardy limit z `promptResultSchema` — przycinamy na granicy zdania.
-  return wynik.length <= 1500 ? wynik : `${wynik.slice(0, 1497).replace(/[^.]*$/, '')}`.trim()
+  /*
+   * Za długo — skracamy **opis modelu**, nigdy reguł.
+   *
+   * Wcześniej obcinaliśmy gotowy wynik od końca, a reguły są doklejane
+   * właśnie na końcu, więc obcinanie kasowało dokładnie je (SYG-105).
+   * Przy opisie 1500 znaków nie zostawała ani jedna z czterech, a panel
+   * meldował sukces — grafik nie miał jak zauważyć, że kadr policzono bez
+   * zakazu liter i bez realiów polskich. Reguły są nienegocjowalne (D14),
+   * więc to opis musi ustąpić.
+   */
+  const opis = czesci[0] ?? ''
+  const reguly = czesci.slice(1)
+  const miejsce = MAX_PROMPT - zloz(reguly).length - SPOINA
+
+  if (miejsce <= 0) return zloz(reguly)
+
+  // Najpierw próba na granicy zdania, żeby nie zostawiać urwanego zdania.
+  const doKropki = opis.slice(0, miejsce).replace(/[^.]*$/, '').trim()
+
+  /*
+   * Gdy w opisie nie ma ani jednej kropki przed progiem, cięcie na granicy
+   * zdania zwraca pustkę. Wtedy tniemy na twardo: urwane zdanie jest złe,
+   * ale pusty prompt nie przeszedłby nawet walidacji `promptEn` (min 10),
+   * a grafik dostawał wyszarzony przycisk bez wyjaśnienia.
+   */
+  const przyciety = doKropki.length > 0 ? doKropki : opis.slice(0, miejsce).trim()
+
+  return zloz([przyciety, ...reguly].filter((czesc) => czesc.length > 0))
 }
 
-/**
- * Pozy, na których model myli anatomię.
- *
- * Zmierzone na FLUX.2 klein 4B, po trzy próby na pozę, ten sam numer losowania
- * i te same ustawienia — zmieniany był wyłącznie opis pozy:
- *
- * - postać w powietrzu (wsad, skok): 3 z 3 kadrów z błędem — raz trzecia noga,
- *   raz brakująca ręka, raz zdublowana kończyna;
- * - ta sama postać stojąca, stopy na ziemi: 2 z 2 kadrów poprawne.
- *
- * Podniesienie kroków z 4 na 8 **nie pomogło** — obraz wyszedł ładniejszy, ale
- * trzecia noga została. To nie jest kwestia budżetu próbkowania ani opisu
- * sceny, tylko tego, że rozrzucone kończyny w locie są dla modelu tej wielkości
- * najtrudniejszym możliwym przypadkiem.
- *
- * Nie blokujemy takiego briefu — czasem wyjdzie. Uprzedzamy, bo grafik ma
- * wiedzieć, że warto policzyć więcej podejść i przejrzeć je uważniej.
- */
-const POZY_RYZYKOWNE = [
-  'skok',
-  'skacz',
-  'wskakuj',
-  'wyskok',
-  'w powietrzu',
-  'wsad',
-  'lot',
-  'lecąc',
-  'leci',
-  'unosi się',
-  'biegn',
-  'bieg ',
-  'tańc',
-  'taniec',
-  'tańcu',
-  'tancer',
-  'salto',
-  'fikoł',
-  'kopnię',
-  'rzut',
-  'wrzuca',
-  'wspina',
-] as const
-
-export function ryzykownaPoza(subject: string): boolean {
-  const tekst = subject.toLowerCase()
-  return POZY_RYZYKOWNE.some((slowo) => tekst.includes(slowo))
-}

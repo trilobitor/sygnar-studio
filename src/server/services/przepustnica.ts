@@ -47,3 +47,16 @@ export class Przepustnica {
  * która pozycja pasuje.
  */
 export const przepustnicaHasel = new Przepustnica(2)
+
+/**
+ * Dwa równoległe składania opisu przez model.
+ *
+ * Wywołanie `claude -p` jest wielokrotnie cięższe od jednego `scrypt`, a do
+ * poprawki SYG-109 nie miało żadnego sufitu: jedyną zaporą był wspólny kubełek
+ * limitu żądań o pojemności dwudziestu na minutę. Dwadzieścia równoległych
+ * procesów Claude Code na maszynie, na której jedno generowanie zajmuje
+ * 18–28 GB, to nie jest stan, z którego da się wyjść.
+ *
+ * Odmowa nie jest błędem — spada na składacz deterministyczny.
+ */
+export const przepustnicaOpisow = new Przepustnica(2)

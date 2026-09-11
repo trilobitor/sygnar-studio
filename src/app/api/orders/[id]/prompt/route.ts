@@ -39,7 +39,14 @@ export async function POST(
 
     saveBrief(id, brief)
 
-    const outcome = await briefToPrompt(brief, order, createLogger({ orderId: id }))
+    const outcome = await briefToPrompt(
+      brief,
+      order,
+      createLogger({ orderId: id }),
+      // Zamknięcie okna briefu albo zerwane łącze ma przerwać proces modelu,
+      // a nie zostawiać go na dwie minuty bez odbiorcy (SYG-109).
+      request.signal,
+    )
 
     return NextResponse.json({
       promptEn: outcome.promptEn,

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { execFile } from 'node:child_process'
 import { statfs, unlink, writeFile } from 'node:fs/promises'
 import { promisify } from 'node:util'
@@ -116,13 +117,31 @@ async function sprawdzDysk(): Promise<HealthStatus> {
   // być ustawiony tam, gdzie zapis i tak padnie: nośnik zamontowany tylko do
   // odczytu, pełny dysk, reguła ACL. Zdrowie ma mówić, czy da się pracować,
   // a nie czy teoretycznie wolno.
-  const probka = join(env.STUDIO_DATA_DIR, '.probka-zapisu')
+  /*
+   * Nazwa sondy jest losowa, a sprzątanie idzie w `finally`.
+   *
+   * Przy stałej nazwie dwa równoległe sprawdzenia zdrowia wchodziły sobie
+   * w drogę: pierwsze kasowało plik, drugie dostawało ENOENT na własnym
+   * `unlink` i meldowało `misconfigured`. Wtedy `ready` schodzi na fałsz
+   * i wyszarza wszystko — „Nowy brief", panel eksportu i okno briefu — a
+   * grafik widzi „Stacja jest offline" przy sprawnym dysku (SYG-106). Panel
+   * stoi za wspólnym hasłem, więc dwie otwarte karty to stan normalny.
+   *
+   * Zmierzone: dwanaście równoległych zapisów i kasowań na jednej ścieżce —
+   * dziewięć padło; po zmianie nazwy na losową — zero. Przez sam endpoint nie
+   * udało się tego wywołać ani razu na 165 prób, ale mechanizm jest
+   * niepodważalny, a poprawka kosztuje tyle co nic.
+   */
+  const probka = join(env.STUDIO_DATA_DIR, `.probka-zapisu-${randomUUID()}`)
 
   try {
     await writeFile(probka, 'x')
-    await unlink(probka)
   } catch {
     return { ok: false, reason: 'misconfigured' }
+  } finally {
+    // Brak pliku przy sprzątaniu nie jest błędem — istotne było, czy zapis
+    // się udał, a nie czy kasowanie zastało co kasować.
+    await unlink(probka).catch(() => undefined)
   }
 
   try {

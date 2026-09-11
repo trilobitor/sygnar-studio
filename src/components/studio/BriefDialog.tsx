@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import {
   Button,
@@ -24,7 +24,7 @@ import {
 } from '@/lib/messages'
 import { OUTPUT_PRESETS, PURPOSE_KEYS } from '@/lib/output-presets'
 import type { Brief } from '@/lib/schemas'
-import { ryzykownaPoza } from '@/server/services/scene-rules'
+import { ryzykownaPoza } from '@/lib/pozy'
 import type { ErrorResponse, PromptResponse } from '@/types/api'
 
 /**
@@ -95,6 +95,13 @@ export function BriefDialog({
 
   const preset = OUTPUT_PRESETS[purpose as keyof typeof OUTPUT_PRESETS]
 
+  /** Bieżące żądanie o opis — przerywane, gdy okno znika. */
+  const sterowanieOpisem = useRef<AbortController | null>(null)
+
+  useEffect(() => {
+    return () => sterowanieOpisem.current?.abort()
+  }, [])
+
   function buildBrief(): Record<string, unknown> {
     const optional = (value: string): string | undefined =>
       value.length > 0 ? value : undefined
@@ -120,11 +127,20 @@ export function BriefDialog({
     setBusy(true)
     setProblem(null)
 
+    /*
+     * Żądanie da się przerwać. Zamknięcie okna briefu przerywa je, a serwer
+     * przerywa proces modelu — wcześniej dożywał swoich dwóch minut, choć
+     * nikt już nie czekał na wynik (SYG-109).
+     */
+    const sterowanie = new AbortController()
+    sterowanieOpisem.current = sterowanie
+
     try {
       const response = await fetch(`/api/orders/${orderId}/prompt`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(buildBrief()),
+        signal: sterowanie.signal,
       })
 
       if (!response.ok) {
@@ -206,7 +222,7 @@ export function BriefDialog({
         step === 'brief' ? (
           <>
             <span className="mr-auto flex items-baseline text-sm text-ink-muted">
-              <label htmlFor="variants">Liczba podejść</label>
+              <label htmlFor="variants">Liczba kadrów</label>
               <Hint text={FIELD_HINTS.variants} />
             </span>
             <input
@@ -244,7 +260,7 @@ export function BriefDialog({
             >
               {busy
                 ? 'Wysyłam…'
-                : `Policz ${variants} ${odmiana(variants, ['podejście', 'podejścia', 'podejść'])}`}
+                : `Policz ${variants} ${odmiana(variants, ['kadr', 'kadry', 'kadrów'])}`}
             </Button>
           </>
         )
@@ -274,7 +290,7 @@ export function BriefDialog({
             <p className="rounded border border-accent bg-accent/10 px-3 py-2 text-xs text-ink">
               Postać w ruchu albo w powietrzu bywa rysowana z błędami — dodatkowa noga,
               brakująca ręka. Zmierzone na tej stacji: trzy takie kadry na trzy miały błąd,
-              a ta sama postać stojąca — żadnego. Policz więcej podejść i przejrzyj je uważnie
+              a ta sama postać stojąca — żadnego. Policz więcej kadrów i przejrzyj je uważnie
               albo opisz postać stojącą.
             </p>
           )}

@@ -5,7 +5,7 @@ import { Readable } from 'node:stream'
 
 import { env } from '@/lib/env'
 import { klatkaDoMiniatury } from '@/server/adapters/ffmpeg'
-import { SZEROKOSC_MINIATURY, zrobMiniature } from '@/server/adapters/sharp'
+import { SZEROKOSC_MINIATURY, SZEROKOSC_PODGLADU, zrobMiniature } from '@/server/adapters/sharp'
 import { thumbsDir } from '@/server/services/paths'
 
 import { fail, handleError } from '@/server/api/respond'
@@ -40,11 +40,15 @@ export async function GET(
 
     // Miniatura do siatki galerii. Bez tego kafelki ściągały pełne pliki
     // źródłowe — zmierzone, jedno zlecenie z pięcioma klipami to 46 MB.
-    const chceMiniature = new URL(request.url).searchParams.get('miniatura') !== null
+    const parametry = new URL(request.url).searchParams
+  const chceMiniature = parametry.get('miniatura') !== null
+  // Wersja pośrednia dla kolumny środkowej — patrz SZEROKOSC_PODGLADU.
+  const chcePodgladu = parametry.get('podglad') !== null
 
-    if (chceMiniature) {
+    if (chceMiniature || chcePodgladu) {
       const wideo = asset.mime.startsWith('video/')
-      const miniatura = await wezMiniature(asset.orderId, asset.id, path, wideo)
+      const szerokosc = chcePodgladu ? SZEROKOSC_PODGLADU : SZEROKOSC_MINIATURY
+      const miniatura = await wezMiniature(asset.orderId, asset.id, path, wideo, szerokosc)
 
       if (miniatura !== null) {
         return new Response(new Uint8Array(miniatura), {
@@ -178,9 +182,12 @@ async function wezMiniature(
   assetId: string,
   zrodlo: string,
   wideo: boolean,
+  szerokosc: number = SZEROKOSC_MINIATURY,
 ): Promise<Buffer | null> {
   const katalog = thumbsDir(env.STUDIO_DATA_DIR, orderId)
-  const cel = join(katalog, `${assetId}-${SZEROKOSC_MINIATURY}.${wideo ? 'jpg' : 'webp'}`)
+  // Szerokość w nazwie: kafelek i podgląd to dwa różne pliki w tym samym
+  // katalogu, a nie jeden nadpisywany w kółko.
+  const cel = join(katalog, `${assetId}-${szerokosc}.${wideo ? 'jpg' : 'webp'}`)
 
   const zastana = await readFile(cel).catch(() => null)
   if (zastana !== null) return zastana
@@ -195,7 +202,7 @@ async function wezMiniature(
       return udalo ? await readFile(cel) : null
     }
 
-    return await zrobMiniature(zrodlo, cel)
+    return await zrobMiniature(zrodlo, cel, szerokosc)
   } catch {
     return null
   }

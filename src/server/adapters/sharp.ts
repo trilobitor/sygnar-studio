@@ -201,6 +201,20 @@ export async function readDimensions(
 export const SZEROKOSC_MINIATURY = 320
 
 /**
+ * Szerokość wersji pośredniej do podglądu w kolumnie środkowej.
+ *
+ * Kolumna ma najwyżej ~2000 px logicznych, a przy gęstości 2 to 4000 px
+ * fizycznych — 1600 px z zapasem starcza do oceny kompozycji i kadru, a przy
+ * ocenie ostrości i szumu grafik i tak otwiera podgląd pełnoekranowy, który
+ * dostaje oryginał.
+ *
+ * Przed tą zmianą kolumna środkowa ściągała pełny oryginał: zmierzone 3,0 MB
+ * na każdy kliknięty kadr, czyli 30 MB na przejrzenie dziesięciu — przy
+ * czynności, która w tej aplikacji jest główna (SYG-008).
+ */
+export const SZEROKOSC_PODGLADU = 1600
+
+/**
  * Miniatura obrazu, zapisana obok i serwowana z dysku przy kolejnym żądaniu.
  *
  * Galeria wstawiała w kafelki **pełne pliki źródłowe** — zmierzone, jedno
@@ -211,10 +225,18 @@ export const SZEROKOSC_MINIATURY = 320
  * wielkości, a wszystkie przeglądarki, dla których panel jest budowany, go
  * czytają.
  */
-export async function zrobMiniature(zrodlo: string, cel: string): Promise<Buffer> {
+export async function zrobMiniature(
+  zrodlo: string,
+  cel: string,
+  szerokosc: number = SZEROKOSC_MINIATURY,
+): Promise<Buffer> {
+  // Podgląd dostaje wyższą jakość niż kafelek: przy 72 na 1600 px widać
+  // artefakty tam, gdzie grafik szuka detalu.
+  const jakosc = szerokosc > SZEROKOSC_MINIATURY ? 86 : 72
+
   const bufor = await sharpLib(zrodlo)
-    .resize(SZEROKOSC_MINIATURY, null, { withoutEnlargement: true })
-    .webp({ quality: 72 })
+    .resize(szerokosc, null, { withoutEnlargement: true })
+    .webp({ quality: jakosc })
     .toBuffer()
 
   // Zapis jest optymalizacją, nie warunkiem powodzenia — gdy się nie uda,

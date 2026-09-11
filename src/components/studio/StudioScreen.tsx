@@ -12,7 +12,8 @@ import {
   TextInput,
 } from '@/components/ui/primitives'
 import { INDUSTRY_LABELS, messageForCode, STAGES } from '@/lib/messages'
-import { MAX_UPLOAD_BYTES } from '@/server/services/file-type'
+import { zwinieteKolumny } from '@/lib/uklad'
+import { MAX_UPLOAD_BYTES } from '@/lib/limity'
 import type { Asset, ErrorResponse, Order, OrderDetail } from '@/types/api'
 import { BriefDialog } from './BriefDialog'
 import { ContextPanel } from './ContextPanel'
@@ -112,9 +113,48 @@ export function StudioScreen({
    * dodatkowa ramka z układem domyślnym.
    */
   useEffect(() => {
-    setLewaZwinieta(wczytajFlage('studio:lewa-zwinieta'))
-    setPrawaZwinieta(wczytajFlage('studio:prawa-zwinieta'))
     setGaleriaSiatka(wczytajFlage('studio:galeria-siatka'))
+  }, [])
+
+  /*
+   * Kolumny boczne zwijają się same, gdy zaczynają odbierać podglądowi za
+   * dużo. Zmierzone 10.09.2026 przy powiększeniu strony 150% na ekranie
+   * 1366 px: kolumna środkowa schodziła do 367 px, czyli 40% szerokości, bo
+   * boczne mają sztywne 256 i 288 px. Kadr 1664 px pokazany na 367 px to
+   * skala 22% — przy niej nie da się ocenić niczego poza kompozycją.
+   *
+   * Próg liczony jest od tego, ile ma zostać na kadr, a nie od modnych
+   * punktów granicznych: podgląd potrzebuje MIN_SRODEK, reszta to arytmetyka.
+   *
+   * Zwinięcie z progu **nie idzie do pamięci** — inaczej jedno powiększenie
+   * strony zapamiętałoby się na zawsze. Po powrocie nad próg wraca ustawienie
+   * grafika, a między przejściami przez próg jego ręczny wybór obowiązuje.
+   */
+  const bylWaski = useRef<{ lewa: boolean; prawa: boolean } | null>(null)
+  useEffect(() => {
+    const przelicz = () => {
+      const zapamietane = {
+        lewa: wczytajFlage('studio:lewa-zwinieta'),
+        prawa: wczytajFlage('studio:prawa-zwinieta'),
+      }
+      const chciane = zwinieteKolumny(window.innerWidth, zapamietane)
+      const poprzednio = bylWaski.current
+      /*
+       * Stan ustawiamy tylko przy przejściu przez próg. Bez tego każde
+       * zdarzenie `resize` — a przy przeciąganiu okna leci ich kilkadziesiąt
+       * na sekundę — cofałoby ręczne rozwinięcie kolumny.
+       */
+      if (poprzednio === null || poprzednio.prawa !== chciane.prawa) {
+        setPrawaZwinieta(chciane.prawa)
+      }
+      if (poprzednio === null || poprzednio.lewa !== chciane.lewa) {
+        setLewaZwinieta(chciane.lewa)
+      }
+      bylWaski.current = chciane
+    }
+    przelicz()
+    window.addEventListener('resize', przelicz)
+    return () => window.removeEventListener('resize', przelicz)
   }, [])
 
   const [orders, setOrders] = useState<Order[] | null>(null)
@@ -583,7 +623,7 @@ export function StudioScreen({
           <h1 className="sr-only">Sygnar Studio</h1>
           <Wordmark />
 
-          <h2 className="text-sm font-medium tracking-wide text-ink">Zlecenia</h2>
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Zlecenia</h2>
 
           <div className="flex flex-col gap-2 rounded border border-line p-2">
             <Field label="Nowe zlecenie">
@@ -976,6 +1016,8 @@ export function StudioScreen({
             ['[ i ]', 'zwiń lewą i prawą kolumnę'],
             ['C', 'porównaj odłożone kadry obok siebie'],
             ['Spacja', 'odłóż zaznaczony kadr na bok'],
+            ['1 2 3', 'trzy sposoby powtórzenia zaznaczonego kadru'],
+            ['⌘ ↵', 'to samo co 1, prosto z pola opisu sceny'],
             ['?', 'to okno'],
             ['Escape', 'zamknij okno albo podgląd'],
           ].map(([klawisz, opis]) => (

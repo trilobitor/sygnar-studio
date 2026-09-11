@@ -114,7 +114,7 @@ export function JobHistory({ jobs, onChanged }: { jobs: Job[]; onChanged: () => 
                   type="button"
                   disabled={powtarzane !== null}
                   onClick={() => void powtorz(job.id)}
-                  className="shrink-0 rounded border border-line px-2 py-0.5 text-ink-muted transition hover:text-ink disabled:opacity-50"
+                  className="shrink-0 rounded border border-field px-2 py-0.5 text-ink-muted transition hover:text-ink disabled:opacity-50"
                 >
                   {powtarzane === job.id ? 'Ponawiam…' : 'Ponów'}
                 </button>

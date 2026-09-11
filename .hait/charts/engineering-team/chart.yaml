@@ -1,0 +1,98 @@
+# hait-charts/engineering-team — zespół wytwórczy, protokół 9 faz
+# Materializuje: konfigurację, role, deskryptory, workflow dla orkiestratora.
+# NIE materializuje: skryptów bramek — te są w pakiecie aios-fazowy i mają
+# własny cykl życia. Chart deklaruje, czego wymaga; `hait status` sprawdza.
+
+apiVersion: haitstack/v1
+kind: TeamChart
+metadata:
+  name: engineering-team
+  version: 1.0.0
+  description: "Zespół 5+1 do wytwarzania oprogramowania — protokół fazowy z bramkami"
+  domain: engineering
+  tags: [sdlc, phased-consensus, gates, memory]
+
+# ── Czego chart wymaga od repozytorium ────────────────────────────────────
+# Brak któregokolwiek z tych elementów nie blokuje `apply` — blokuje przejście
+# odpowiedniej fazy. Rozdział jest celowy: deklaracja ma być instalowalna
+# w niekompletnym repo, a niekompletność ma być widoczna w `hait status`.
+requires:
+  warstwa2_bramki:
+    - scripts/gate.sh
+    - scripts/preflight.sh
+    - docs/STACK_PITFALLS.md
+  warstwa3_powloka:
+    - .claude/settings.json
+    - scripts/hooks/
+  warstwa4_pamiec:
+    - scripts/memory.sh      # opcjonalne — degradacja do trybu awaryjnego
+
+arbiter:
+  rola: maszyna_stanow
+  # Poziomy zdolności są ABSTRAKCYJNE, nigdy nazwami modeli dostawcy.
+  # Powód (za Open Mercato DECISIONS 2026-07-24): chart instaluje się
+  # w dowolnym harnessie; harness mapuje poziomy na swoje modele, a te,
+  # które nie umieją — ignorują. Nazwa modelu w charcie starzeje się
+  # szybciej niż chart.
+  poziom: capable
+  protokol:
+    typ: phased-consensus
+    fazy:
+      - specyfikacja
+      - architektura
+      - przeglad-kontraktu
+      - implementacja
+      - integracja
+      - testy
+      - code-review
+      - poprawki
+      - odbior
+    limit_iteracji: 3          # 3. FAIL tej samej bramki = eskalacja do człowieka
+    eskalacja: czlowiek
+    tryb_skrocony: [0, 3, 8]   # content/copy/config: bramka A obowiązkowo
+
+role:
+  - id: architekt
+    poziom: capable
+    domena: "ADR, kontrakt, File Map"
+    narzedzia: [Read, Write, Edit, Grep, Glob]
+    fazy: [1, 2]
+  - id: impl-backend
+    poziom: standard
+    domena: "API, walidacja, dane"
+    narzedzia: [Read, Write, Edit, Grep, Glob, Bash]
+    izolacja: worktree
+    fazy: [3, 7]
+  - id: impl-frontend
+    poziom: standard
+    domena: "UI, motion, a11y"
+    narzedzia: [Read, Write, Edit, Grep, Glob, Bash]
+    izolacja: worktree
+    fazy: [3, 7]
+  - id: tester
+    poziom: standard
+    domena: "testy jako deliverable"
+    narzedzia: [Read, Write, Edit, Bash]
+    fazy: [5]
+  - id: recenzent
+    poziom: capable
+    domena: "audyt kontraktu i diffu"
+    # Ślepota jest techniczna, nie deklaratywna: wyłącznie narzędzia odczytu.
+    narzedzia: [Read, Grep, Glob]
+    fazy: [2, 6]
+
+bramki:
+  A: { komenda: "scripts/gate.sh A",    sprawdza: [build, lint, tsc, detektory] }
+  B: { komenda: "scripts/gate.sh B",    sprawdza: [start, trasy, a11y-smoke, kontrakt-api] }
+  C: { komenda: "scripts/gate.sh C",    sprawdza: [screenshoty],  brak_narzedzia: SKIPPED }
+  preflight: { komenda: "scripts/preflight.sh", sprawdza: [rejestr-pulapek] }
+
+pamiec:
+  tryb: degradujacy           # pełny → zdegradowany (FTS) → awaryjny (grep)
+  recall_w_fazie: 0
+  commit_w_fazie: 8
+  zakaz: "żadna bramka nie odpytuje pamięci — pamięć należy do osądu"
+
+budzet:
+  tokeny_na_zadanie: 200000
+  twarde_zatrzymanie: false   # przekroczenie = ostrzeżenie w PHASE_STATE, nie stop

@@ -174,7 +174,7 @@ export function Gallery({
     return (
       <EmptyState>
         Nie ma tu jeszcze żadnego kadru. Kliknij <strong>Nowy brief</strong>,
-        opisz, co ma być na obrazie, i policzymy kilka podejść.
+        opisz, co ma być na obrazie, i policzymy kilka kadrów.
       </EmptyState>
     );
   }
@@ -220,7 +220,7 @@ export function Gallery({
               <select
                 value={gdzie}
                 onChange={(event) => setGdzie(event.target.value)}
-                className="rounded border border-line bg-surface-2 px-1.5 py-0.5 text-xs text-ink"
+                className="rounded border border-field bg-surface-2 px-1.5 py-0.5 text-xs text-ink"
               >
                 <option value="wszystkie">wszystkie</option>
                 {dostepneMiejsca.map((klucz) => (
@@ -305,6 +305,15 @@ export function Gallery({
               wołany ani razu — przy ośmiu wariantach, z których trzy są nieudane,
               jedynym sposobem uprzątnięcia galerii było skasowanie całego zlecenia.
             */}
+            {/*
+              Znaki, nie emoji. Emoji renderują się krojem systemowym i
+              **w kolorze** — kosz wychodził szary, pędzel brązowo-żółty —
+              więc nigdy nie pasowały do ⤢, ⧉, » ani ⋯, a kolor przy kadrze
+              łamie zasadę achromatycznego otoczenia podglądu. UX-002.
+
+              ⌦ zamiast ✕, bo ✕ znaczy w tej aplikacji „zamknij okno" i
+              potrafi być na ekranie w tej samej chwili.
+            */}
             <button
               type="button"
               onClick={() => void skasujKadr(asset)}
@@ -316,7 +325,7 @@ export function Gallery({
               title="Skasuj — pliku nie da się odzyskać"
               className="absolute left-1 top-1 z-10 rounded px-1.5 py-0.5 text-sm text-ink-muted opacity-50 transition hover:text-danger-text hover:opacity-100 focus:opacity-100"
             >
-              🗑
+              ⌦
             </button>
             <button
               type="button"
@@ -426,7 +435,7 @@ export function Gallery({
                 {asset.seed === null ? (
                   "plik wgrany"
                 ) : (
-                  <span>nr losowania {asset.seed}</span>
+                  <span className="tabular-nums">numer losowania {asset.seed}</span>
                 )}
               </div>
             </button>
@@ -482,7 +491,7 @@ function FaktyOKadrze({ asset }: { asset: Asset }) {
 
   return (
     <p className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1 py-0.5 text-xs text-ink-muted">
-      <span>
+      <span className="tabular-nums">
         {asset.width} × {asset.height}
       </span>
       <span aria-hidden="true">·</span>
@@ -494,7 +503,7 @@ function FaktyOKadrze({ asset }: { asset: Asset }) {
           <button
             type="button"
             title="Skopiuj numer losowania"
-            className="underline decoration-dotted underline-offset-2 hover:text-ink"
+            className="tabular-nums underline decoration-dotted underline-offset-2 hover:text-ink"
             onClick={() => {
               void navigator.clipboard.writeText(String(asset.seed)).then(() => {
                 setSkopiowane(true);
@@ -502,7 +511,7 @@ function FaktyOKadrze({ asset }: { asset: Asset }) {
               });
             }}
           >
-            nr losowania {asset.seed}
+            numer losowania {asset.seed}
           </button>
           {skopiowane && <span className="text-ink">skopiowane</span>}
         </>
@@ -646,7 +655,13 @@ export function Preview({
       {/* Narzędzia podglądu: pojawiają się po najechaniu, żeby nie leżały
           na kadrze przez cały czas. Na dotyku `group-hover` nie zadziała,
           więc obie ikony są tam widoczne od razu (`opacity-100` bez wskaźnika). */}
-      <div className="absolute right-2 top-2 z-10 flex items-center gap-1 opacity-100 transition group-hover/podglad:opacity-100 md:opacity-0">
+      {/*
+        `focus-within` obok `group-hover`: na szerokich ekranach pasek startuje
+        z `md:opacity-0` i odsłaniał się wyłącznie pod kursorem. Klawiatura nie
+        wywołuje `hover`, więc trzy przyciski były czterema przystankami
+        tabulacji bez śladu na ekranie — grafik tabulował w pustkę (SYG-011).
+      */}
+      <div className="absolute right-2 top-2 z-10 flex items-center gap-1 opacity-100 transition group-hover/podglad:opacity-100 md:opacity-0 md:focus-within:opacity-100">
         {!isVideo && (
           <>
             <button
@@ -654,7 +669,7 @@ export function Preview({
               onClick={() => setKadrowanie(true)}
               aria-label="Przytnij ten kadr"
               title="Zaznacz prostokąt i przytnij — bez modelu, natychmiast"
-              className="flex h-9 w-9 items-center justify-center rounded-md border border-line bg-surface-0/85 text-sm text-ink-muted transition hover:border-field hover:text-ink"
+              className="flex h-9 w-9 items-center justify-center rounded-md border border-field bg-surface-0/85 text-sm text-ink-muted transition hover:border-field hover:text-ink"
             >
               ⧉
             </button>
@@ -664,9 +679,9 @@ export function Preview({
               onClick={() => setPoprawkaOtwarta(true)}
               aria-label="Popraw ten kadr"
               title="Popraw fragment kadru — model zostawi resztę bez zmian"
-              className="flex h-9 w-9 items-center justify-center rounded-md border border-line bg-surface-0/85 text-sm text-ink-muted transition hover:border-field hover:text-ink"
+              className="flex h-9 w-9 items-center justify-center rounded-md border border-field bg-surface-0/85 text-sm text-ink-muted transition hover:border-field hover:text-ink"
             >
-              🖌
+              ✎
             </button>
 
             <button
@@ -674,7 +689,7 @@ export function Preview({
               onClick={() => setPelnyEkran(true)}
               aria-label="Powiększ na cały ekran"
               title="Powiększ na cały ekran — klawisz F"
-              className="flex h-9 w-9 items-center justify-center rounded-md border border-line bg-surface-0/85 text-sm text-ink-muted transition hover:border-field hover:text-ink"
+              className="flex h-9 w-9 items-center justify-center rounded-md border border-field bg-surface-0/85 text-sm text-ink-muted transition hover:border-field hover:text-ink"
             >
               ⤢
             </button>
@@ -685,7 +700,7 @@ export function Preview({
           href={`/api/files/${asset.id}?pobierz`}
           download
           title="Pobierz ten plik"
-          className="flex h-9 items-center rounded-md border border-line bg-surface-0/85 px-3 text-xs text-ink-muted transition hover:border-field hover:text-ink"
+          className="flex h-9 items-center rounded-md border border-field bg-surface-0/85 px-3 text-xs text-ink-muted transition hover:border-field hover:text-ink"
         >
           Pobierz
         </a>
@@ -699,7 +714,7 @@ export function Preview({
          */
         // eslint-disable-next-line jsx-a11y/media-has-caption
         <video
-          src={`/api/files/${asset.id}`}
+          src={`/api/files/${asset.id}?podglad`}
           controls
           className="max-h-full max-w-full"
         />
@@ -716,7 +731,7 @@ export function Preview({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             ref={setObraz}
-            src={`/api/files/${asset.id}`}
+            src={`/api/files/${asset.id}?podglad`}
             alt="Podgląd wybranego kadru"
             className="max-h-full max-w-full object-contain"
           />

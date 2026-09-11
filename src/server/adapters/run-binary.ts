@@ -35,15 +35,27 @@ export function runBinary(
   options: { signal?: AbortSignal; timeoutMs?: number; cwd?: string } = {},
 ): Promise<BinaryResult> {
   return new Promise((resolve, reject) => {
+    /*
+     * Sygnału NIE oddajemy `spawn`. Node przy `abort()` wysyła wyłącznie
+     * SIGTERM i **natychmiast** emituje `error: AbortError`, więc obietnica
+     * odrzucała się, zanim dziecko zdążyło umrzeć — bez eskalacji do
+     * SIGKILL. Proces, który SIGTERM-a nie uzna, żył dalej i dopisywał plik
+     * już po anulowaniu zadania: osierocony plik bez wiersza w bazie,
+     * zderzający się potem z numeracją następnego wsadu (SYG-107).
+     *
+     * Obsługa jest niżej, wzorem `ffmpeg.ts` i `mflux.ts`, gdzie stoi
+     * poprawnie od początku — ten adapter był jedynym z trzech bez niej.
+     */
     const child = spawn(path, [...args], {
       shell: false,
       cwd: options.cwd,
-      signal: options.signal,
     })
 
     let stdout = ''
     let stderr = ''
     let settled = false
+    /** Ustawiane przy anulowaniu; rozstrzyga dopiero handler `close`. */
+    let powodPrzerwania: Error | null = null
 
     const timeout =
       options.timeoutMs === undefined
@@ -67,12 +79,33 @@ export function runBinary(
       stderr += chunk.toString('utf8')
     })
 
+    function onAbort(): void {
+      powodPrzerwania = new Error('przerwane sygnałem')
+
+      child.kill('SIGTERM')
+      setTimeout(() => {
+        if (!settled) child.kill('SIGKILL')
+      }, 1000).unref()
+    }
+
+    // Sygnał mógł nadejść, zanim tu doszliśmy. Nie wracamy od razu —
+    // rozstrzygnięcie przyjdzie z handlera `close`, po śmierci procesu.
+    if (options.signal?.aborted === true) {
+      onAbort()
+    }
+    options.signal?.addEventListener('abort', onAbort, { once: true })
+
     child.on('error', (error) => {
       finish(() => reject(error))
     })
 
     child.on('close', (code) => {
-      finish(() => resolve({ code, stdout, stderr }))
+      // Przerwanie rozstrzygamy dopiero tutaj, czyli po śmierci dziecka.
+      finish(() =>
+        powodPrzerwania === null
+          ? resolve({ code, stdout, stderr })
+          : reject(powodPrzerwania),
+      )
     })
   })
 }

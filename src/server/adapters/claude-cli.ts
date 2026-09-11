@@ -77,6 +77,7 @@ export function runClaudeCli(
   userMessage: string,
   systemPrompt: string,
   logger: Logger,
+  signal?: AbortSignal,
 ): Promise<CliResult> {
   return new Promise((resolvePromise, rejectPromise) => {
     const args = [
@@ -115,8 +116,29 @@ export function runClaudeCli(
       if (settled) return
       settled = true
       clearTimeout(timer)
+      signal?.removeEventListener('abort', onAbort)
       fn()
     }
+
+    /*
+     * Anulowanie: zamknięcie okna briefu albo zerwane łącze.
+     *
+     * Bez tego jedno żądanie trzymało proces Claude Code przez pełne
+     * dwie minuty, niezależnie od tego, czy ktokolwiek jeszcze czeka na wynik.
+     * Wzorzec jak w pozostałych adapterach: SIGTERM, po sekundzie SIGKILL,
+     * rozstrzygnięcie z handlera `close` (SYG-109).
+     */
+    function onAbort(): void {
+      child.kill('SIGTERM')
+      setTimeout(() => {
+        if (!settled) child.kill('SIGKILL')
+      }, 1000).unref()
+    }
+
+    if (signal?.aborted === true) {
+      onAbort()
+    }
+    signal?.addEventListener('abort', onAbort, { once: true })
 
     child.stdout.on('data', (chunk: Buffer) => {
       stdout += chunk.toString('utf8')

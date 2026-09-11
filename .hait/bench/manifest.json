@@ -1,0 +1,15 @@
+{
+  "wersja": "1.0",
+  "pytanie": "Czy protokół wielu agentów daje lepszy wynik niż jeden agent z dobrym harnessem?",
+  "kryterium_go": "hAit >= pojedyncza sesja na build/test pass przy koszcie <= 2x",
+  "ramiona": {
+    "kontrolne": { "harness": "open-mercato/skills", "opis": "npx skills add open-mercato/skills" },
+    "badane":    { "harness": "hait-fazowy", "opis": "protokół 9 faz, gate.sh A/B/C" }
+  },
+  "mierzone": [
+    "bramka_walidacji_pass",
+    "tokeny_wejscie", "tokeny_wyjscie", "koszt_usd",
+    "bledy_zlapane_przed_merge", "iteracje", "eskalacje", "czas_s"
+  ],
+  "zadania": []
+}
