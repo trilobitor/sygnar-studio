@@ -655,7 +655,13 @@ export function Preview({
       {/* Narzędzia podglądu: pojawiają się po najechaniu, żeby nie leżały
           na kadrze przez cały czas. Na dotyku `group-hover` nie zadziała,
           więc obie ikony są tam widoczne od razu (`opacity-100` bez wskaźnika). */}
-      <div className="absolute right-2 top-2 z-10 flex items-center gap-1 opacity-100 transition group-hover/podglad:opacity-100 md:opacity-0">
+      {/*
+        `focus-within` obok `group-hover`: na szerokich ekranach pasek startuje
+        z `md:opacity-0` i odsłaniał się wyłącznie pod kursorem. Klawiatura nie
+        wywołuje `hover`, więc trzy przyciski były czterema przystankami
+        tabulacji bez śladu na ekranie — grafik tabulował w pustkę (SYG-011).
+      */}
+      <div className="absolute right-2 top-2 z-10 flex items-center gap-1 opacity-100 transition group-hover/podglad:opacity-100 md:opacity-0 md:focus-within:opacity-100">
         {!isVideo && (
           <>
             <button
