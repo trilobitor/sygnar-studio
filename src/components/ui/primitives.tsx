@@ -7,6 +7,7 @@ import {
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
+  type RefObject,
 } from 'react'
 import { createPortal } from 'react-dom'
 
@@ -61,6 +62,77 @@ export function Button({
       {children}
     </button>
   )
+}
+
+/**
+ * Pułapka fokusu dla nakładki przykrywającej ekran.
+ *
+ * Trzyma Tab wewnątrz `ref`, ustawia fokus na nakładce przy otwarciu
+ * i oddaje go tam, skąd przyszedł, przy zamknięciu. Bez tego osoba pracująca
+ * z klawiatury wypadała na stronę pod spodem i uruchamiała akcje na
+ * przyciskach, których nie widzi — nakładka przykrywa je sobą.
+ *
+ * Wydzielone z `Dialog`, bo podgląd pełnoekranowy potrzebuje dokładnie tego
+ * samego, a nie jest oknem modalnym i `Dialog` go nie obejmuje (SYG-009).
+ */
+export function usePulapkaFokusu(
+  ref: RefObject<HTMLElement | null>,
+  aktywna: boolean,
+): void {
+  useEffect(() => {
+    if (!aktywna) return
+
+    function onKey(event: KeyboardEvent): void {
+      if (event.key !== 'Tab') return
+
+      const panel = ref.current
+      if (panel === null) return
+
+      const focusowalne = Array.from(
+        panel.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((el) => el.offsetParent !== null)
+
+      if (focusowalne.length === 0) {
+        // Nakładka bez ani jednego celu: Tab nie ma dokąd iść, więc zostaje
+        // na niej samej, zamiast wypaść pod spód.
+        event.preventDefault()
+        panel.focus()
+        return
+      }
+
+      const pierwszy = focusowalne[0]
+      const ostatni = focusowalne[focusowalne.length - 1]
+      if (pierwszy === undefined || ostatni === undefined) return
+
+      const aktywny = document.activeElement
+
+      if (event.shiftKey && (aktywny === pierwszy || aktywny === panel)) {
+        event.preventDefault()
+        ostatni.focus()
+        return
+      }
+
+      if (!event.shiftKey && (aktywny === ostatni || aktywny === panel)) {
+        event.preventDefault()
+        pierwszy.focus()
+      }
+    }
+
+    document.addEventListener('keydown', onKey)
+
+    // Focus wraca tam, skąd nakładkę otwarto. Bez tego po zamknięciu przepadał
+    // na `<body>` i trzeba było przechodzić stronę od początku.
+    const skad = document.activeElement
+
+    ref.current?.focus()
+
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      if (skad instanceof HTMLElement) skad.focus()
+    }
+  }, [ref, aktywna])
 }
 
 /**
@@ -300,38 +372,8 @@ export function Dialog({
         return
       }
 
-      if (event.key !== 'Tab') return
-
-      // Pułapka focusu. Bez niej Tab wychodził z okna na stronę pod spodem
-      // i grafik pracujący z klawiatury tracił kontakt z formularzem, nie
-      // widząc gdzie jest kursor — okno przykrywa resztę ekranu.
-      const panel = panelRef.current
-      if (panel === null) return
-
-      const focusowalne = Array.from(
-        panel.querySelectorAll<HTMLElement>(
-          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-        ),
-      ).filter((el) => el.offsetParent !== null)
-
-      if (focusowalne.length === 0) return
-
-      const pierwszy = focusowalne[0]
-      const ostatni = focusowalne[focusowalne.length - 1]
-      if (pierwszy === undefined || ostatni === undefined) return
-
-      const aktywny = document.activeElement
-
-      if (event.shiftKey && (aktywny === pierwszy || aktywny === panel)) {
-        event.preventDefault()
-        ostatni.focus()
-        return
-      }
-
-      if (!event.shiftKey && aktywny === ostatni) {
-        event.preventDefault()
-        pierwszy.focus()
-      }
+      // Tab obsługuje `usePulapkaFokusu` niżej — jeden komplet reguł dla okna
+      // modalnego i dla podglądu pełnoekranowego.
     }
 
     document.addEventListener('keydown', onKey)
@@ -379,20 +421,7 @@ export function Dialog({
   // od `open`. Wcześniej siedział razem z nasłuchem Escape, którego zależność
   // `onClose` zmieniała tożsamość przy każdej ramce SSE. Efekt uruchamiał się
   // wtedy co sekundę i wyrywał kursor z pola, w którym grafik pisał brief.
-  useEffect(() => {
-    if (!open) return
-
-    // Focus wraca tam, skąd okno otwarto. Bez tego po zamknięciu przepadał
-    // na `<body>` i osoba pracująca z klawiatury musiała przechodzić całą
-    // stronę od początku, żeby wrócić do przycisku, który właśnie nacisnęła.
-    const skad = document.activeElement
-
-    panelRef.current?.focus()
-
-    return () => {
-      if (skad instanceof HTMLElement) skad.focus()
-    }
-  }, [open])
+  usePulapkaFokusu(panelRef, open)
 
   // Okno otwiera się wyłącznie z akcji grafika, więc render po stronie serwera
   // nigdy tu nie dochodzi — ale strażnik kosztuje jedną linię.
