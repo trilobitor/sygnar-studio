@@ -37,7 +37,20 @@ import {
 /** Ile zadań nie-GPU może biec naraz. Ograniczone rdzeniami, nie pamięcią. */
 const NON_GPU_CONCURRENCY = 2
 
-const NON_GPU_JOB_KINDS: readonly JobKind[] = ['image_export', 'photo_batch']
+const NON_GPU_JOB_KINDS: readonly JobKind[] = ['image_export']
+
+/**
+ * Wsad zdjęć ma własną pulę o pojemności jeden.
+ *
+ * Serializacja wewnątrz zadania (pętla `for` w `photo-batch.ts`) obowiązywała
+ * tylko w obrębie **jednego** wsadu. `photo_batch` siedział w puli nie-GPU
+ * o pojemności dwa, więc dwa zlecenia startowały równocześnie i dawały dwa
+ * równoległe procesy `darktable-cli` — dokładnie to, przed czym zabezpieczały
+ * komentarze w adapterze i w serwisie (defekt SYG-108). Dopóki podejrzenie
+ * o blokadę biblioteki darktable jest [NIEPOTWIERDZONE], pojemność zostaje 1.
+ */
+const PHOTO_JOB_KINDS: readonly JobKind[] = ['photo_batch']
+const PHOTO_CONCURRENCY = 1
 
 /** Twardy timeout per rodzaj zadania (SPEC §9). */
 /** Każdy rodzaj zadania ma własny, konfigurowalny limit czasu. */
@@ -138,6 +151,10 @@ function hasFreeSlot(kind: JobKind): boolean {
   // się sam, bo filtr `reverse` trzyma cały materiał w pamięci.
   if (isVideoJob(kind)) {
     return countRunning(VIDEO_JOB_KINDS) < VIDEO_CONCURRENCY
+  }
+
+  if (PHOTO_JOB_KINDS.includes(kind)) {
+    return countRunning(PHOTO_JOB_KINDS) < PHOTO_CONCURRENCY
   }
 
   return countRunning(NON_GPU_JOB_KINDS) < NON_GPU_CONCURRENCY
