@@ -31,6 +31,14 @@ export function QueueBar({
   /** Identyfikator awarii schowanej przyciskiem „Rozumiem". */
   const [odrzucone, setOdrzucone] = useState<string | null>(null)
   const [powtarzam, setPowtarzam] = useState<string | null>(null)
+  /*
+   * Komunikat, gdy samo powtórzenie się nie uda.
+   *
+   * Wcześniej `powtorz` nie sprawdzał statusu odpowiedzi: przy 500 baner
+   * awarii gasł, panel meldował „Stacja jest wolna, zadania zakończone",
+   * a nic nie zostało ponowione (defekt SYG-003).
+   */
+  const [bladPowtorzenia, setBladPowtorzenia] = useState<string | null>(null)
 
   /**
    * Powtórzenie nieudanego zadania z zapisanymi parametrami.
@@ -42,10 +50,30 @@ export function QueueBar({
   async function powtorz(id: string): Promise<void> {
     setPowtarzam(id)
 
+    setBladPowtorzenia(null)
+
     try {
-      await fetch(`/api/jobs/${id}/ponow`, { method: 'POST' })
+      const odpowiedz = await fetch(`/api/jobs/${id}/ponow`, { method: 'POST' })
+
+      if (!odpowiedz.ok) {
+        // Baner zostaje na ekranie — porażka powtórzenia nie może wyglądać
+        // jak sukces. Kod błędu tłumaczymy na zdanie, jak wszędzie indziej.
+        const tresc: unknown = await odpowiedz.json().catch(() => null)
+        const kod =
+          typeof tresc === 'object' && tresc !== null && 'errorCode' in tresc
+            ? String((tresc as { errorCode: unknown }).errorCode)
+            : null
+
+        setBladPowtorzenia(messageForCode(kod))
+        return
+      }
+
       setOdrzucone(id)
       onChanged()
+    } catch {
+      // Zerwane łącze albo zamknięta stacja. Bez tego `void powtorz(...)`
+      // gubił odrzucenie obietnicy i grafik nie dostawał nic.
+      setBladPowtorzenia(messageForCode(null))
     } finally {
       setPowtarzam(null)
     }
@@ -145,6 +173,11 @@ export function QueueBar({
         >
           Rozumiem
         </button>
+        {bladPowtorzenia !== null && (
+          <span role="alert" className="text-danger-text">
+            {bladPowtorzenia}
+          </span>
+        )}
       </span>
     ) : null
 
