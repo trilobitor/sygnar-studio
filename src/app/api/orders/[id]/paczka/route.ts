@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { NextResponse } from 'next/server'
 
 import { env } from '@/lib/env'
+import { logger } from '@/lib/logger'
 import { ApiError } from '@/server/adapters/types'
 import { handleError, fail } from '@/server/api/respond'
 import { wymagajSesji } from '@/server/api/sesja'
@@ -66,6 +67,7 @@ export async function GET(
     }
 
     const wpisy: WpisArchiwum[] = []
+    const brakujace: string[] = []
 
     for (const plik of pliki) {
       const sciezka = join(env.STUDIO_DATA_DIR, plik.path)
@@ -76,10 +78,40 @@ export async function GET(
         throw new ApiError('NOT_FOUND', 'plik poza katalogiem danych', 404)
       }
 
-      wpisy.push({ nazwa: nazwaPliku(plik.path), dane: await readFile(sciezka) })
+      /*
+       * Brak jednego pliku nie może wywrócić całej paczki.
+       *
+       * Wcześniej `readFile` rzucał, obsługa błędów oddawała JSON z kodem,
+       * a przeglądarka — przez `download` na odnośniku — zapisywała go jako
+       * plik o nazwie archiwum. Grafik dostawał „paczka" z treścią błędu
+       * zamiast roboty, i to przy panelu meldującym, że wszystko się zgadza
+       * (defekt SYG-001). Wiersz w bazie może przeżyć swój plik: skasowany
+       * ręcznie z dysku, przerwany zapis, pomyłka przy sprzątaniu.
+       */
+      const dane = await readFile(sciezka).catch((blad: unknown) => {
+        const kod = (blad as NodeJS.ErrnoException).code
+        if (kod !== 'ENOENT' && kod !== 'ENOTDIR') throw blad
+
+        logger.warn('plik do oddania zniknął z dysku', { orderId: id, assetId: plik.id })
+        brakujace.push(nazwaPliku(plik.path))
+        return null
+      })
+
+      if (dane !== null) {
+        wpisy.push({ nazwa: nazwaPliku(plik.path), dane })
+      }
+    }
+
+    if (wpisy.length === 0) {
+      // Żaden z plików nie istnieje — pakowanie samej karty kontrolnej byłoby
+      // gorsze niż jawna odmowa.
+      return fail('NOT_FOUND', 404)
     }
 
     const uwagi = [
+      // Brak pliku idzie na sam początek: to jedyna uwaga, przy której
+      // archiwum jest niepełne, a nie tylko gorsze, niż mogłoby być.
+      ...brakujace.map((nazwa) => `${nazwa}: pliku nie ma na dysku, nie wszedł do paczki`),
       ...pliki.flatMap((plik) =>
         sprawdzPlik(plik).map((uwaga) => `${nazwaPliku(plik.path)}: ${uwaga.tresc}`),
       ),
@@ -88,7 +120,7 @@ export async function GET(
 
     const karta = [
       `Zlecenie: ${order.name}`,
-      `Plików: ${String(pliki.length)}`,
+      `Plików w paczce: ${String(wpisy.length)} z ${String(pliki.length)}`,
       '',
       ...pliki.map(
         (plik) =>
