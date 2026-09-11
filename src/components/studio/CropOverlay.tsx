@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/primitives'
 import { messageForCode } from '@/lib/messages'
@@ -31,7 +31,16 @@ function polozenieObrazu(el: HTMLImageElement): {
   x: number
   y: number
   skala: number
-} {
+} | null {
+  /*
+   * Obraz jeszcze niezdekodowany ma `naturalWidth` równe zero. Dzielenie
+   * dawało wtedy `Infinity`, a `0 * Infinity` w wyliczeniu przesunięcia —
+   * `NaN`, który szedł dalej aż do etykiety z wymiarami. Myszą nie dało się
+   * tego zobaczyć: zanim grafik narysuje prostokąt, obraz jest już gotowy.
+   * Klawiatura trafia w to okno za pierwszym naciśnięciem strzałki.
+   */
+  if (el.naturalWidth === 0 || el.naturalHeight === 0) return null
+
   const pudelko = el.getBoundingClientRect()
   const skala = Math.min(pudelko.width / el.naturalWidth, pudelko.height / el.naturalHeight)
 
@@ -89,7 +98,10 @@ export function CropOverlay({
   function prostokatWPliku(): Prostokat | null {
     if (ramka === null || obraz === null) return null
 
-    const { x, y, skala } = polozenieObrazu(obraz)
+    const polozenie = polozenieObrazu(obraz)
+    if (polozenie === null) return null
+
+    const { x, y, skala } = polozenie
 
     const left = Math.round((ramka.left - x) / skala)
     const top = Math.round((ramka.top - y) / skala)
@@ -111,6 +123,88 @@ export function CropOverlay({
 
   const wPliku = prostokatWPliku()
   const zaMale = wPliku !== null && (wPliku.width < 100 || wPliku.height < 100)
+
+  /*
+   * Obsługa z klawiatury (SYG-010).
+   *
+   * Prostokąt rysował wyłącznie wskaźnik, więc osoba pracująca z klawiatury
+   * nie mogła przyciąć kadru w ogóle — „Przytnij" zostawał wyszarzony na
+   * zawsze, bo bez zaznaczenia `wPliku` jest puste.
+   *
+   * Model jest pozycyjny, nie gestowy: pierwsza strzałka zakłada zaznaczenie
+   * na środku kadru, strzałki je przesuwają, Alt ze strzałką zmienia rozmiar.
+   * Przy zmianie rozmiaru rusza się sam prawy dolny róg, bo lewy górny
+   * wyznacza początek wycinka i grafik trzyma go w pamięci.
+   */
+  const KROK = 16
+  const KROK_DOKLADNY = 2
+
+  /*
+   * Nasłuch na oknie, nie na warstwie rysowania. Warstwa jest z definicji
+   * nieinteraktywna (`role="presentation"`) i reguła dostępności słusznie
+   * protestuje przeciw wieszaniu na niej klawiatury. Nakładka kadrowania
+   * przykrywa cały podgląd, więc strzałki i tak nie mają tu innego znaczenia
+   * — dokładnie tak działają pozostałe skróty w tej aplikacji.
+   */
+  useEffect(() => {
+    function klawiszem(event: KeyboardEvent): void {
+      if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return
+
+      const cel = event.target
+      if (
+        cel instanceof HTMLElement &&
+        (cel.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(cel.tagName))
+      ) {
+        return
+      }
+
+      /*
+       * Faza przechwytywania i zatrzymanie propagacji, bo strzałki mają już
+       * właściciela: galeria przełącza nimi kadry. Bez tego pierwsze
+       * naciśnięcie zmieniało zaznaczony kadr i zamykało kadrowanie, zamiast
+       * założyć wycinek — nakładka przykrywa ekran, więc dopóki jest otwarta,
+       * strzałki należą do niej.
+       */
+      event.preventDefault()
+      event.stopPropagation()
+
+      const pudelko = obraz?.getBoundingClientRect()
+      if (pudelko === undefined) return
+
+      // Pierwsza strzałka zakłada zaznaczenie na środku, sześćdziesiąt procent
+      // kadru — na tyle duże, żeby było co przesuwać, i na tyle małe, żeby od
+      // razu było widać, że to wycinek, a nie całość.
+      if (start === null || teraz === null) {
+        const w = pudelko.width * 0.6
+        const h = pudelko.height * 0.6
+
+        setStart({
+          x: pudelko.left + (pudelko.width - w) / 2,
+          y: pudelko.top + (pudelko.height - h) / 2,
+        })
+        setTeraz({
+          x: pudelko.left + (pudelko.width + w) / 2,
+          y: pudelko.top + (pudelko.height + h) / 2,
+        })
+        return
+      }
+
+      const krok = event.shiftKey ? KROK_DOKLADNY : KROK
+      const dx = event.key === 'ArrowLeft' ? -krok : event.key === 'ArrowRight' ? krok : 0
+      const dy = event.key === 'ArrowUp' ? -krok : event.key === 'ArrowDown' ? krok : 0
+
+      if (event.altKey) {
+        setTeraz((punkt) => (punkt === null ? null : { x: punkt.x + dx, y: punkt.y + dy }))
+        return
+      }
+
+      setStart((punkt) => (punkt === null ? null : { x: punkt.x + dx, y: punkt.y + dy }))
+      setTeraz((punkt) => (punkt === null ? null : { x: punkt.x + dx, y: punkt.y + dy }))
+    }
+
+    window.addEventListener('keydown', klawiszem, true)
+    return () => window.removeEventListener('keydown', klawiszem, true)
+  }, [obraz, start, teraz])
 
   async function przytnij(): Promise<void> {
     if (wPliku === null) return
@@ -187,10 +281,16 @@ export function CropOverlay({
       )}
 
       <div className="absolute inset-x-0 bottom-0 flex flex-wrap items-center justify-between gap-2 bg-surface-0/90 px-3 py-2">
-        <p className="text-xs text-ink-muted">
+        <p className="text-xs tabular-nums text-ink-muted">
           {wPliku === null
-            ? 'Zaznacz prostokąt na kadrze.'
+            ? // Klawisze wymienione wprost: bez tego obsługa z klawiatury
+              // istnieje, ale nikt się o niej nie dowie.
+              'Zaznacz prostokąt na kadrze albo naciśnij strzałkę.'
             : `${String(wPliku.width)} × ${String(wPliku.height)} px${zaMale ? ' — za mały wycinek' : ''}`}
+        </p>
+
+        <p className="text-xs text-ink-muted">
+          strzałki przesuwają · Alt ze strzałką zmienia rozmiar · Shift dokładniej
         </p>
 
         {problem !== null && (
