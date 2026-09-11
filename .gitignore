@@ -23,3 +23,8 @@ spike/out/
 
 # Katalog budowania obok działającego panelu — patrz STUDIO_DIST_DIR.
 .next-audyt/
+
+# Kopia aplikacji zostawiona przez bramkę A frameworka hait. Wpadła do gałęzi
+# audytowej przez `git add -A` i trafiłaby do PUBLICZNEGO repozytorium jako
+# 212-plikowy, już rozjechany duplikat całego kodu (SYG-036, SYG-055).
+.weryfikacja/
