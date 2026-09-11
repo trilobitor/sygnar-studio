@@ -56,6 +56,15 @@ export function CropOverlay({
 }) {
   const [start, setStart] = useState<{ x: number; y: number } | null>(null)
   const [teraz, setTeraz] = useState<{ x: number; y: number } | null>(null)
+  /*
+   * Czy wskaźnik jest w tej chwili wciśnięty.
+   *
+   * Osobno od `start`, bo `start` musi przeżyć puszczenie przycisku — z niego
+   * i z `teraz` bierze się prostokąt, który pojedzie do przycięcia. Bez tej
+   * flagi ramka chodziła za kursorem także po puszczeniu, więc „Przytnij"
+   * tło inny prostokąt, niż grafik narysował (defekt SYG-002).
+   */
+  const [rysuje, setRysuje] = useState(false)
   const [tnie, setTnie] = useState(false)
   const [problem, setProblem] = useState<string | null>(null)
 
@@ -143,12 +152,25 @@ export function CropOverlay({
 
           setStart(punkt)
           setTeraz(punkt)
+          setRysuje(true)
           event.currentTarget.setPointerCapture(event.pointerId)
         }}
         onPointerMove={(event) => {
-          if (start === null) return
+          if (!rysuje) return
           setTeraz({ x: event.clientX, y: event.clientY })
         }}
+        onPointerUp={(event) => {
+          setRysuje(false)
+          event.currentTarget.releasePointerCapture(event.pointerId)
+        }}
+        /*
+         * `pointercancel` leci, gdy system przejmie wskaźnik — gest przewijania
+         * na gładziku albo drugi palec na ekranie dotykowym. Bez tego `rysuje`
+         * zostawałoby włączone na zawsze. `lostpointercapture` domyka przypadki,
+         * w których przeglądarka zwolni przechwycenie sama.
+         */
+        onPointerCancel={() => setRysuje(false)}
+        onLostPointerCapture={() => setRysuje(false)}
       />
 
       {ramka !== null && (
